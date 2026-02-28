@@ -3,7 +3,7 @@ export function createGame(root, api) {
   let animationId;
 
   // --- КОНФИГУРАЦИЯ ФАЙЛОВ (НАСТРОЙ ПОД СЕБЯ) ---
-  const ASSETS = {
+  const assets = {
     models: {
       player: './assets/run.glb',      // Основная модель (и бег)
       jump: './assets/jump.glb',       // Прыжок
