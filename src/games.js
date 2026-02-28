@@ -1,13 +1,13 @@
 export const GAMES = [
   {
-    id: "taprush",
-    tag: "Skill",
-    titleKey: { ru: "Tap Rush", en: "Tap Rush" },
+    id: "murinorun", // Изменили ID
+    tag: "3D Action",
+    titleKey: { ru: "Побег из Мурино", en: "Murino Escape" },
     descKey: {
-      ru: "Разогрев. Тапай 20 секунд — рекорд сохраняется.",
-      en: "Warm-up. Tap for 20 seconds — score is saved."
+      ru: "Беги от Фога, собирай кэш. Не оглядывайся.",
+      en: "Run from Fog, collect cash. Don't look back."
     },
-    modulePath: "../games/game1_taprush.js",
+    modulePath: "../games/game1_murinorun.js", // Новый путь
     enabled: true
   },
 
