@@ -10,9 +10,9 @@ export function createGame(root, api) {
   let speed = 0.3;
   let score = 0;
   let coinsCollected = 0;
-  let isDying = false; // Состояние смерти (когда Фог догоняет)
+  let isDying = false; 
 
-  // Lane System (3 полосы)
+  // Lane System
   const lanes = [-3, 0, 3];
   let currentLane = 1;
   let targetX = 0;
@@ -29,7 +29,7 @@ export function createGame(root, api) {
   let coins = [];
   let spawnTimer = 0;
 
-  // Reusable Materials & Geometries
+  // Reusable Materials
   let obstacleGeo, obstacleMat;
   let coinGeo, coinMat;
 
@@ -55,29 +55,44 @@ export function createGame(root, api) {
     dirLight.position.set(10, 20, -10);
     scene.add(dirLight);
 
-    // Дорога (Асфальт)
+    // Дорога и сетка
     const roadGeo = new THREE.PlaneGeometry(12, 2000);
     const roadMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
     road = new THREE.Mesh(roadGeo, roadMat);
     road.rotation.x = -Math.PI / 2;
     scene.add(road);
 
-    // Сетка поверх дороги
     gridHelper = new THREE.GridHelper(2000, 200, 0x00FF41, 0x000000);
     gridHelper.position.y = 0.01;
     scene.add(gridHelper);
 
-    // Игрок (Меллстрой)
+    // Игрок
     const playerGeo = new THREE.BoxGeometry(1.2, 2, 1.2);
     const playerMat = new THREE.MeshStandardMaterial({ color: 0xff003c });
     player = new THREE.Mesh(playerGeo, playerMat);
     player.position.y = 1;
     scene.add(player);
 
-    // ФОГ (Сущность, которая нас преследует)
-    const fogGeo = new THREE.BoxGeometry(30, 30, 10);
-    const fogMat = new THREE.MeshBasicMaterial({ color: 0x050505 }); // Практически черный
-    fogEntity = new THREE.Mesh(fogGeo, fogMat);
+    // ДЕЛАЕМ КРИПОВОГО ФОГА
+    fogEntity = new THREE.Group();
+    // Тело Фога
+    const fogBody = new THREE.Mesh(
+      new THREE.BoxGeometry(20, 20, 10), 
+      new THREE.MeshBasicMaterial({ color: 0x050505 })
+    );
+    fogEntity.add(fogBody);
+    
+    // Красные глаза Фога
+    const eyeGeo = new THREE.BoxGeometry(2, 2, 0.5);
+    const eyeMat = new THREE.MeshBasicMaterial({ color: 0xff0000 }); // Светящийся красный
+    const eyeLeft = new THREE.Mesh(eyeGeo, eyeMat);
+    eyeLeft.position.set(-4, 5, -5.1); // Сдвигаем на лицо (минус по Z)
+    fogEntity.add(eyeLeft);
+    
+    const eyeRight = new THREE.Mesh(eyeGeo, eyeMat);
+    eyeRight.position.set(4, 5, -5.1);
+    fogEntity.add(eyeRight);
+
     scene.add(fogEntity);
 
     // Ресурсы
@@ -126,23 +141,11 @@ export function createGame(root, api) {
 
   function handleKeyDown(e) {
     if (!running) return;
-    
-    // Используем e.code, чтобы работало на русской и английской раскладке!
-    if (['ArrowLeft', 'KeyA'].includes(e.code)) {
-      e.preventDefault(); // Убираем скролл экрана
-      moveLeft();
-    }
-    if (['ArrowRight', 'KeyD'].includes(e.code)) {
-      e.preventDefault();
-      moveRight();
-    }
-    if (['ArrowUp', 'KeyW', 'Space'].includes(e.code)) {
-      e.preventDefault(); // Убираем прыжок экрана вверх
-      jump();
-    }
+    if (['ArrowLeft', 'KeyA'].includes(e.code)) { e.preventDefault(); moveLeft(); }
+    if (['ArrowRight', 'KeyD'].includes(e.code)) { e.preventDefault(); moveRight(); }
+    if (['ArrowUp', 'KeyW', 'Space'].includes(e.code)) { e.preventDefault(); jump(); }
   }
 
-  // Свайпы для телефонов
   let touchStartX = 0; let touchStartY = 0;
   function handleTouchStart(e) { touchStartX = e.touches[0].clientX; touchStartY = e.touches[0].clientY; }
   function handleTouchEnd(e) {
@@ -190,13 +193,11 @@ export function createGame(root, api) {
     animationId = requestAnimationFrame(animate);
 
     if (!isDying) {
+      // ОБЫЧНАЯ ИГРА
       speed += 0.0001; 
       player.position.z -= speed;
-      
-      // Плавное перестроение
       player.position.x += (targetX - player.position.x) * 0.15;
 
-      // Прыжок
       if (isJumping) {
         player.position.y += velocityY;
         velocityY += gravity;
@@ -205,30 +206,24 @@ export function createGame(root, api) {
         }
       }
 
-      // Камера
       camera.position.z = player.position.z + 7;
       camera.position.x = player.position.x * 0.5;
       camera.position.y = player.position.y + 3;
-      camera.lookAt(player.position.x, 1, player.position.z - 10);
+      camera.lookAt(player.position.x, 1, player.position.z - 10); // Смотрим вперед
 
-      // БЕСКОНЕЧНАЯ ДОРОГА: двигаем сетку и асфальт за камерой
-      // 10 - это размер одной клетки грида (2000 / 200 = 10)
       gridHelper.position.z = Math.floor(camera.position.z / 10) * 10;
       road.position.z = camera.position.z;
 
-      // Спавн
       spawnTimer++;
       if (spawnTimer > 40 / speed) { spawnRow(); spawnTimer = 0; }
 
-      // Вращение монет
       coins.forEach(c => c.rotation.y += 0.05);
 
-      // Коллизии
       for (let i = coins.length - 1; i >= 0; i--) {
         const c = coins[i];
         if (Math.abs(c.position.z - player.position.z) < 1.2 && Math.abs(c.position.x - player.position.x) < 1.2 && player.position.y < 2.5) {
           scene.remove(c); coins.splice(i, 1);
-          coinsCollected += 1; // ТЕПЕРЬ ДАЕТ 1 КЭШ
+          coinsCollected += 1; 
           uiCoins.innerText = 'CASH: ' + coinsCollected;
         } else if (c.position.z > camera.position.z) { scene.remove(c); coins.splice(i, 1); }
       }
@@ -240,20 +235,25 @@ export function createGame(root, api) {
         } else if (obs.position.z > camera.position.z) { scene.remove(obs); obstacles.splice(i, 1); }
       }
 
-      // Бесконечные здания
       buildings.forEach(b => { if (b.position.z > camera.position.z + 10) b.position.z -= 150; });
       
       score = Math.floor(Math.abs(player.position.z));
       uiScore.innerText = 'SCORE: ' + score;
       
-      // Фог сзади, ждет ошибки
-      fogEntity.position.set(0, 5, camera.position.z + 15);
+      // Фог держится далеко позади
+      fogEntity.position.set(0, 5, camera.position.z + 30);
       
     } else {
-      // ИГРОК ВРЕЗАЛСЯ. Фог нагоняет!
-      fogEntity.position.z -= speed * 4; // Летит на игрока
-      if (fogEntity.position.z < camera.position.z - 2) {
-        // Фог сожрал камеру, показываем экран смерти
+      // ИГРОК ВРЕЗАЛСЯ! АНИМАЦИЯ СМЕРТИ
+      
+      // 1. Камера разворачивается и смотрит назад на Фога
+      camera.lookAt(fogEntity.position.x, fogEntity.position.y, fogEntity.position.z);
+      
+      // 2. Фог стремительно летит на камеру
+      fogEntity.position.z -= speed * 3;
+      
+      // 3. Если Фог пролетел сквозь камеру (сожрал) - конец
+      if (fogEntity.position.z < camera.position.z) {
         running = false;
         showGameOverUI();
       }
@@ -264,10 +264,9 @@ export function createGame(root, api) {
 
   function triggerDeath() {
     isDying = true;
-    // СРАЗУ СОХРАНЯЕМ БАЛАНС В ЛОББИ
     api.addCoins(coinsCollected);
     api.setHighScore(score);
-    api.onUiUpdate(); // Обновляет цифры на главном сайте
+    api.onUiUpdate(); 
   }
 
   function showGameOverUI() {
@@ -276,7 +275,6 @@ export function createGame(root, api) {
     document.getElementById('goCoins').innerText = '+' + coinsCollected;
   }
 
-  // Функция полного сброса для кнопки Рестарт
   function resetGame() {
     speed = 0.3; score = 0; coinsCollected = 0;
     currentLane = 1; targetX = lanes[currentLane];
@@ -311,7 +309,6 @@ export function createGame(root, api) {
     if (running) return;
     running = true;
     
-    // UI прямо поверх канваса (чтобы ничего не мешало фуллскрину)
     const uiContainer = document.createElement('div');
     uiContainer.style.position = 'absolute';
     uiContainer.style.top = '15px';
@@ -339,11 +336,10 @@ export function createGame(root, api) {
     uiCoins.innerText = 'CASH: 0';
     uiContainer.appendChild(uiCoins);
 
-    // Экран смерти (Game Over)
     overlay = document.createElement('div');
     overlay.style.position = 'absolute';
     overlay.style.inset = '0';
-    overlay.style.backgroundColor = 'rgba(0, 0, 0, 0.9)'; // Темнеет, потому что Фог съел
+    overlay.style.backgroundColor = 'rgba(0, 0, 0, 0.9)'; 
     overlay.style.zIndex = '20';
     overlay.style.display = 'none';
     overlay.style.flexDirection = 'column';
@@ -359,7 +355,6 @@ export function createGame(root, api) {
     `;
     root.appendChild(overlay);
 
-    // Слушатель на Рестарт
     overlay.querySelector('#btnInGameRestart').addEventListener('click', resetGame);
 
     init3D();
