@@ -1,1 +1,67 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Mini Lobby</title>
+  <meta name="description" content="Лобби мини-игр: быстрые катки, мем-вибра, мобайл-оптимизация." />
 
+  <link rel="stylesheet" href="./src/styles.css" />
+</head>
+
+<body>
+  <div id="app">
+    <header class="topbar">
+      <div class="brand" role="button" tabindex="0" data-nav="#/lobby">
+        <div class="brand__logo" aria-hidden="true"></div>
+        <div class="brand__text">
+          <div class="brand__title">MINI LOBBY</div>
+          <div class="brand__sub" data-i18n="tagline">Fast. Mobile. Addictive.</div>
+        </div>
+      </div>
+
+      <div class="topbar__right">
+        <button class="iconbtn" id="btnRandom" title="Random game" aria-label="Random game">🎲</button>
+
+        <div class="statpill" title="Coins">
+          <span class="dot dot--coin" aria-hidden="true"></span>
+          <span data-i18n="coins">Coins</span>:
+          <strong id="uiCoins">0</strong>
+        </div>
+
+        <div class="statpill" title="XP">
+          <span class="dot dot--xp" aria-hidden="true"></span>
+          <span>XP</span>:
+          <strong id="uiXp">0</strong>
+        </div>
+
+        <button class="iconbtn" id="btnLang" title="Language" aria-label="Language">🌐</button>
+        <button class="iconbtn" id="btnMute" title="Sound" aria-label="Sound">🔇</button>
+        <button class="iconbtn" id="btnMenu" title="Menu" aria-label="Menu">☰</button>
+      </div>
+    </header>
+
+    <main id="view" class="view" aria-live="polite"></main>
+
+    <footer class="bottombar">
+      <button class="navbtn" data-nav="#/lobby">🏠 <span data-i18n="nav_lobby">Lobby</span></button>
+      <button class="navbtn" data-nav="#/battlepass">🎫 <span data-i18n="nav_pass">Pass</span></button>
+      <button class="navbtn" data-nav="#/achievements">🏆 <span data-i18n="nav_ach">Achievements</span></button>
+      <button class="navbtn" data-nav="#/scores">📈 <span data-i18n="nav_scores">Scores</span></button>
+    </footer>
+  </div>
+
+  <div id="modal" class="modal__backdrop" style="display:none;">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="mTitle">
+      <div class="modal__head">
+        <h3 id="mTitle">Info</h3>
+        <button class="iconbtn" id="mClose" aria-label="Close">✕</button>
+      </div>
+      <p id="mText" class="muted"></p>
+      <div class="modal__actions" id="mActions"></div>
+    </div>
+  </div>
+
+  <script type="module" src="./src/app.js"></script>
+</body>
+</html>
