@@ -4,17 +4,19 @@ export function createGame(root, api) {
 
   // Three.js Core
   let scene, camera, renderer, player;
-  
+  let road, gridHelper, fogEntity;
+
   // Game State
   let speed = 0.3;
   let score = 0;
   let coinsCollected = 0;
-  
+  let isDying = false; // Состояние смерти (когда Фог догоняет)
+
   // Lane System (3 полосы)
-  const lanes = [-3, 0, 3]; // X координаты полос
-  let currentLane = 1;      // Начинаем по центру (индекс 1)
+  const lanes = [-3, 0, 3];
+  let currentLane = 1;
   let targetX = 0;
-  
+
   // Physics (Jump)
   let velocityY = 0;
   const gravity = -0.015;
@@ -27,7 +29,7 @@ export function createGame(root, api) {
   let coins = [];
   let spawnTimer = 0;
 
-  // Reusable Materials & Geometries (для оптимизации)
+  // Reusable Materials & Geometries
   let obstacleGeo, obstacleMat;
   let coinGeo, coinMat;
 
@@ -36,13 +38,13 @@ export function createGame(root, api) {
 
   function init3D() {
     scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x333333); 
+    scene.background = new THREE.Color(0x333333);
     scene.fog = new THREE.Fog(0x333333, 10, 60);
 
     const width = root.clientWidth || 400;
     const height = root.clientHeight || 400;
     camera = new THREE.PerspectiveCamera(70, width / height, 0.1, 1000);
-    
+
     renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(width, height);
     root.appendChild(renderer.domElement);
@@ -53,15 +55,15 @@ export function createGame(root, api) {
     dirLight.position.set(10, 20, -10);
     scene.add(dirLight);
 
-    // Дорога
+    // Дорога (Асфальт)
     const roadGeo = new THREE.PlaneGeometry(12, 2000);
     const roadMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
-    const road = new THREE.Mesh(roadGeo, roadMat);
+    road = new THREE.Mesh(roadGeo, roadMat);
     road.rotation.x = -Math.PI / 2;
     scene.add(road);
 
-    // Сетка
-    const gridHelper = new THREE.GridHelper(2000, 200, 0x00FF41, 0x000000);
+    // Сетка поверх дороги
+    gridHelper = new THREE.GridHelper(2000, 200, 0x00FF41, 0x000000);
     gridHelper.position.y = 0.01;
     scene.add(gridHelper);
 
@@ -72,14 +74,19 @@ export function createGame(root, api) {
     player.position.y = 1;
     scene.add(player);
 
-    // Инициализация ресурсов для препятствий и монет
-    obstacleGeo = new THREE.BoxGeometry(2, 2, 2);
-    obstacleMat = new THREE.MeshStandardMaterial({ color: 0x111111 }); // Темные блоки
-    
-    coinGeo = new THREE.OctahedronGeometry(0.6);
-    coinMat = new THREE.MeshStandardMaterial({ color: 0xFFD700, emissive: 0xaa8800 }); // Золото
+    // ФОГ (Сущность, которая нас преследует)
+    const fogGeo = new THREE.BoxGeometry(30, 30, 10);
+    const fogMat = new THREE.MeshBasicMaterial({ color: 0x050505 }); // Практически черный
+    fogEntity = new THREE.Mesh(fogGeo, fogMat);
+    scene.add(fogEntity);
 
-    // Спавн зданий по краям
+    // Ресурсы
+    obstacleGeo = new THREE.BoxGeometry(2, 2, 2);
+    obstacleMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
+    coinGeo = new THREE.OctahedronGeometry(0.6);
+    coinMat = new THREE.MeshStandardMaterial({ color: 0xFFD700, emissive: 0xaa8800 });
+
+    // Здания
     const bGeo = new THREE.BoxGeometry(4, 20, 4);
     const bMat = new THREE.MeshStandardMaterial({ color: 0x444444 });
     for (let i = 0; i < 30; i++) {
@@ -96,25 +103,22 @@ export function createGame(root, api) {
   }
 
   // --- УПРАВЛЕНИЕ ---
-  let touchStartX = 0;
-  let touchStartY = 0;
-
   function moveLeft() {
-    if (currentLane > 0) {
+    if (currentLane > 0 && !isDying) {
       currentLane--;
       targetX = lanes[currentLane];
     }
   }
 
   function moveRight() {
-    if (currentLane < 2) {
+    if (currentLane < 2 && !isDying) {
       currentLane++;
       targetX = lanes[currentLane];
     }
   }
 
   function jump() {
-    if (!isJumping) {
+    if (!isJumping && !isDying) {
       isJumping = true;
       velocityY = jumpPower;
     }
@@ -122,38 +126,38 @@ export function createGame(root, api) {
 
   function handleKeyDown(e) {
     if (!running) return;
-    if (e.key === 'ArrowLeft' || e.key === 'a') moveLeft();
-    if (e.key === 'ArrowRight' || e.key === 'd') moveRight();
-    if (e.key === 'ArrowUp' || e.key === 'w' || e.key === ' ') jump();
-  }
-
-  function handleTouchStart(e) {
-    touchStartX = e.touches[0].clientX;
-    touchStartY = e.touches[0].clientY;
-  }
-
-  function handleTouchEnd(e) {
-    if (!running) return;
-    const touchEndX = e.changedTouches[0].clientX;
-    const touchEndY = e.changedTouches[0].clientY;
     
-    const dx = touchEndX - touchStartX;
-    const dy = touchEndY - touchStartY;
+    // Используем e.code, чтобы работало на русской и английской раскладке!
+    if (['ArrowLeft', 'KeyA'].includes(e.code)) {
+      e.preventDefault(); // Убираем скролл экрана
+      moveLeft();
+    }
+    if (['ArrowRight', 'KeyD'].includes(e.code)) {
+      e.preventDefault();
+      moveRight();
+    }
+    if (['ArrowUp', 'KeyW', 'Space'].includes(e.code)) {
+      e.preventDefault(); // Убираем прыжок экрана вверх
+      jump();
+    }
+  }
 
+  // Свайпы для телефонов
+  let touchStartX = 0; let touchStartY = 0;
+  function handleTouchStart(e) { touchStartX = e.touches[0].clientX; touchStartY = e.touches[0].clientY; }
+  function handleTouchEnd(e) {
+    if (!running || isDying) return;
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    const dy = e.changedTouches[0].clientY - touchStartY;
     if (Math.abs(dx) > Math.abs(dy)) {
-      // Свайп по горизонтали
-      if (Math.abs(dx) > 30) { // порог свайпа
-        if (dx > 0) moveRight();
-        else moveLeft();
-      }
+      if (Math.abs(dx) > 30) { dx > 0 ? moveRight() : moveLeft(); }
     } else {
-      // Свайп по вертикали
-      if (dy < -30) jump(); // Свайп вверх
+      if (dy < -30) jump();
     }
   }
 
   function setupControls() {
-    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown, { passive: false });
     root.addEventListener('touchstart', handleTouchStart);
     root.addEventListener('touchend', handleTouchEnd);
   }
@@ -164,130 +168,134 @@ export function createGame(root, api) {
     root.removeEventListener('touchend', handleTouchEnd);
   }
 
-  // --- ГЕНЕРАЦИЯ ОБЪЕКТОВ ---
   function spawnRow() {
-    // Выбираем случайную полосу для препятствия
+    if(isDying) return;
     const obsLane = Math.floor(Math.random() * 3);
-    
     const obs = new THREE.Mesh(obstacleGeo, obstacleMat);
-    obs.position.set(lanes[obsLane], 1, player.position.z - 60);
+    obs.position.set(lanes[obsLane], 1, player.position.z - 70);
     scene.add(obs);
     obstacles.push(obs);
 
-    // Монетки спавним в других полосах
     const coinLane = Math.floor(Math.random() * 3);
     if (coinLane !== obsLane) {
       const coin = new THREE.Mesh(coinGeo, coinMat);
-      coin.position.set(lanes[coinLane], 1, player.position.z - 60);
+      coin.position.set(lanes[coinLane], 1, player.position.z - 70);
       scene.add(coin);
       coins.push(coin);
     }
   }
 
-  // --- ИГРОВОЙ ЦИКЛ ---
   function animate() {
     if (!running) return;
     animationId = requestAnimationFrame(animate);
 
-    // Постепенное увеличение скорости
-    speed += 0.0001; 
+    if (!isDying) {
+      speed += 0.0001; 
+      player.position.z -= speed;
+      
+      // Плавное перестроение
+      player.position.x += (targetX - player.position.x) * 0.15;
 
-    // Движение вперед
-    player.position.z -= speed;
-    
-    // Плавное перестроение между полосами (Lerp)
-    player.position.x += (targetX - player.position.x) * 0.15;
+      // Прыжок
+      if (isJumping) {
+        player.position.y += velocityY;
+        velocityY += gravity;
+        if (player.position.y <= 1) { 
+          player.position.y = 1; isJumping = false; velocityY = 0;
+        }
+      }
 
-    // Гравитация и прыжок
-    if (isJumping) {
-      player.position.y += velocityY;
-      velocityY += gravity;
-      if (player.position.y <= 1) { // Упал на землю
-        player.position.y = 1;
-        isJumping = false;
-        velocityY = 0;
+      // Камера
+      camera.position.z = player.position.z + 7;
+      camera.position.x = player.position.x * 0.5;
+      camera.position.y = player.position.y + 3;
+      camera.lookAt(player.position.x, 1, player.position.z - 10);
+
+      // БЕСКОНЕЧНАЯ ДОРОГА: двигаем сетку и асфальт за камерой
+      // 10 - это размер одной клетки грида (2000 / 200 = 10)
+      gridHelper.position.z = Math.floor(camera.position.z / 10) * 10;
+      road.position.z = camera.position.z;
+
+      // Спавн
+      spawnTimer++;
+      if (spawnTimer > 40 / speed) { spawnRow(); spawnTimer = 0; }
+
+      // Вращение монет
+      coins.forEach(c => c.rotation.y += 0.05);
+
+      // Коллизии
+      for (let i = coins.length - 1; i >= 0; i--) {
+        const c = coins[i];
+        if (Math.abs(c.position.z - player.position.z) < 1.2 && Math.abs(c.position.x - player.position.x) < 1.2 && player.position.y < 2.5) {
+          scene.remove(c); coins.splice(i, 1);
+          coinsCollected += 1; // ТЕПЕРЬ ДАЕТ 1 КЭШ
+          uiCoins.innerText = 'CASH: ' + coinsCollected;
+        } else if (c.position.z > camera.position.z) { scene.remove(c); coins.splice(i, 1); }
+      }
+
+      for (let i = obstacles.length - 1; i >= 0; i--) {
+        const obs = obstacles[i];
+        if (Math.abs(obs.position.z - player.position.z) < 1.2 && Math.abs(obs.position.x - player.position.x) < 1.2 && player.position.y < 2) {
+          triggerDeath();
+        } else if (obs.position.z > camera.position.z) { scene.remove(obs); obstacles.splice(i, 1); }
+      }
+
+      // Бесконечные здания
+      buildings.forEach(b => { if (b.position.z > camera.position.z + 10) b.position.z -= 150; });
+      
+      score = Math.floor(Math.abs(player.position.z));
+      uiScore.innerText = 'SCORE: ' + score;
+      
+      // Фог сзади, ждет ошибки
+      fogEntity.position.set(0, 5, camera.position.z + 15);
+      
+    } else {
+      // ИГРОК ВРЕЗАЛСЯ. Фог нагоняет!
+      fogEntity.position.z -= speed * 4; // Летит на игрока
+      if (fogEntity.position.z < camera.position.z - 2) {
+        // Фог сожрал камеру, показываем экран смерти
+        running = false;
+        showGameOverUI();
       }
     }
-
-    // Камера следует за игроком
-    camera.position.z = player.position.z + 7;
-    camera.position.x = player.position.x * 0.5; // Легкий сдвиг камеры
-    camera.position.y = player.position.y + 3;
-    camera.lookAt(player.position.x, 1, player.position.z - 10);
-
-    // Спавн новых препятствий
-    spawnTimer++;
-    if (spawnTimer > 40 / speed) {
-      spawnRow();
-      spawnTimer = 0;
-    }
-
-    // Вращение монеток
-    coins.forEach(c => c.rotation.y += 0.05);
-
-    // --- ПРОВЕРКА КОЛЛИЗИЙ ---
-    const hitDistance = 1.2;
-
-    // Сбор монет
-    for (let i = coins.length - 1; i >= 0; i--) {
-      const c = coins[i];
-      if (Math.abs(c.position.z - player.position.z) < hitDistance &&
-          Math.abs(c.position.x - player.position.x) < hitDistance &&
-          player.position.y < 2.5) { // Нельзя собрать монету, если перепрыгнул слишком высоко
-        scene.remove(c);
-        coins.splice(i, 1);
-        coinsCollected += 10;
-        uiCoins.innerText = 'CASH: ' + coinsCollected;
-      }
-      // Удаление пропущенных монет
-      else if (c.position.z > camera.position.z) {
-        scene.remove(c);
-        coins.splice(i, 1);
-      }
-    }
-
-    // Врезание в препятствия
-    for (let i = obstacles.length - 1; i >= 0; i--) {
-      const obs = obstacles[i];
-      if (Math.abs(obs.position.z - player.position.z) < hitDistance &&
-          Math.abs(obs.position.x - player.position.x) < hitDistance &&
-          player.position.y < 2) { 
-        // ВРЕЗАЛИСЬ!
-        gameOver();
-        return;
-      }
-      // Удаление пройденных
-      else if (obs.position.z > camera.position.z) {
-        scene.remove(obs);
-        obstacles.splice(i, 1);
-      }
-    }
-
-    // Бесконечный город
-    buildings.forEach(b => {
-      if (b.position.z > camera.position.z + 10) {
-        b.position.z -= 150;
-      }
-    });
-
-    // Очки (Пройденная дистанция)
-    score = Math.floor(Math.abs(player.position.z));
-    uiScore.innerText = 'SCORE: ' + score;
 
     renderer.render(scene, camera);
   }
 
-  function gameOver() {
-    running = false;
-    
-    // Сохраняем прогресс в основной профиль
+  function triggerDeath() {
+    isDying = true;
+    // СРАЗУ СОХРАНЯЕМ БАЛАНС В ЛОББИ
     api.addCoins(coinsCollected);
     api.setHighScore(score);
-    
-    // Показываем экран смерти
+    api.onUiUpdate(); // Обновляет цифры на главном сайте
+  }
+
+  function showGameOverUI() {
     overlay.style.display = 'flex';
     document.getElementById('goScore').innerText = score;
     document.getElementById('goCoins').innerText = '+' + coinsCollected;
+  }
+
+  // Функция полного сброса для кнопки Рестарт
+  function resetGame() {
+    speed = 0.3; score = 0; coinsCollected = 0;
+    currentLane = 1; targetX = lanes[currentLane];
+    isJumping = false; velocityY = 0; isDying = false;
+    
+    player.position.set(targetX, 1, 0);
+    camera.position.set(0, 4, 7);
+    
+    obstacles.forEach(o => scene.remove(o)); obstacles = [];
+    coins.forEach(c => scene.remove(c)); coins = [];
+    
+    buildings.forEach(b => b.position.z = - (Math.random() * 150));
+    
+    overlay.style.display = 'none';
+    uiScore.innerText = 'SCORE: 0';
+    uiCoins.innerText = 'CASH: 0';
+    
+    running = true;
+    animate();
   }
 
   function onWindowResize() {
@@ -302,20 +310,23 @@ export function createGame(root, api) {
   function startRun() {
     if (running) return;
     running = true;
-    root.innerHTML = '';
     
-    // Создаем UI (Очки и Монеты)
+    // UI прямо поверх канваса (чтобы ничего не мешало фуллскрину)
     const uiContainer = document.createElement('div');
     uiContainer.style.position = 'absolute';
-    uiContainer.style.top = '10px';
-    uiContainer.style.left = '10px';
-    uiContainer.style.pointerEvents = 'none'; // Чтобы не мешать свайпам
+    uiContainer.style.top = '15px';
+    uiContainer.style.left = '50%';
+    uiContainer.style.transform = 'translateX(-50%)';
+    uiContainer.style.pointerEvents = 'none';
+    uiContainer.style.display = 'flex';
+    uiContainer.style.gap = '20px';
+    uiContainer.style.zIndex = '10';
     root.appendChild(uiContainer);
 
     uiScore = document.createElement('div');
     uiScore.style.color = '#fff';
     uiScore.style.fontFamily = 'Impact';
-    uiScore.style.fontSize = '20px';
+    uiScore.style.fontSize = '24px';
     uiScore.style.textShadow = '2px 2px 0 #000';
     uiScore.innerText = 'SCORE: 0';
     uiContainer.appendChild(uiScore);
@@ -323,17 +334,17 @@ export function createGame(root, api) {
     uiCoins = document.createElement('div');
     uiCoins.style.color = '#00FF41';
     uiCoins.style.fontFamily = 'Impact';
-    uiCoins.style.fontSize = '20px';
+    uiCoins.style.fontSize = '24px';
     uiCoins.style.textShadow = '2px 2px 0 #000';
     uiCoins.innerText = 'CASH: 0';
     uiContainer.appendChild(uiCoins);
 
-    // Экран смерти (Game Over Overlay)
+    // Экран смерти (Game Over)
     overlay = document.createElement('div');
     overlay.style.position = 'absolute';
     overlay.style.inset = '0';
-    overlay.style.backgroundColor = 'rgba(255, 0, 60, 0.4)'; // Красный флеш
-    overlay.style.backdropFilter = 'blur(4px)';
+    overlay.style.backgroundColor = 'rgba(0, 0, 0, 0.9)'; // Темнеет, потому что Фог съел
+    overlay.style.zIndex = '20';
     overlay.style.display = 'none';
     overlay.style.flexDirection = 'column';
     overlay.style.alignItems = 'center';
@@ -341,22 +352,22 @@ export function createGame(root, api) {
     overlay.style.color = '#fff';
     overlay.style.fontFamily = 'Impact';
     overlay.innerHTML = `
-      <h1 style="font-size: 40px; margin: 0; text-shadow: 2px 2px 0 #000;">ФОГ ПОЙМАЛ ТЕБЯ!</h1>
+      <h1 style="font-size: 40px; margin: 0; color: #FF003C;">ФОГ ПОЙМАЛ ТЕБЯ!</h1>
       <h2 style="margin: 10px 0;">SCORE: <span id="goScore">0</span></h2>
       <h2 style="color: #00FF41; margin: 0;">КЭШ: <span id="goCoins">0</span></h2>
-      <p style="font-family: sans-serif; font-size: 14px; margin-top: 20px;">Нажми Restart сверху</p>
+      <button id="btnInGameRestart" class="btn" style="margin-top: 30px; width: 200px; font-size: 20px;">ПОВТОРИТЬ</button>
     `;
     root.appendChild(overlay);
-    root.style.position = 'relative';
+
+    // Слушатель на Рестарт
+    overlay.querySelector('#btnInGameRestart').addEventListener('click', resetGame);
 
     init3D();
     animate();
   }
 
   return {
-    start() {
-      startRun();
-    },
+    start() { startRun(); },
     stop() {
       running = false;
       cancelAnimationFrame(animationId);
