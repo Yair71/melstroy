@@ -12,15 +12,15 @@ export function createGame(root, api) {
       dance2: './assets/dance2.glb'    // Танец 2
     },
     textures: {
-      fog: './assets/fog.jpg',         // Лицо Фога
+      fog: './assets/fog.png',         // Лицо Фога
       roads: [
-        './assets/road1.jpg', 
-        './assets/road2.jpg', 
-        './assets/road3.jpg'
+        './assets/road1.png', 
+        './assets/road2.png', 
+        './assets/road3.png'
       ],
       buildings: [
-        './assets/building1.jpg', 
-        './assets/building2.jpg'
+        './assets/building1.png', 
+        './assets/building2.png'
       ]
     },
     video: './assets/meme.webm'        // Видео-мем (webm или mp4)
