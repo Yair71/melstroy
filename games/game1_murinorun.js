@@ -94,16 +94,16 @@ export function createGame(root, api) {
   async function preloadAssets() {
     try {
       // 1. Грузим текстуры
-      loadedTextures.fog = await loadTexture(ASSETS.textures.fog);
-      loadedTextures.roads = await Promise.all(ASSETS.textures.roads.map(url => loadTexture(url)));
-      loadedTextures.buildings = await Promise.all(ASSETS.textures.buildings.map(url => loadTexture(url)));
+      loadedTextures.fog = await loadTexture(assets.textures.fog);
+      loadedTextures.roads = await Promise.all(assets.textures.roads.map(url => loadTexture(url)));
+      loadedTextures.buildings = await Promise.all(assets.textures.buildings.map(url => loadTexture(url)));
 
       // Настраиваем повторение для дорог и зданий
       loadedTextures.roads.forEach(tex => { tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.repeat.set(1, 10); });
       loadedTextures.buildings.forEach(tex => { tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.repeat.set(2, 5); });
 
       // 2. Грузим основную модель Меллстроя (в ней же лежит анимация бега)
-      const playerGltf = await loadGLTF(ASSETS.models.player);
+      const playerGltf = await loadGLTF(assets.models.player);
       playerModel = playerGltf.scene;
       
       // Настраиваем тени и размер модели
@@ -114,13 +114,13 @@ export function createGame(root, api) {
       animations['run'] = playerGltf.animations[0];
 
       // 3. Грузим остальные анимации и вытаскиваем их
-      const jumpGltf = await loadGLTF(ASSETS.models.jump);
+      const jumpGltf = await loadGLTF(assets.models.running Jump);
       animations['jump'] = jumpGltf.animations[0];
 
-      const fallGltf = await loadGLTF(ASSETS.models.fall);
+      const fallGltf = await loadGLTF(assets.models.fall);
       animations['fall'] = fallGltf.animations[0];
 
-      const dance1Gltf = await loadGLTF(ASSETS.models.dance1);
+      const dance1Gltf = await loadGLTF(ASSETS.models.dance);
       animations['dance1'] = dance1Gltf.animations[0];
 
       const dance2Gltf = await loadGLTF(ASSETS.models.dance2);
