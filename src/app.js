@@ -184,9 +184,11 @@ async function renderGame(gameId) {
           <div class="muted" style="font-size:13px;">${gameDesc(g)}</div>
         </div>
         <div style="display:flex; gap:10px; flex-wrap:wrap;">
-          <button class="btn" id="btnBack">${t("back")}</button>
-          <button class="btn" id="btnRestart">Restart</button>
-        </div>
+  <button class="btn" id="btnBack">${t("back")}</button>
+  <button class="btn" id="btnRestart">Restart</button>
+  <button class="btn" id="btnFullscreen">⛶ Fullscreen</button>
+  <button class="btn" id="btnLandscape">📱 Landscape</button>
+</div>
       </div>
       <div class="gameCanvas" id="gameMount"></div>
     </div>
@@ -217,12 +219,44 @@ async function renderGame(gameId) {
   currentGame.start?.();
 
   document.getElementById("btnRestart").addEventListener("click", () => {
+
     currentGame?.stop?.();
     mount.innerHTML = "";
     currentGame = mod.createGame(mount, api);
     currentGame.start?.();
   });
+  // Fullscreen toggle
+  const fsBtn = document.getElementById("btnFullscreen");
+  fsBtn.addEventListener("click", async () => {
+    try {
+      if (!document.fullscreenElement) {
+        await document.documentElement.requestFullscreen();
+      } else {
+        await document.exitFullscreen();
+      }
+    } catch (e) {
+      openModal("Fullscreen", "Браузер заблокировал fullscreen (или не поддерживает).");
+    }
+  });
 
+  // Best-effort landscape lock (works best on Android Chrome; iOS Safari часто блокирует)
+  const landBtn = document.getElementById("btnLandscape");
+  landBtn.addEventListener("click", async () => {
+    try {
+      // многие браузеры требуют fullscreen перед lock
+      if (!document.fullscreenElement) {
+        await document.documentElement.requestFullscreen();
+      }
+      if (screen.orientation && screen.orientation.lock) {
+        await screen.orientation.lock("landscape");
+        openModal("Landscape", "Ориентация залочена (если устройство поддерживает).");
+      } else {
+        openModal("Landscape", "Этот браузер не умеет lock. Поверни телефон вручную 🙃");
+      }
+    } catch (e) {
+      openModal("Landscape", "Браузер не дал залочить ориентацию. Поверни телефон вручную 🙃");
+    }
+  });
   updateProfile(p => { p.lastPlayedAt = Date.now(); });
   renderTop();
   applyI18n(document);
