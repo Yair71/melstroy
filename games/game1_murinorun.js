@@ -5,10 +5,10 @@ export function createGame(root, api) {
   // --- КОНФИГУРАЦИЯ ФАЙЛОВ (НАСТРОЙ ПОД СЕБЯ) ---
   const assets = {
     models: {
-      player: './assets/run.glb',      // Основная модель (и бег)
-      jump: './assets/jump.glb',       // Прыжок
+      player: './assets/Running.glb',      // Основная модель (и бег)
+      jump: './assets/running Jump.glb',       // Прыжок
       fall: './assets/fall.glb',       // Падение при смерти
-      dance1: './assets/dance1.glb',   // Танец 1
+      dance1: './assets/dance.glb',   // Танец 1
       dance2: './assets/dance2.glb'    // Танец 2
     },
     textures: {
