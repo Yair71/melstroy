@@ -2,68 +2,68 @@ export function createGame(root, api) {
   let running = false;
   let animationId;
 
-  // --- КОНФИГУРАЦИЯ ФАЙЛОВ (НАСТРОЙ ПОД СЕБЯ) ---
+  // --- CONFIGURATION ---
+  // Paths updated to perfectly match your screenshot
   const assets = {
     models: {
-      player: './assets/Running.glb',      // Основная модель (и бег)
-      jump: './assets/running Jump.glb',       // Прыжок
-      fall: './assets/fall.glb',       // Падение при смерти
-      dance1: './assets/dance.glb',   // Танец 1
-      dance2: './assets/dance2.glb'    // Танец 2
+      player: './assets/Running.glb',
+      jump: './assets/running Jump.glb',
+      fall: './assets/fall.glb',
+      dance1: './assets/dance.glb',
+      dance2: './assets/dance2.glb'
     },
     textures: {
-      fog: './assets/fog.png',         // Лицо Фога
+      fog: './assets/fog.png',
       roads: [
-        './assets/road1.png', 
-        './assets/road2.png', 
-        './assets/road3.png'
+        './assets/road1 (1).png', 
+        './assets/road2 (1).png', 
+        './assets/road3 (1).png'
       ],
       buildings: [
-        './assets/building1.png', 
-        './assets/building2.png'
+        './assets/building4 (1).png', 
+        './assets/building5 (1).png'
       ]
     },
-    video: './assets/meme.webm'        // Видео-мем (webm или mp4)
+    video: './assets/mel.webm' // Meme fallback
   };
 
-  // --- ЯДРО THREE.JS ---
+  // --- THREE.JS CORE ---
   let scene, camera, renderer, dummyCamera;
   let clock;
   
-  // --- ИГРОК И АНИМАЦИИ ---
+  // --- PLAYER & ANIMATIONS ---
   let playerGroup, playerModel, mixer;
-  let animations = {}; // Хранилище загруженных анимаций
+  let animations = {}; 
   let currentAction;
 
-  // --- ОКРУЖЕНИЕ ---
+  // --- ENVIRONMENT ---
   let fogEntity;
   let roadMeshes = [];
   let buildings = [];
   let obstacles = [];
   let coins = [];
   
-  // Материалы и геометрии
   let loadedTextures = {};
   let obstacleGeo, obstacleMat;
   let coinGeo, coinMat;
 
-  // --- ИГРОВЫЕ СОСТОЯНИЯ ---
+  // --- GAME STATES ---
   const STATE = { LOADING: 0, INTRO: 1, TRANSITION: 2, PLAYING: 3, DYING: 4 };
   let gameState = STATE.LOADING;
 
-  // Переменные логики
+  // --- LOGIC VARIABLES ---
   let speed = 0.3;
   let score = 0;
   let coinsCollected = 0;
   let deathTimer = 0; 
   let spawnTimer = 0;
 
-  // Полосы
+  // Lanes
   const lanes = [-3, 0, 3];
   let currentLane = 1;
   let targetX = 0;
 
-  // Прыжок
+  // Physics
   let velocityY = 0;
   const gravity = -0.015;
   const jumpPower = 0.3;
@@ -72,7 +72,7 @@ export function createGame(root, api) {
   // UI
   let uiLayer, loadingText, introText, videoElement, gameUI, overlayGameOver;
 
-  // --- 1. ЗАГРУЗЧИК АССЕТОВ ---
+  // --- 1. ASSET LOADER ---
   function loadGLTF(url) {
     return new Promise((resolve, reject) => {
       const loader = new THREE.GLTFLoader();
@@ -84,7 +84,6 @@ export function createGame(root, api) {
     return new Promise((resolve, reject) => {
       const loader = new THREE.TextureLoader();
       loader.load(url, (tex) => {
-        // Делаем текстуры четкими
         tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
         resolve(tex);
       }, undefined, reject);
@@ -93,49 +92,44 @@ export function createGame(root, api) {
 
   async function preloadAssets() {
     try {
-      // 1. Грузим текстуры
+      // 1. Load Textures
       loadedTextures.fog = await loadTexture(assets.textures.fog);
       loadedTextures.roads = await Promise.all(assets.textures.roads.map(url => loadTexture(url)));
       loadedTextures.buildings = await Promise.all(assets.textures.buildings.map(url => loadTexture(url)));
 
-      // Настраиваем повторение для дорог и зданий
       loadedTextures.roads.forEach(tex => { tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.repeat.set(1, 10); });
       loadedTextures.buildings.forEach(tex => { tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.repeat.set(2, 5); });
 
-      // 2. Грузим основную модель Меллстроя (в ней же лежит анимация бега)
+      // 2. Load Main Model
       const playerGltf = await loadGLTF(assets.models.player);
       playerModel = playerGltf.scene;
-      
-      // Настраиваем тени и размер модели
-      playerModel.scale.set(1, 1, 1); // Подстрой масштаб, если он гигантский (например 0.01)
+      playerModel.scale.set(1, 1, 1); 
       playerModel.position.set(0, 0, 0);
       
       mixer = new THREE.AnimationMixer(playerModel);
       animations['run'] = playerGltf.animations[0];
 
-      // 3. Грузим остальные анимации и вытаскиваем их
-      const jumpGltf = await loadGLTF(assets.models.running Jump);
+      // 3. Load Additional Animations (Fixed Object References)
+      const jumpGltf = await loadGLTF(assets.models.jump);
       animations['jump'] = jumpGltf.animations[0];
 
       const fallGltf = await loadGLTF(assets.models.fall);
       animations['fall'] = fallGltf.animations[0];
 
-      const dance1Gltf = await loadGLTF(ASSETS.models.dance);
+      const dance1Gltf = await loadGLTF(assets.models.dance1);
       animations['dance1'] = dance1Gltf.animations[0];
 
-      const dance2Gltf = await loadGLTF(ASSETS.models.dance2);
+      const dance2Gltf = await loadGLTF(assets.models.dance2);
       animations['dance2'] = dance2Gltf.animations[0];
 
-      // Запускаем интро
       setupWorld();
       startIntro();
     } catch (e) {
-      console.error("Ошибка загрузки:", e);
-      loadingText.innerText = "ОШИБКА ЗАГРУЗКИ. Проверь пути в ASSETS.";
+      console.error("Asset loading error:", e);
+      if (loadingText) loadingText.innerText = "ОШИБКА ЗАГРУЗКИ. Проверь пути в ASSETS.";
     }
   }
 
-  // Смена анимаций с плавным переходом
   function playAnim(name, fadeTime = 0.2) {
     if (!animations[name]) return;
     const action = mixer.clipAction(animations[name]);
@@ -145,14 +139,14 @@ export function createGame(root, api) {
     currentAction = action;
   }
 
-  // --- 2. ИНИЦИАЛИЗАЦИЯ МИРА ---
+  // --- 2. WORLD INIT ---
   function init3D() {
     scene = new THREE.Scene();
     scene.background = new THREE.Color(0x222222);
     scene.fog = new THREE.Fog(0x222222, 10, 80);
 
-    const width = root.clientWidth || 400;
-    const height = root.clientHeight || 400;
+    const width = root.clientWidth || window.innerWidth;
+    const height = root.clientHeight || window.innerHeight;
     
     camera = new THREE.PerspectiveCamera(70, width / height, 0.1, 1000);
     dummyCamera = new THREE.PerspectiveCamera(70, width / height, 0.1, 1000);
@@ -176,13 +170,11 @@ export function createGame(root, api) {
   }
 
   function setupWorld() {
-    // 1. Игрок
     playerGroup = new THREE.Group();
     playerGroup.position.set(targetX, 0, 0);
     playerGroup.add(playerModel);
     scene.add(playerGroup);
 
-    // 2. Дороги (Делаем 3 полотна друг за другом для бесконечности)
     for (let i = 0; i < 3; i++) {
       const tex = loadedTextures.roads[i % loadedTextures.roads.length];
       const roadGeo = new THREE.PlaneGeometry(12, 100);
@@ -194,19 +186,15 @@ export function createGame(root, api) {
       roadMeshes.push(road);
     }
 
-    // 3. ФОГ (Текстура натянута на плоскость)
     fogEntity = new THREE.Mesh(
       new THREE.PlaneGeometry(25, 25),
       new THREE.MeshBasicMaterial({ map: loadedTextures.fog, transparent: true })
     );
-    // Изначально прячем его далеко
     fogEntity.position.set(0, 5, 50);
     scene.add(fogEntity);
 
-    // 4. Здания
     const bGeo = new THREE.BoxGeometry(6, 40, 10);
     for (let i = 0; i < 20; i++) {
-      // Рандомно выбираем текстуру здания
       const tex = loadedTextures.buildings[Math.floor(Math.random() * loadedTextures.buildings.length)];
       const bMat = new THREE.MeshStandardMaterial({ map: tex });
       const b = new THREE.Mesh(bGeo, bMat);
@@ -218,29 +206,24 @@ export function createGame(root, api) {
       buildings.push(b);
     }
 
-    // Ресурсы
     obstacleGeo = new THREE.BoxGeometry(2, 2, 2);
     obstacleMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
     coinGeo = new THREE.OctahedronGeometry(0.6);
     coinMat = new THREE.MeshStandardMaterial({ color: 0xFFD700, emissive: 0xaa8800 });
   }
 
-  // --- 3. ИГРОВЫЕ СОСТОЯНИЯ (СЦЕНАРИЙ) ---
-
+  // --- 3. SCENARIOS ---
   function startIntro() {
     gameState = STATE.INTRO;
     loadingText.style.display = 'none';
     introText.style.display = 'block';
     
-    // Камера сбоку (Subway Surfers стиль)
     camera.position.set(-6, 3, 2);
     camera.lookAt(playerGroup.position.x, 2, playerGroup.position.z);
 
-    // Выбираем рандомный танец
     const danceName = Math.random() > 0.5 ? 'dance1' : 'dance2';
     playAnim(danceName, 0.5);
 
-    // Ждем клика по экрану
     root.addEventListener('click', onIntroClick, { once: true });
   }
 
@@ -249,11 +232,9 @@ export function createGame(root, api) {
     gameState = STATE.TRANSITION;
     introText.style.display = 'none';
     
-    // Включаем видео-мем!
     videoElement.style.display = 'block';
-    videoElement.play().catch(e => console.log("Автоплей видео заблокирован", e));
+    videoElement.play().catch(e => console.log("Video autoplay blocked", e));
 
-    // Ждем 2 секунды (пока идет крик/мем) и начинаем бег
     setTimeout(() => {
       startRun();
     }, 2000);
@@ -265,25 +246,22 @@ export function createGame(root, api) {
     videoElement.pause();
     gameUI.style.display = 'flex';
 
-    // Камера за спину
     camera.position.set(0, 4, 7);
     camera.lookAt(playerGroup.position.x, 2, -10);
 
-    // Меллстрой разворачивается и бежит
-    playerGroup.rotation.y = Math.PI; // Поворачиваем спиной к нам
+    playerGroup.rotation.y = Math.PI; 
     playAnim('run', 0.2);
 
-    // Фог появляется
     fogEntity.position.set(0, 5, camera.position.z + 30);
   }
 
-  // --- 4. УПРАВЛЕНИЕ ---
+  // --- 4. CONTROLS ---
   function moveLeft() { if (currentLane > 0 && gameState === STATE.PLAYING) { currentLane--; targetX = lanes[currentLane]; } }
   function moveRight() { if (currentLane < 2 && gameState === STATE.PLAYING) { currentLane++; targetX = lanes[currentLane]; } }
   function jump() { 
     if (!isJumping && gameState === STATE.PLAYING) { 
       isJumping = true; velocityY = jumpPower; 
-      playAnim('jump', 0.1); // Анимация прыжка
+      playAnim('jump', 0.1); 
     } 
   }
 
@@ -327,16 +305,15 @@ export function createGame(root, api) {
     }
   }
 
-  // --- 5. ИГРОВОЙ ЦИКЛ ---
+  // --- 5. GAME LOOP ---
   function animate() {
     if (!running) return;
     animationId = requestAnimationFrame(animate);
 
-    const delta = clock.getDelta();
+    const delta = clock ? clock.getDelta() : 0;
     if (mixer) mixer.update(delta);
 
     if (gameState === STATE.INTRO) {
-      // Камера медленно облетает танцующего Мела
       camera.position.x = Math.sin(Date.now() * 0.001) * 6;
       camera.position.z = Math.cos(Date.now() * 0.001) * 6 + 2;
       camera.lookAt(playerGroup.position.x, 2, playerGroup.position.z);
@@ -346,7 +323,6 @@ export function createGame(root, api) {
       playerGroup.position.z -= speed;
       playerGroup.position.x += (targetX - playerGroup.position.x) * 0.15;
 
-      // Физика прыжка
       if (isJumping) {
         playerGroup.position.y += velocityY;
         velocityY += gravity;
@@ -354,7 +330,7 @@ export function createGame(root, api) {
           playerGroup.position.y = 0; 
           isJumping = false; 
           velocityY = 0;
-          playAnim('run', 0.2); // Приземлились - снова бежим
+          playAnim('run', 0.2); 
         }
       }
 
@@ -363,7 +339,6 @@ export function createGame(root, api) {
       camera.position.y = playerGroup.position.y + 4;
       camera.lookAt(playerGroup.position.x, 2, playerGroup.position.z - 10);
 
-      // Бесконечная дорога
       roadMeshes.forEach(r => {
         if (r.position.z > camera.position.z + 10) r.position.z -= 300;
       });
@@ -373,7 +348,6 @@ export function createGame(root, api) {
 
       coins.forEach(c => c.rotation.y += 0.05);
 
-      // Коллизии
       for (let i = coins.length - 1; i >= 0; i--) {
         const c = coins[i];
         if (Math.abs(c.position.z - playerGroup.position.z) < 1.2 && Math.abs(c.position.x - playerGroup.position.x) < 1.2 && playerGroup.position.y < 2.5) {
@@ -401,7 +375,6 @@ export function createGame(root, api) {
     else if (gameState === STATE.DYING) {
       deathTimer++;
       
-      // Фог смотрит всегда на камеру (эффект 2D спрайта)
       fogEntity.lookAt(camera.position);
 
       dummyCamera.position.copy(camera.position);
@@ -422,13 +395,13 @@ export function createGame(root, api) {
       }
     }
 
-    renderer.render(scene, camera);
+    if (renderer && scene && camera) renderer.render(scene, camera);
   }
 
   function triggerDeath() {
     gameState = STATE.DYING;
     deathTimer = 0; 
-    playAnim('fall', 0.1); // Мел падает
+    playAnim('fall', 0.1); 
     api.addCoins(coinsCollected);
     api.setHighScore(score);
     api.onUiUpdate(); 
@@ -451,20 +424,21 @@ export function createGame(root, api) {
     document.getElementById('sUi').innerText = 'SCORE: 0';
     document.getElementById('cUi').innerText = 'CASH: 0';
     
-    startRun(); // Запускаем сразу бег, без интро
+    startRun(); 
     running = true;
     animate();
   }
 
   function onWindowResize() {
     if (!camera || !renderer || !root) return;
-    const width = root.clientWidth; const height = root.clientHeight;
+    const width = root.clientWidth || window.innerWidth; 
+    const height = root.clientHeight || window.innerHeight;
     camera.aspect = width / height; camera.updateProjectionMatrix();
     if(dummyCamera) { dummyCamera.aspect = width / height; dummyCamera.updateProjectionMatrix(); }
     renderer.setSize(width, height);
   }
 
-  // --- 6. СОЗДАНИЕ HTML ИНТЕРФЕЙСА ---
+  // --- 6. UI CREATION ---
   function buildUI() {
     uiLayer = document.createElement('div');
     uiLayer.style.position = 'absolute';
@@ -474,41 +448,35 @@ export function createGame(root, api) {
     uiLayer.style.fontFamily = 'Impact';
     root.appendChild(uiLayer);
 
-    // Экран загрузки
     loadingText = document.createElement('div');
     loadingText.innerText = 'ЗАГРУЗКА ХАЙПА...';
-    loadingText.style.cssText = 'position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); color:#FF003C; font-size:30px; text-shadow:2px 2px 0 #000;';
+    loadingText.style.cssText = 'position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); color:#FF003C; font-size:30px; text-shadow:2px 2px 0 #000; text-align:center;';
     uiLayer.appendChild(loadingText);
 
-    // Текст Интро (Нажми чтобы начать)
     introText = document.createElement('div');
     introText.innerText = 'ТАПАЙ ПО ЭКРАНУ!';
-    introText.style.cssText = 'position:absolute; bottom:20%; left:50%; transform:translateX(-50%); color:#00FF41; font-size:40px; text-shadow:3px 3px 0 #000; display:none; animation: pulse 1s infinite alternate;';
+    introText.style.cssText = 'position:absolute; bottom:20%; left:50%; transform:translateX(-50%); color:#00FF41; font-size:40px; text-shadow:3px 3px 0 #000; display:none; animation: pulse 1s infinite alternate; cursor:pointer; pointer-events:auto;';
     uiLayer.appendChild(introText);
     
-    // Анимация пульсации для текста
     const style = document.createElement('style');
     style.innerHTML = `@keyframes pulse { from { transform: translateX(-50%) scale(1); } to { transform: translateX(-50%) scale(1.1); } }`;
     document.head.appendChild(style);
 
-    // Видео-Мем
     videoElement = document.createElement('video');
-    videoElement.src = ASSETS.video;
+    videoElement.src = assets.video; 
     videoElement.playsInline = true;
-    videoElement.style.cssText = 'position:absolute; inset:0; width:100%; height:100%; object-fit:cover; display:none; z-index:15;';
+    videoElement.style.cssText = 'position:absolute; inset:0; width:100%; height:100%; object-fit:cover; display:none; z-index:15; pointer-events:none;';
     root.appendChild(videoElement);
 
-    // Игровой UI (Счет и кэш)
     gameUI = document.createElement('div');
     gameUI.style.cssText = 'position:absolute; top:15px; width:100%; display:none; justify-content:center; gap:30px; z-index:12; text-shadow:2px 2px 0 #000;';
     gameUI.innerHTML = `<div id="sUi" style="color:#fff; font-size:24px;">SCORE: 0</div><div id="cUi" style="color:#00FF41; font-size:24px;">CASH: 0</div>`;
     uiLayer.appendChild(gameUI);
 
-    // Экран Game Over
     overlayGameOver = document.createElement('div');
     overlayGameOver.style.cssText = 'position:absolute; inset:0; background:rgba(0,0,0,0.9); z-index:20; display:none; flex-direction:column; align-items:center; justify-content:center; color:#fff; text-shadow:2px 2px 0 #000; pointer-events:auto;';
     overlayGameOver.innerHTML = `
-      <h1 style="font-size:40px; margin:0; color:#FF003C;">ФОГ СЪЕЛ!</h1>
+      <h1 style="font-size:40px; margin:0; color:#FF003C; text-align:center;">ФОГ СЪЕЛ!</h1>
       <h2 style="margin:10px 0;">SCORE: <span id="goScore">0</span></h2>
       <h2 style="color:#00FF41; margin:0;">КЭШ: <span id="goCoins">0</span></h2>
       <button id="btnRestart" class="btn" style="margin-top:30px; padding: 15px 40px; font-size:24px;">ЕЩЕ РАЗ</button>
@@ -524,7 +492,7 @@ export function createGame(root, api) {
     
     buildUI();
     init3D();
-    preloadAssets(); // Начинаем загрузку
+    preloadAssets(); 
     animate();
   }
 
