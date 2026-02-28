@@ -3,7 +3,7 @@ export function createGame(root, api) {
   let animationId;
 
   // Three.js Core
-  let scene, camera, renderer, player;
+  let scene, camera, renderer, player, dummyCamera;
   let road, gridHelper, fogEntity;
 
   // Game State
@@ -43,7 +43,12 @@ export function createGame(root, api) {
 
     const width = root.clientWidth || 400;
     const height = root.clientHeight || 400;
+    
+    // Основная камера
     camera = new THREE.PerspectiveCamera(70, width / height, 0.1, 1000);
+    
+    // Камера-помощник для просчета плавного поворота головы
+    dummyCamera = new THREE.PerspectiveCamera(70, width / height, 0.1, 1000);
 
     renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(width, height);
@@ -75,6 +80,7 @@ export function createGame(root, api) {
 
     // ДЕЛАЕМ КРИПОВОГО ФОГА
     fogEntity = new THREE.Group();
+    
     // Тело Фога
     const fogBody = new THREE.Mesh(
       new THREE.BoxGeometry(20, 20, 10), 
@@ -86,7 +92,7 @@ export function createGame(root, api) {
     const eyeGeo = new THREE.BoxGeometry(2, 2, 0.5);
     const eyeMat = new THREE.MeshBasicMaterial({ color: 0xff0000 }); // Светящийся красный
     const eyeLeft = new THREE.Mesh(eyeGeo, eyeMat);
-    eyeLeft.position.set(-4, 5, -5.1); // Сдвигаем на лицо (минус по Z)
+    eyeLeft.position.set(-4, 5, -5.1); 
     fogEntity.add(eyeLeft);
     
     const eyeRight = new THREE.Mesh(eyeGeo, eyeMat);
@@ -209,7 +215,7 @@ export function createGame(root, api) {
       camera.position.z = player.position.z + 7;
       camera.position.x = player.position.x * 0.5;
       camera.position.y = player.position.y + 3;
-      camera.lookAt(player.position.x, 1, player.position.z - 10); // Смотрим вперед
+      camera.lookAt(player.position.x, 1, player.position.z - 10); // Жестко смотрим вперед
 
       gridHelper.position.z = Math.floor(camera.position.z / 10) * 10;
       road.position.z = camera.position.z;
@@ -244,16 +250,21 @@ export function createGame(root, api) {
       fogEntity.position.set(0, 5, camera.position.z + 30);
       
     } else {
-      // ИГРОК ВРЕЗАЛСЯ! АНИМАЦИЯ СМЕРТИ
+      // ИГРОК ВРЕЗАЛСЯ! АНИМАЦИЯ ПЛАВНОГО ПОВОРОТА (СМЕРТЬ)
       
-      // 1. Камера разворачивается и смотрит назад на Фога
-      camera.lookAt(fogEntity.position.x, fogEntity.position.y, fogEntity.position.z);
+      // 1. Нацеливаем невидимую камеру на Фога
+      dummyCamera.position.copy(camera.position);
+      dummyCamera.lookAt(fogEntity.position.x, fogEntity.position.y, fogEntity.position.z);
       
-      // 2. Фог стремительно летит на камеру
-      fogEntity.position.z -= speed * 3;
+      // 2. Плавно поворачиваем РЕАЛЬНУЮ камеру к цели (slerp - сферическая интерполяция)
+      // Значение 0.08 отвечает за скорость поворота головы (можешь менять)
+      camera.quaternion.slerp(dummyCamera.quaternion, 0.08);
       
-      // 3. Если Фог пролетел сквозь камеру (сожрал) - конец
-      if (fogEntity.position.z < camera.position.z) {
+      // 3. Фог стремительно летит на камеру
+      fogEntity.position.z -= speed * 4;
+      
+      // 4. Как только Фог влетает нам в лицо - геймовер
+      if (fogEntity.position.z < camera.position.z + 2) {
         running = false;
         showGameOverUI();
       }
@@ -280,12 +291,16 @@ export function createGame(root, api) {
     currentLane = 1; targetX = lanes[currentLane];
     isJumping = false; velocityY = 0; isDying = false;
     
+    // Сбрасываем позицию
     player.position.set(targetX, 1, 0);
     camera.position.set(0, 4, 7);
     
+    // ВАЖНО: Сбрасываем поворот камеры, чтобы она снова смотрела вперед
+    camera.lookAt(player.position.x, 1, -10);
+    
+    // Очищаем уровень
     obstacles.forEach(o => scene.remove(o)); obstacles = [];
     coins.forEach(c => scene.remove(c)); coins = [];
-    
     buildings.forEach(b => b.position.z = - (Math.random() * 150));
     
     overlay.style.display = 'none';
@@ -302,6 +317,12 @@ export function createGame(root, api) {
     const height = root.clientHeight;
     camera.aspect = width / height;
     camera.updateProjectionMatrix();
+    
+    if(dummyCamera) {
+      dummyCamera.aspect = width / height;
+      dummyCamera.updateProjectionMatrix();
+    }
+    
     renderer.setSize(width, height);
   }
 
@@ -351,7 +372,7 @@ export function createGame(root, api) {
       <h1 style="font-size: 40px; margin: 0; color: #FF003C;">ФОГ ПОЙМАЛ ТЕБЯ!</h1>
       <h2 style="margin: 10px 0;">SCORE: <span id="goScore">0</span></h2>
       <h2 style="color: #00FF41; margin: 0;">КЭШ: <span id="goCoins">0</span></h2>
-      <button id="btnInGameRestart" class="btn" style="margin-top: 30px; width: 200px; font-size: 20px;">ПОВТОРИТЬ</button>
+      <button id="btnInGameRestart" class="btn" style="margin-top: 30px; width: 200px; font-size: 20px; pointer-events: auto;">ПОВТОРИТЬ</button>
     `;
     root.appendChild(overlay);
 
