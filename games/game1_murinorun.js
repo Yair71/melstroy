@@ -11,6 +11,7 @@ export function createGame(root, api) {
   let score = 0;
   let coinsCollected = 0;
   let isDying = false; 
+  let deathTimer = 0; // Добавили таймер для задержки смерти
 
   // Lane System
   const lanes = [-3, 0, 3];
@@ -250,20 +251,27 @@ export function createGame(root, api) {
       fogEntity.position.set(0, 5, camera.position.z + 30);
       
     } else {
-      // ИГРОК ВРЕЗАЛСЯ! АНИМАЦИЯ ПЛАВНОГО ПОВОРОТА (СМЕРТЬ)
+      // ИГРОК ВРЕЗАЛСЯ! АНИМАЦИЯ ПЛАВНОГО ПОВОРОТА И СМЕРТИ
+      deathTimer++;
       
       // 1. Нацеливаем невидимую камеру на Фога
       dummyCamera.position.copy(camera.position);
       dummyCamera.lookAt(fogEntity.position.x, fogEntity.position.y, fogEntity.position.z);
       
-      // 2. Плавно поворачиваем РЕАЛЬНУЮ камеру к цели (slerp - сферическая интерполяция)
-      // Значение 0.08 отвечает за скорость поворота головы (можешь менять)
-      camera.quaternion.slerp(dummyCamera.quaternion, 0.08);
+      // 2. Плавно поворачиваем РЕАЛЬНУЮ камеру к цели 
+      // 0.1 - золотая середина (умеренно быстро, но плавно)
+      camera.quaternion.slerp(dummyCamera.quaternion, 0.1);
       
-      // 3. Фог стремительно летит на камеру
-      fogEntity.position.z -= speed * 4;
+      // 3. Ждем примерно 1.5 секунды (около 90 кадров)
+      if (deathTimer < 90) {
+         // Фог медленно надвигается на тебя во время и после поворота
+         fogEntity.position.z -= speed * 0.8;
+      } else {
+         // 4. По истечению 1.5 сек Фог делает резкий бросок
+         fogEntity.position.z -= speed * 8;
+      }
       
-      // 4. Как только Фог влетает нам в лицо - геймовер
+      // 5. Как только Фог влетает нам в лицо - геймовер
       if (fogEntity.position.z < camera.position.z + 2) {
         running = false;
         showGameOverUI();
@@ -275,6 +283,7 @@ export function createGame(root, api) {
 
   function triggerDeath() {
     isDying = true;
+    deathTimer = 0; // Начинаем отсчет смерти
     api.addCoins(coinsCollected);
     api.setHighScore(score);
     api.onUiUpdate(); 
@@ -289,7 +298,7 @@ export function createGame(root, api) {
   function resetGame() {
     speed = 0.3; score = 0; coinsCollected = 0;
     currentLane = 1; targetX = lanes[currentLane];
-    isJumping = false; velocityY = 0; isDying = false;
+    isJumping = false; velocityY = 0; isDying = false; deathTimer = 0;
     
     // Сбрасываем позицию
     player.position.set(targetX, 1, 0);
