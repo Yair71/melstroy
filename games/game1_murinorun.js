@@ -2,12 +2,11 @@ export function createGame(root, api) {
   let running = false;
   let animationId;
 
-  // --- CONFIGURATION ---
-  // Paths updated to perfectly match your screenshot
+// --- CONFIGURATION ---
   const assets = {
     models: {
-      player: './assets/Running.glb',
-      jump: './assets/running Jump.glb',
+      player: './assets/running.glb',     
+      jump: './assets/jump.glb',          
       fall: './assets/fall.glb',
       dance1: './assets/dance.glb',
       dance2: './assets/dance2.glb'
@@ -15,16 +14,16 @@ export function createGame(root, api) {
     textures: {
       fog: './assets/fog.png',
       roads: [
-        './assets/road1 (1).png', 
-        './assets/road2 (1).png', 
-        './assets/road3 (1).png'
+        './assets/road1.png',             
+        './assets/road2.png',           
+        './assets/road3.png'            
       ],
       buildings: [
-        './assets/building4 (1).png', 
-        './assets/building5 (1).png'
+        './assets/building4.png',         
+        './assets/building5.png'          
       ]
     },
-    video: './assets/mel.webm' // Meme fallback
+    video: './assets/mel.webm' 
   };
 
   // --- THREE.JS CORE ---
