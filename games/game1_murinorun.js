@@ -6,25 +6,25 @@ export function createGame(root, api) {
   // Твои переименованные файлы
   const assets = {
     models: {
-      player: './assets/running.glb',     
-      jump: './assets/jump.glb',          
-      fall: './assets/fall.glb',
-      dance1: './assets/dance.glb',
-      dance2: './assets/dance2.glb'
+      player: '/assets/running.glb',     
+      jump: '/assets/jump.glb',          
+      fall: '/assets/fall.glb',
+      dance1: '/assets/dance.glb',
+      dance2: '/assets/dance2.glb'
     },
     textures: {
-      fog: './assets/fog.png',
+      fog: '/assets/fog.png',
       roads: [
-        './assets/road1.png',             
-        './assets/road2.png',           
-        './assets/road3.png'            
+        '/assets/road1.png',             
+        '/assets/road2.png',           
+        '/assets/road3.png'            
       ],
       buildings: [
-        './assets/building4.png',         
-        './assets/building5.png'          
+        '/assets/building4.png',         
+        '/assets/building5.png'          
       ]
     },
-    video: './assets/mel.webm' 
+    video: '/assets/mel.webm' 
   };
 
   // --- THREE.JS CORE ---
