@@ -173,27 +173,24 @@ export function createGame(root, api) {
   // ============================================================
   // ЗАГРУЗКА АССЕТОВ
   // ============================================================
-  function loadGLTF(url) {
-    return new Promise((resolve, reject) => {
-      logWait('Грузим 3D модель: ' + url);
-      const loader = new THREE.GLTFLoader();
-      loader.load(url, 
-        (gltf) => { logOK('Загружено: ' + url); resolve(gltf); }, 
-        (progress) => {
-          if (progress.total > 0) {
-            const pct = Math.round((progress.loaded / progress.total) * 100);
-            // Обновляем последнюю строку прогресса
-          }
-        },
-        (error) => {
-          logFail('ОШИБКА загрузки модели: ' + url);
-          logFail('Сообщение: ' + (error.message || JSON.stringify(error)));
-          reject({ url, error });
-        }
-      );
-    });
-  }
-
+function loadGLTF(url) {
+  return new Promise((resolve, reject) => {
+    logWait('Грузим 3D модель: ' + url);
+    const dracoLoader = new THREE.DRACOLoader();
+    dracoLoader.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/libs/draco/');
+    const loader = new THREE.GLTFLoader();
+    loader.setDRACOLoader(dracoLoader);
+    loader.load(url,
+      (gltf) => { logOK('Загружено: ' + url); resolve(gltf); },
+      undefined,
+      (error) => {
+        logFail('ОШИБКА загрузки модели: ' + url);
+        logFail('Сообщение: ' + (error.message || JSON.stringify(error)));
+        reject({ url, error });
+      }
+    );
+  });
+}
   function loadTexture(url) {
     return new Promise((resolve, reject) => {
       logWait('Грузим текстуру: ' + url);
