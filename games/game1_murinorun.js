@@ -3,7 +3,6 @@ export function createGame(root, api) {
   let animationId;
 
   // --- CONFIGURATION ---
-  // Твои переименованные файлы
   const assets = {
     models: {
       player: './assets/running.glb',     
@@ -58,51 +57,137 @@ export function createGame(root, api) {
   let deathTimer = 0; 
   let spawnTimer = 0;
 
-  // Lanes
   const lanes = [-3, 0, 3];
   let currentLane = 1;
   let targetX = 0;
 
-  // Physics
   let velocityY = 0;
   const gravity = -0.015;
   const jumpPower = 0.3;
   let isJumping = false;
 
-  // UI
   let uiLayer, loadingText, debugPanel, introText, videoElement, gameUI, overlayGameOver;
 
-  // --- 🌟 ДЕБАГГЕР (СИСТЕМА АНАЛИЗА) 🌟 ---
+  // ============================================================
+  // 🔍 ДИАГНОСТИЧЕСКАЯ ПАНЕЛЬ — показывает всё прямо на экране
+  // ============================================================
   function logDebug(msg, color = 'white') {
-    console.log(msg); // Дублируем в консоль браузера
+    console.log(msg);
     if (debugPanel) {
       const p = document.createElement('div');
       p.style.color = color;
-      p.style.fontSize = '14px';
+      p.style.fontSize = '13px';
       p.style.fontFamily = 'monospace';
       p.style.textAlign = 'left';
       p.style.margin = '2px 0';
+      p.style.wordBreak = 'break-all';
       p.style.textShadow = '1px 1px 0 #000';
       p.innerText = msg;
       debugPanel.appendChild(p);
-      // Автоскролл вниз
       debugPanel.scrollTop = debugPanel.scrollHeight;
     }
   }
 
-  // --- 1. ASSET LOADER ---
+  function logOK(msg)    { logDebug('✅ ' + msg, '#00FF41'); }
+  function logWait(msg)  { logDebug('⏳ ' + msg, '#ffffaa'); }
+  function logFail(msg)  { logDebug('❌ ' + msg, '#FF003C'); }
+  function logInfo(msg)  { logDebug('ℹ️  ' + msg, '#88ccff'); }
+
+  // ============================================================
+  // 🔍 ШАГ 0: Проверка — есть ли вообще THREE и GLTFLoader
+  // ============================================================
+  function checkLibraries() {
+    logInfo('--- ПРОВЕРКА БИБЛИОТЕК ---');
+
+    if (typeof THREE === 'undefined') {
+      logFail('THREE не найден! Скрипт three.min.js не загрузился.');
+      logFail('Проверь подключение в index.html');
+      return false;
+    } else {
+      logOK('THREE найден. Версия: r' + (THREE.REVISION || '???'));
+    }
+
+    if (typeof THREE.GLTFLoader === 'undefined') {
+      logFail('THREE.GLTFLoader не найден!');
+      logFail('GLTFLoader.js не загрузился или загрузился с ошибкой.');
+      logFail('Убедись что в index.html ПОСЛЕ three.min.js есть:');
+      logFail('<script src="...GLTFLoader..."></script>');
+      return false;
+    } else {
+      logOK('THREE.GLTFLoader найден!');
+    }
+
+    return true;
+  }
+
+  // ============================================================
+  // 🔍 ШАГ 1: Проверка доступности файлов через fetch
+  // ============================================================
+  async function checkFileExists(url) {
+    try {
+      const res = await fetch(url, { method: 'HEAD' });
+      if (res.ok) {
+        logOK(`Файл найден (${res.status}): ${url}`);
+        return true;
+      } else {
+        logFail(`Файл НЕ найден (${res.status}): ${url}`);
+        return false;
+      }
+    } catch (e) {
+      logFail(`Сетевая ошибка при проверке: ${url}`);
+      logFail('Причина: ' + e.message);
+      return false;
+    }
+  }
+
+  async function checkAllFiles() {
+    logInfo('--- ПРОВЕРКА НАЛИЧИЯ ФАЙЛОВ ---');
+
+    const allFiles = [
+      assets.textures.fog,
+      ...assets.textures.roads,
+      ...assets.textures.buildings,
+      assets.models.player,
+      assets.models.jump,
+      assets.models.fall,
+      assets.models.dance1,
+      assets.models.dance2,
+      assets.video,
+    ];
+
+    let allOk = true;
+    for (const url of allFiles) {
+      const ok = await checkFileExists(url);
+      if (!ok) allOk = false;
+    }
+
+    if (allOk) {
+      logOK('Все файлы найдены на сервере!');
+    } else {
+      logFail('ЕСТЬ ОТСУТСТВУЮЩИЕ ФАЙЛЫ — смотри красные строки выше!');
+    }
+
+    return allOk;
+  }
+
+  // ============================================================
+  // ЗАГРУЗКА АССЕТОВ
+  // ============================================================
   function loadGLTF(url) {
     return new Promise((resolve, reject) => {
-      logDebug(`[WAIT] Грузим 3D модель: ${url}...`, '#ffffaa');
+      logWait('Грузим 3D модель: ' + url);
       const loader = new THREE.GLTFLoader();
       loader.load(url, 
-        (gltf) => {
-          logDebug(`[OK] Загружено: ${url}`, '#00FF41');
-          resolve(gltf);
-        }, 
-        undefined, 
+        (gltf) => { logOK('Загружено: ' + url); resolve(gltf); }, 
+        (progress) => {
+          if (progress.total > 0) {
+            const pct = Math.round((progress.loaded / progress.total) * 100);
+            // Обновляем последнюю строку прогресса
+          }
+        },
         (error) => {
-          logDebug(`[ОШИБКА!] Не найден файл: ${url}`, '#FF003C');
+          logFail('ОШИБКА загрузки модели: ' + url);
+          logFail('Сообщение: ' + (error.message || JSON.stringify(error)));
           reject({ url, error });
         }
       );
@@ -111,29 +196,39 @@ export function createGame(root, api) {
 
   function loadTexture(url) {
     return new Promise((resolve, reject) => {
-      logDebug(`[WAIT] Грузим картинку: ${url}...`, '#ffffaa');
+      logWait('Грузим текстуру: ' + url);
       const loader = new THREE.TextureLoader();
       loader.load(url, 
         (tex) => {
           tex.anisotropy = renderer?.capabilities?.getMaxAnisotropy() || 1;
-          logDebug(`[OK] Загружено: ${url}`, '#00FF41');
+          logOK('Загружено: ' + url);
           resolve(tex);
         }, 
         undefined, 
         (error) => {
-          logDebug(`[ОШИБКА!] Не найден файл: ${url}`, '#FF003C');
+          logFail('ОШИБКА загрузки текстуры: ' + url);
+          logFail('Сообщение: ' + (error.message || JSON.stringify(error)));
           reject({ url, error });
         }
       );
     });
   }
 
-  // Загружаем по очереди, чтобы видеть на каком именно файле краш
   async function preloadAssets() {
     try {
-      logDebug('--- СТАРТ ЗАГРУЗКИ ---', 'cyan');
+      // ШАГ 0: Проверяем библиотеки
+      const libsOk = checkLibraries();
+      if (!libsOk) {
+        if (loadingText) loadingText.innerHTML = '❌ ОШИБКА БИБЛИОТЕК<br>Смотри лог ниже 👇';
+        return;
+      }
 
-      // 1. Textures
+      // ШАГ 1: Проверяем файлы через fetch
+      await checkAllFiles();
+
+      logInfo('--- НАЧИНАЕМ ЗАГРУЗКУ ---');
+
+      // Текстуры
       loadedTextures.fog = await loadTexture(assets.textures.fog);
       
       loadedTextures.roads = [];
@@ -149,47 +244,58 @@ export function createGame(root, api) {
       loadedTextures.roads.forEach(tex => { tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.repeat.set(1, 10); });
       loadedTextures.buildings.forEach(tex => { tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.repeat.set(2, 5); });
 
-      // 2. Models
+      // Модели
       const playerGltf = await loadGLTF(assets.models.player);
       playerModel = playerGltf.scene;
       playerModel.scale.set(1, 1, 1); 
       playerModel.position.set(0, 0, 0);
       
+      // Проверяем что анимации есть в файле
+      logInfo('Анимаций в running.glb: ' + playerGltf.animations.length);
+      if (playerGltf.animations.length === 0) {
+        logFail('В файле running.glb НЕТ анимаций! Проверь экспорт из Blender.');
+      }
+      
       mixer = new THREE.AnimationMixer(playerModel);
       animations['run'] = playerGltf.animations[0];
 
       const jumpGltf = await loadGLTF(assets.models.jump);
+      logInfo('Анимаций в jump.glb: ' + jumpGltf.animations.length);
       animations['jump'] = jumpGltf.animations[0];
 
       const fallGltf = await loadGLTF(assets.models.fall);
+      logInfo('Анимаций в fall.glb: ' + fallGltf.animations.length);
       animations['fall'] = fallGltf.animations[0];
 
       const dance1Gltf = await loadGLTF(assets.models.dance1);
+      logInfo('Анимаций в dance.glb: ' + dance1Gltf.animations.length);
       animations['dance1'] = dance1Gltf.animations[0];
 
       const dance2Gltf = await loadGLTF(assets.models.dance2);
+      logInfo('Анимаций в dance2.glb: ' + dance2Gltf.animations.length);
       animations['dance2'] = dance2Gltf.animations[0];
 
-      logDebug('--- ВСЕ ФАЙЛЫ ЗАГРУЖЕНЫ! Запуск... ---', 'cyan');
+      logOK('=== ВСЕ ФАЙЛЫ ЗАГРУЖЕНЫ! ===');
       
-      // Прячем дебаг панель
       setTimeout(() => {
         debugPanel.style.display = 'none';
         setupWorld();
         startIntro();
-      }, 1000);
+      }, 2000);
 
     } catch (e) {
       console.error("Asset loading error:", e);
-      logDebug('==============================', 'red');
-      logDebug(`КРИТИЧЕСКАЯ ОШИБКА: Сервер не может найти файл по указанному пути. Проверь пути!`, 'red');
-      logDebug('==============================', 'red');
-      if (loadingText) loadingText.innerHTML = `КРАШ ЗАГРУЗКИ.<br>Смотри лог ниже 👇`;
+      logFail('==============================');
+      logFail('КРИТИЧЕСКАЯ ОШИБКА ЗАГРУЗКИ:');
+      logFail(e.url ? 'Файл: ' + e.url : 'Неизвестный файл');
+      logFail(e.error ? 'Детали: ' + (e.error.message || JSON.stringify(e.error)) : String(e));
+      logFail('==============================');
+      if (loadingText) loadingText.innerHTML = `❌ КРАШ ЗАГРУЗКИ<br>Смотри лог ниже 👇`;
     }
   }
 
   function playAnim(name, fadeTime = 0.2) {
-    if (!animations[name]) return;
+    if (!animations[name]) { logFail('Анимация не найдена: ' + name); return; }
     const action = mixer.clipAction(animations[name]);
     if (currentAction) currentAction.crossFadeTo(action, fadeTime, true);
     action.reset();
@@ -256,7 +362,6 @@ export function createGame(root, api) {
       const tex = loadedTextures.buildings[Math.floor(Math.random() * loadedTextures.buildings.length)];
       const bMat = new THREE.MeshStandardMaterial({ map: tex });
       const b = new THREE.Mesh(bGeo, bMat);
-      
       b.position.z = - (Math.random() * 200);
       b.position.x = Math.random() > 0.5 ? 12 : -12;
       b.position.y = 20;
@@ -293,9 +398,7 @@ export function createGame(root, api) {
     videoElement.style.display = 'block';
     videoElement.play().catch(e => console.log("Video autoplay blocked", e));
 
-    setTimeout(() => {
-      startRun();
-    }, 2000);
+    setTimeout(() => { startRun(); }, 2000);
   }
 
   function startRun() {
@@ -432,9 +535,7 @@ export function createGame(root, api) {
     } 
     else if (gameState === STATE.DYING) {
       deathTimer++;
-      
       fogEntity.lookAt(camera.position);
-
       dummyCamera.position.copy(camera.position);
       dummyCamera.lookAt(fogEntity.position.x, fogEntity.position.y, fogEntity.position.z);
       camera.quaternion.slerp(dummyCamera.quaternion, 0.1);
@@ -508,12 +609,26 @@ export function createGame(root, api) {
 
     loadingText = document.createElement('div');
     loadingText.innerText = 'ЗАГРУЗКА ХАЙПА...';
-    loadingText.style.cssText = 'position:absolute; top:10%; left:50%; transform:translateX(-50%); color:#FF003C; font-size:24px; text-shadow:2px 2px 0 #000; text-align:center; font-family: monospace; line-height: 1.5;';
+    loadingText.style.cssText = 'position:absolute; top:10%; left:50%; transform:translateX(-50%); color:#FF003C; font-size:24px; text-shadow:2px 2px 0 #000; text-align:center; font-family: monospace; line-height: 1.5; white-space:nowrap;';
     uiLayer.appendChild(loadingText);
 
-    // Панель для вывода логов
+    // Большая диагностическая панель — занимает почти весь экран
     debugPanel = document.createElement('div');
-    debugPanel.style.cssText = 'position:absolute; bottom:5%; left:5%; right:5%; height:40%; background:rgba(0,0,0,0.8); border:2px solid #333; overflow-y:auto; padding:10px; z-index:999; pointer-events:auto; font-family:monospace;';
+    debugPanel.style.cssText = `
+      position: absolute;
+      top: 18%;
+      left: 2%;
+      right: 2%;
+      bottom: 2%;
+      background: rgba(0,0,0,0.92);
+      border: 2px solid #444;
+      overflow-y: auto;
+      padding: 12px;
+      z-index: 999;
+      pointer-events: auto;
+      font-family: monospace;
+      font-size: 13px;
+    `;
     uiLayer.appendChild(debugPanel);
 
     introText = document.createElement('div');
