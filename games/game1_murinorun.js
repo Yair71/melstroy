@@ -2,7 +2,8 @@ export function createGame(root, api) {
   let running = false;
   let animationId;
 
-// --- CONFIGURATION ---
+  // --- CONFIGURATION ---
+  // Твои переименованные файлы
   const assets = {
     models: {
       player: './assets/running.glb',     
@@ -69,37 +70,86 @@ export function createGame(root, api) {
   let isJumping = false;
 
   // UI
-  let uiLayer, loadingText, introText, videoElement, gameUI, overlayGameOver;
+  let uiLayer, loadingText, debugPanel, introText, videoElement, gameUI, overlayGameOver;
+
+  // --- 🌟 ДЕБАГГЕР (СИСТЕМА АНАЛИЗА) 🌟 ---
+  function logDebug(msg, color = 'white') {
+    console.log(msg); // Дублируем в консоль браузера
+    if (debugPanel) {
+      const p = document.createElement('div');
+      p.style.color = color;
+      p.style.fontSize = '14px';
+      p.style.fontFamily = 'monospace';
+      p.style.textAlign = 'left';
+      p.style.margin = '2px 0';
+      p.style.textShadow = '1px 1px 0 #000';
+      p.innerText = msg;
+      debugPanel.appendChild(p);
+      // Автоскролл вниз
+      debugPanel.scrollTop = debugPanel.scrollHeight;
+    }
+  }
 
   // --- 1. ASSET LOADER ---
   function loadGLTF(url) {
     return new Promise((resolve, reject) => {
+      logDebug(`[WAIT] Грузим 3D модель: ${url}...`, '#ffffaa');
       const loader = new THREE.GLTFLoader();
-      loader.load(url, resolve, undefined, reject);
+      loader.load(url, 
+        (gltf) => {
+          logDebug(`[OK] Загружено: ${url}`, '#00FF41');
+          resolve(gltf);
+        }, 
+        undefined, 
+        (error) => {
+          logDebug(`[ОШИБКА!] Не найден файл: ${url}`, '#FF003C');
+          reject({ url, error });
+        }
+      );
     });
   }
 
   function loadTexture(url) {
     return new Promise((resolve, reject) => {
+      logDebug(`[WAIT] Грузим картинку: ${url}...`, '#ffffaa');
       const loader = new THREE.TextureLoader();
-      loader.load(url, (tex) => {
-        tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
-        resolve(tex);
-      }, undefined, reject);
+      loader.load(url, 
+        (tex) => {
+          tex.anisotropy = renderer?.capabilities?.getMaxAnisotropy() || 1;
+          logDebug(`[OK] Загружено: ${url}`, '#00FF41');
+          resolve(tex);
+        }, 
+        undefined, 
+        (error) => {
+          logDebug(`[ОШИБКА!] Не найден файл: ${url}`, '#FF003C');
+          reject({ url, error });
+        }
+      );
     });
   }
 
+  // Загружаем по очереди, чтобы видеть на каком именно файле краш
   async function preloadAssets() {
     try {
-      // 1. Load Textures
+      logDebug('--- СТАРТ ЗАГРУЗКИ ---', 'cyan');
+
+      // 1. Textures
       loadedTextures.fog = await loadTexture(assets.textures.fog);
-      loadedTextures.roads = await Promise.all(assets.textures.roads.map(url => loadTexture(url)));
-      loadedTextures.buildings = await Promise.all(assets.textures.buildings.map(url => loadTexture(url)));
+      
+      loadedTextures.roads = [];
+      for (let url of assets.textures.roads) {
+        loadedTextures.roads.push(await loadTexture(url));
+      }
+
+      loadedTextures.buildings = [];
+      for (let url of assets.textures.buildings) {
+        loadedTextures.buildings.push(await loadTexture(url));
+      }
 
       loadedTextures.roads.forEach(tex => { tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.repeat.set(1, 10); });
       loadedTextures.buildings.forEach(tex => { tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.repeat.set(2, 5); });
 
-      // 2. Load Main Model
+      // 2. Models
       const playerGltf = await loadGLTF(assets.models.player);
       playerModel = playerGltf.scene;
       playerModel.scale.set(1, 1, 1); 
@@ -108,7 +158,6 @@ export function createGame(root, api) {
       mixer = new THREE.AnimationMixer(playerModel);
       animations['run'] = playerGltf.animations[0];
 
-      // 3. Load Additional Animations (Fixed Object References)
       const jumpGltf = await loadGLTF(assets.models.jump);
       animations['jump'] = jumpGltf.animations[0];
 
@@ -121,11 +170,21 @@ export function createGame(root, api) {
       const dance2Gltf = await loadGLTF(assets.models.dance2);
       animations['dance2'] = dance2Gltf.animations[0];
 
-      setupWorld();
-      startIntro();
+      logDebug('--- ВСЕ ФАЙЛЫ ЗАГРУЖЕНЫ! Запуск... ---', 'cyan');
+      
+      // Прячем дебаг панель
+      setTimeout(() => {
+        debugPanel.style.display = 'none';
+        setupWorld();
+        startIntro();
+      }, 1000);
+
     } catch (e) {
       console.error("Asset loading error:", e);
-      if (loadingText) loadingText.innerText = "ОШИБКА ЗАГРУЗКИ. Проверь пути в ASSETS.";
+      logDebug('==============================', 'red');
+      logDebug(`КРИТИЧЕСКАЯ ОШИБКА: Сервер не может найти файл по указанному пути. Проверь пути!`, 'red');
+      logDebug('==============================', 'red');
+      if (loadingText) loadingText.innerHTML = `КРАШ ЗАГРУЗКИ.<br>Смотри лог ниже 👇`;
     }
   }
 
@@ -449,8 +508,13 @@ export function createGame(root, api) {
 
     loadingText = document.createElement('div');
     loadingText.innerText = 'ЗАГРУЗКА ХАЙПА...';
-    loadingText.style.cssText = 'position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); color:#FF003C; font-size:30px; text-shadow:2px 2px 0 #000; text-align:center;';
+    loadingText.style.cssText = 'position:absolute; top:10%; left:50%; transform:translateX(-50%); color:#FF003C; font-size:24px; text-shadow:2px 2px 0 #000; text-align:center; font-family: monospace; line-height: 1.5;';
     uiLayer.appendChild(loadingText);
+
+    // Панель для вывода логов
+    debugPanel = document.createElement('div');
+    debugPanel.style.cssText = 'position:absolute; bottom:5%; left:5%; right:5%; height:40%; background:rgba(0,0,0,0.8); border:2px solid #333; overflow-y:auto; padding:10px; z-index:999; pointer-events:auto; font-family:monospace;';
+    uiLayer.appendChild(debugPanel);
 
     introText = document.createElement('div');
     introText.innerText = 'ТАПАЙ ПО ЭКРАНУ!';
