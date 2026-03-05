@@ -5,7 +5,8 @@ export function createGame(root, api) {
   // --- CONFIGURATION ---
   const assets = {
     models: {
-      player: './assets/running.glb',     
+      player: './assets/mel.glb',        // <--- Твоя цветная модель (база)
+      run: './assets/running.glb',       // <--- Анимация бега (без кожи)
       jump: './assets/jump.glb',          
       fall: './assets/fall.glb',
       dance1: './assets/dance.glb',
@@ -148,6 +149,7 @@ export function createGame(root, api) {
       ...assets.textures.roads,
       ...assets.textures.buildings,
       assets.models.player,
+      assets.models.run,      // Добавили проверку файла бега
       assets.models.jump,
       assets.models.fall,
       assets.models.dance1,
@@ -171,26 +173,39 @@ export function createGame(root, api) {
   }
 
   // ============================================================
+  // ФИКС АНИМАЦИЙ MIXAMO (Защита от багов с именами костей)
+  // ============================================================
+  function fixAnimation(clip) {
+    if (!clip) return null;
+    clip.tracks.forEach(track => {
+      // Очищаем префиксы Mixamo (например "Armature|mixamorigHips" превращаем в "mixamorigHips")
+      track.name = track.name.replace(/.*mixamorig/i, 'mixamorig');
+    });
+    return clip;
+  }
+
+  // ============================================================
   // ЗАГРУЗКА АССЕТОВ
   // ============================================================
-function loadGLTF(url) {
-  return new Promise((resolve, reject) => {
-    logWait('Грузим 3D модель: ' + url);
-    const dracoLoader = new THREE.DRACOLoader();
-    dracoLoader.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/libs/draco/');
-    const loader = new THREE.GLTFLoader();
-    loader.setDRACOLoader(dracoLoader);
-    loader.load(url,
-      (gltf) => { logOK('Загружено: ' + url); resolve(gltf); },
-      undefined,
-      (error) => {
-        logFail('ОШИБКА загрузки модели: ' + url);
-        logFail('Сообщение: ' + (error.message || JSON.stringify(error)));
-        reject({ url, error });
-      }
-    );
-  });
-}
+  function loadGLTF(url) {
+    return new Promise((resolve, reject) => {
+      logWait('Грузим 3D модель: ' + url);
+      const dracoLoader = new THREE.DRACOLoader();
+      dracoLoader.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/libs/draco/');
+      const loader = new THREE.GLTFLoader();
+      loader.setDRACOLoader(dracoLoader);
+      loader.load(url,
+        (gltf) => { logOK('Загружено: ' + url); resolve(gltf); },
+        undefined,
+        (error) => {
+          logFail('ОШИБКА загрузки модели: ' + url);
+          logFail('Сообщение: ' + (error.message || JSON.stringify(error)));
+          reject({ url, error });
+        }
+      );
+    });
+  }
+
   function loadTexture(url) {
     return new Promise((resolve, reject) => {
       logWait('Грузим текстуру: ' + url);
@@ -213,14 +228,12 @@ function loadGLTF(url) {
 
   async function preloadAssets() {
     try {
-      // ШАГ 0: Проверяем библиотеки
       const libsOk = checkLibraries();
       if (!libsOk) {
         if (loadingText) loadingText.innerHTML = '❌ ОШИБКА БИБЛИОТЕК<br>Смотри лог ниже 👇';
         return;
       }
 
-      // ШАГ 1: Проверяем файлы через fetch
       await checkAllFiles();
 
       logInfo('--- НАЧИНАЕМ ЗАГРУЗКУ ---');
@@ -241,36 +254,36 @@ function loadGLTF(url) {
       loadedTextures.roads.forEach(tex => { tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.repeat.set(1, 10); });
       loadedTextures.buildings.forEach(tex => { tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.repeat.set(2, 5); });
 
-      // Модели
+      // 1. Грузим ОСНОВНОЕ ТЕЛО (Цветную модель)
       const playerGltf = await loadGLTF(assets.models.player);
       playerModel = playerGltf.scene;
       playerModel.scale.set(1, 1, 1); 
       playerModel.position.set(0, 0, 0);
       
-      // Проверяем что анимации есть в файле
-      logInfo('Анимаций в running.glb: ' + playerGltf.animations.length);
-      if (playerGltf.animations.length === 0) {
-        logFail('В файле running.glb НЕТ анимаций! Проверь экспорт из Blender.');
-      }
-      
+      // Создаем миксер на основе цветного тела
       mixer = new THREE.AnimationMixer(playerModel);
-      animations['run'] = playerGltf.animations[0];
 
+      // 2. Грузим АНИМАЦИЮ БЕГА (без кожи) и чистим её
+      const runGltf = await loadGLTF(assets.models.run);
+      if (runGltf.animations.length === 0) logFail('В running.glb НЕТ анимаций!');
+      else animations['run'] = fixAnimation(runGltf.animations[0]);
+
+      // 3. Грузим остальные анимации
       const jumpGltf = await loadGLTF(assets.models.jump);
       logInfo('Анимаций в jump.glb: ' + jumpGltf.animations.length);
-      animations['jump'] = jumpGltf.animations[0];
+      animations['jump'] = fixAnimation(jumpGltf.animations[0]);
 
       const fallGltf = await loadGLTF(assets.models.fall);
       logInfo('Анимаций в fall.glb: ' + fallGltf.animations.length);
-      animations['fall'] = fallGltf.animations[0];
+      animations['fall'] = fixAnimation(fallGltf.animations[0]);
 
       const dance1Gltf = await loadGLTF(assets.models.dance1);
       logInfo('Анимаций в dance.glb: ' + dance1Gltf.animations.length);
-      animations['dance1'] = dance1Gltf.animations[0];
+      animations['dance1'] = fixAnimation(dance1Gltf.animations[0]);
 
       const dance2Gltf = await loadGLTF(assets.models.dance2);
       logInfo('Анимаций в dance2.glb: ' + dance2Gltf.animations.length);
-      animations['dance2'] = dance2Gltf.animations[0];
+      animations['dance2'] = fixAnimation(dance2Gltf.animations[0]);
 
       logOK('=== ВСЕ ФАЙЛЫ ЗАГРУЖЕНЫ! ===');
       
@@ -684,5 +697,3 @@ function loadGLTF(url) {
     }
   };
 }
-
-
