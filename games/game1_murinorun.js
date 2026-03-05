@@ -172,31 +172,35 @@ export function createGame(root, api) {
     return allOk;
   }
 
- // ============================================================
-  // ФИКС АНИМАЦИЙ MIXAMO (Защита от багов с масштабом и именами)
+// ============================================================
+  // ФИКС АНИМАЦИЙ MIXAMO (Идеальный размер для Ready Player Me)
   // ============================================================
   function fixAnimation(clip) {
     if (!clip) return null;
-    
-    clip.tracks.forEach(track => {
-      // 1. Исправляем имена костей
-      // Mixamo добавляет "mixamorig", а в RPM кости называются просто "Hips", "Spine"
-      track.name = track.name.replace(/.*mixamorig/i, '');
-      
-      // Если после обрезки остался спецсимвол (например ":Hips"), убираем его
-      if (track.name.startsWith(':')) {
-          track.name = track.name.substring(1);
-      }
 
-      // 2. Исправляем масштаб (Спасаем от "спагетти")
-      // Уменьшаем амплитуду перемещения костей в 100 раз (переводим сантиметры в метры)
+    // Фильтруем треки: оставляем только вращения и позицию таза (Hips)
+    clip.tracks = clip.tracks.filter(track => {
+      // Очищаем имена костей от мусора Mixamo
+      track.name = track.name.replace(/.*mixamorig/i, '');
+      if (track.name.startsWith(':')) track.name = track.name.substring(1);
+
+      // Если это трек смещения кости (position)
       if (track.name.endsWith('.position')) {
-        for (let i = 0; i < track.values.length; i++) {
-          track.values[i] *= 0.01; 
+        // Оставляем ТОЛЬКО движение таза (Hips), чтобы он мог подпрыгивать
+        if (track.name.includes('Hips')) {
+          // Переводим амплитуду из сантиметров в метры
+          for (let i = 0; i < track.values.length; i++) {
+            track.values[i] *= 0.01; 
+          }
+          return true; // Сохраняем Hips
         }
+        // УДАЛЯЕМ позиции всех остальных костей! (Именно они сплющивали модель)
+        return false; 
       }
+      
+      return true; // Сохраняем все треки вращения (rotation)
     });
-    
+
     return clip;
   }
   // ============================================================
@@ -319,10 +323,19 @@ export function createGame(root, api) {
     }
   }
 
-  function playAnim(name, fadeTime = 0.2) {
+function playAnim(name, fadeTime = 0.2) {
     if (!animations[name]) { logFail('Анимация не найдена: ' + name); return; }
+    
+    // Выводим на экран, какая анимация сейчас включилась
+    logInfo('▶️ Включилась анимация: ' + name); 
+    
     const action = mixer.clipAction(animations[name]);
-    if (currentAction) currentAction.crossFadeTo(action, fadeTime, true);
+    
+    // Плавно переключаем, только если это новая анимация
+    if (currentAction && currentAction !== action) {
+      currentAction.crossFadeTo(action, fadeTime, true);
+    }
+    
     action.reset();
     action.play();
     currentAction = action;
