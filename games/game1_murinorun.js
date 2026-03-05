@@ -5,8 +5,8 @@ export function createGame(root, api) {
   // --- CONFIGURATION ---
   const assets = {
     models: {
-      player: './assets/mel.glb',        // <--- Твоя цветная модель (база)
-      run: './assets/running.glb',       // <--- Анимация бега (без кожи)
+      player: './assets/mel.glb',        
+      run: './assets/running.glb',       
       jump: './assets/jump.glb',          
       fall: './assets/fall.glb',
       dance1: './assets/dance.glb',
@@ -62,7 +62,6 @@ export function createGame(root, api) {
   let currentLane = 1;
   let targetX = 0;
 
-  // ⚙️ НАСТРОЙКА ВЫСОТЫ (Если персонаж всё еще висит в воздухе или чуть в земле — поменяй это число, например на 0.5 или -0.5)
   const PLAYER_Y_OFFSET = 0; 
 
   let velocityY = 0;
@@ -109,7 +108,7 @@ export function createGame(root, api) {
   async function checkFileExists(url) {
     try {
       const res = await fetch(url, { method: 'HEAD' });
-      if (res.ok) { logOK(`Файл найден: ${url}`); return true; } 
+      if (res.ok) { return true; } 
       else { logFail(`Файл НЕ найден: ${url}`); return false; }
     } catch (e) { logFail(`Сетевая ошибка: ${url}`); return false; }
   }
@@ -127,33 +126,38 @@ export function createGame(root, api) {
   }
 
   // ============================================================
-  // УЛЬТИМАТИВНЫЙ ФИКС АНИМАЦИЙ (БЕЗ БАГОВ ПОД ЗЕМЛЕЙ)
+  // УМНЫЙ ФИКС АНИМАЦИЙ (Ищет кости как нейросеть)
   // ============================================================
-  function fixAnimation(clip) {
-    if (!clip) return null;
+  function fixAnimation(clip, targetModel) {
+    if (!clip || !targetModel) return null;
+
+    // Считываем точные названия костей твоей цветной модели
+    const validBones = [];
+    targetModel.traverse(child => {
+      if (child.isBone) validBones.push(child.name);
+    });
 
     clip.tracks = clip.tracks.filter(track => {
-      // 1. УДАЛЯЕМ ВСЕ ТРЕКИ ПОЗИЦИИ. 
-      // Это на 100% лечит баг "персонаж под землей" и "сплющенный карлик". 
-      // Анимация будет крутить кости, а высоту мы контролируем кодом.
-      if (track.name.endsWith('.position')) return false;
+      if (track.name.endsWith('.position')) return false; // Защита от ухода под землю
 
-      // 2. ЖЕСТКАЯ ОЧИСТКА ИМЕН
       let parts = track.name.split('.');
-      let prop = parts.pop(); // 'quaternion'
-      let bone = parts.join('.');
+      let prop = parts.pop(); 
+      let trackBone = parts.join('.'); 
 
-      // Срезаем весь мусор от Blender и Mixamo (Armature_, mixamorig и т.д.)
-      bone = bone.replace(/.*mixamorig/i, '');
-      bone = bone.replace(/^Armature.*?_/i, '');
-      bone = bone.replace(/^Armature.*?\./i, '');
-      if (bone.startsWith(':')) bone = bone.substring(1);
+      let matchedBone = null;
+      // Пытаемся понять, какая реальная кость скрыта под мусорным названием конвертера
+      for (let b of validBones) {
+        if (trackBone.toLowerCase().endsWith(b.toLowerCase())) {
+          matchedBone = b;
+          break;
+        }
+      }
 
-      // Делаем первую букву заглавной (в Ready Player Me кости с большой буквы, например Hips, Spine)
-      bone = bone.charAt(0).toUpperCase() + bone.slice(1);
-
-      track.name = bone + '.' + prop;
-      return true; 
+      if (matchedBone) {
+        track.name = matchedBone + '.' + prop;
+        return true;
+      }
+      return false; // Если кость не найдена, удаляем трек чтобы не сломать игру
     });
 
     return clip;
@@ -164,13 +168,13 @@ export function createGame(root, api) {
   // ============================================================
   function loadGLTF(url) {
     return new Promise((resolve, reject) => {
-      logWait('Грузим 3D модель: ' + url);
+      logWait('Грузим: ' + url);
       const dracoLoader = new THREE.DRACOLoader();
       dracoLoader.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/libs/draco/');
       const loader = new THREE.GLTFLoader();
       loader.setDRACOLoader(dracoLoader);
       loader.load(url,
-        (gltf) => { logOK('Загружено: ' + url); resolve(gltf); },
+        (gltf) => { resolve(gltf); },
         undefined,
         (error) => { logFail('ОШИБКА: ' + url); reject({ url, error }); }
       );
@@ -210,21 +214,30 @@ export function createGame(root, api) {
       playerModel.position.set(0, 0, 0);
       mixer = new THREE.AnimationMixer(playerModel);
 
-      // 2. Грузим и жестко чистим все анимации
+      // Вспомогательная функция, которая ловит ПУСТЫЕ файлы
+      function extractAnim(gltf, name) {
+        if (!gltf.animations || gltf.animations.length === 0) {
+            logFail('❌ ПУСТОЙ ФАЙЛ: Внутри ' + name + ' нет движений! Ошибка экспорта.');
+            return null;
+        }
+        return fixAnimation(gltf.animations[0], playerModel);
+      }
+
+      // 2. Грузим и чистим все анимации
       const runGltf = await loadGLTF(assets.models.run);
-      animations['run'] = fixAnimation(runGltf.animations[0]);
+      animations['run'] = extractAnim(runGltf, 'running.glb');
 
       const jumpGltf = await loadGLTF(assets.models.jump);
-      animations['jump'] = fixAnimation(jumpGltf.animations[0]);
+      animations['jump'] = extractAnim(jumpGltf, 'jump.glb');
 
       const fallGltf = await loadGLTF(assets.models.fall);
-      animations['fall'] = fixAnimation(fallGltf.animations[0]);
+      animations['fall'] = extractAnim(fallGltf, 'fall.glb');
 
       const dance1Gltf = await loadGLTF(assets.models.dance1);
-      animations['dance1'] = fixAnimation(dance1Gltf.animations[0]);
+      animations['dance1'] = extractAnim(dance1Gltf, 'dance.glb');
 
       const dance2Gltf = await loadGLTF(assets.models.dance2);
-      animations['dance2'] = fixAnimation(dance2Gltf.animations[0]);
+      animations['dance2'] = extractAnim(dance2Gltf, 'dance2.glb');
 
       logOK('=== ВСЕ ФАЙЛЫ ГОТОВЫ! ===');
       
@@ -240,19 +253,22 @@ export function createGame(root, api) {
   }
 
   // ============================================================
-  // ИДЕАЛЬНОЕ ВОСПРОИЗВЕДЕНИЕ АНИМАЦИЙ
+  // ПЛАВНОЕ ВОСПРОИЗВЕДЕНИЕ (Без залипаний)
   // ============================================================
   function playAnim(name, fadeTime = 0.2) {
-    if (!animations[name]) { logFail('❌ Анимация сломана: ' + name); return; }
-    logInfo('▶️ Играет: ' + name); 
+    if (!animations[name]) { logFail('❌ Блок анимации недоступен: ' + name); return; }
     
     const action = mixer.clipAction(animations[name]);
     
     if (currentAction && currentAction !== action) {
-      currentAction.crossFadeTo(action, fadeTime, true);
+      currentAction.fadeOut(fadeTime);
     }
     
-    // Прыжок и падение играются 1 раз (не зацикливаются криво)
+    action.reset();
+    action.setEffectiveTimeScale(1);
+    action.setEffectiveWeight(1);
+    
+    // Делаем так, чтобы прыжок не дергался по кругу
     if (name === 'jump' || name === 'fall') {
       action.setLoop(THREE.LoopOnce);
       action.clampWhenFinished = true;
@@ -260,7 +276,7 @@ export function createGame(root, api) {
       action.setLoop(THREE.LoopRepeat);
     }
 
-    action.reset();
+    action.fadeIn(fadeTime);
     action.play();
     currentAction = action;
   }
@@ -297,7 +313,6 @@ export function createGame(root, api) {
 
   function setupWorld() {
     playerGroup = new THREE.Group();
-    // Используем константу высоты, чтобы персонаж не тонул
     playerGroup.position.set(targetX, PLAYER_Y_OFFSET, 0);
     playerGroup.add(playerModel);
     scene.add(playerGroup);
@@ -450,7 +465,6 @@ export function createGame(root, api) {
       if (isJumping) {
         playerGroup.position.y += velocityY;
         velocityY += gravity;
-        // Возвращаем персонажа на базовую высоту, а не в 0
         if (playerGroup.position.y <= PLAYER_Y_OFFSET) { 
           playerGroup.position.y = PLAYER_Y_OFFSET; 
           isJumping = false; 
