@@ -172,18 +172,33 @@ export function createGame(root, api) {
     return allOk;
   }
 
-  // ============================================================
-  // ФИКС АНИМАЦИЙ MIXAMO (Защита от багов с именами костей)
+ // ============================================================
+  // ФИКС АНИМАЦИЙ MIXAMO (Защита от багов с масштабом и именами)
   // ============================================================
   function fixAnimation(clip) {
     if (!clip) return null;
+    
     clip.tracks.forEach(track => {
-      // Очищаем префиксы Mixamo (например "Armature|mixamorigHips" превращаем в "mixamorigHips")
-      track.name = track.name.replace(/.*mixamorig/i, 'mixamorig');
+      // 1. Исправляем имена костей
+      // Mixamo добавляет "mixamorig", а в RPM кости называются просто "Hips", "Spine"
+      track.name = track.name.replace(/.*mixamorig/i, '');
+      
+      // Если после обрезки остался спецсимвол (например ":Hips"), убираем его
+      if (track.name.startsWith(':')) {
+          track.name = track.name.substring(1);
+      }
+
+      // 2. Исправляем масштаб (Спасаем от "спагетти")
+      // Уменьшаем амплитуду перемещения костей в 100 раз (переводим сантиметры в метры)
+      if (track.name.endsWith('.position')) {
+        for (let i = 0; i < track.values.length; i++) {
+          track.values[i] *= 0.01; 
+        }
+      }
     });
+    
     return clip;
   }
-
   // ============================================================
   // ЗАГРУЗКА АССЕТОВ
   // ============================================================
