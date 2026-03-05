@@ -62,6 +62,9 @@ export function createGame(root, api) {
   let currentLane = 1;
   let targetX = 0;
 
+  // ⚙️ НАСТРОЙКА ВЫСОТЫ (Если персонаж всё еще висит в воздухе или чуть в земле — поменяй это число, например на 0.5 или -0.5)
+  const PLAYER_Y_OFFSET = 0; 
+
   let velocityY = 0;
   const gravity = -0.015;
   const jumpPower = 0.3;
@@ -70,7 +73,7 @@ export function createGame(root, api) {
   let uiLayer, loadingText, debugPanel, introText, videoElement, gameUI, overlayGameOver;
 
   // ============================================================
-  // 🔍 ДИАГНОСТИЧЕСКАЯ ПАНЕЛЬ — показывает всё прямо на экране
+  // 🔍 ДИАГНОСТИЧЕСКАЯ ПАНЕЛЬ
   // ============================================================
   function logDebug(msg, color = 'white') {
     console.log(msg);
@@ -94,115 +97,68 @@ export function createGame(root, api) {
   function logFail(msg)  { logDebug('❌ ' + msg, '#FF003C'); }
   function logInfo(msg)  { logDebug('ℹ️  ' + msg, '#88ccff'); }
 
-  // ============================================================
-  // 🔍 ШАГ 0: Проверка — есть ли вообще THREE и GLTFLoader
-  // ============================================================
   function checkLibraries() {
     logInfo('--- ПРОВЕРКА БИБЛИОТЕК ---');
-
-    if (typeof THREE === 'undefined') {
-      logFail('THREE не найден! Скрипт three.min.js не загрузился.');
-      logFail('Проверь подключение в index.html');
-      return false;
-    } else {
-      logOK('THREE найден. Версия: r' + (THREE.REVISION || '???'));
-    }
-
-    if (typeof THREE.GLTFLoader === 'undefined') {
-      logFail('THREE.GLTFLoader не найден!');
-      logFail('GLTFLoader.js не загрузился или загрузился с ошибкой.');
-      logFail('Убедись что в index.html ПОСЛЕ three.min.js есть:');
-      logFail('<script src="...GLTFLoader..."></script>');
-      return false;
-    } else {
-      logOK('THREE.GLTFLoader найден!');
-    }
-
+    if (typeof THREE === 'undefined') { logFail('THREE не найден!'); return false; } 
+    else { logOK('THREE найден.'); }
+    if (typeof THREE.GLTFLoader === 'undefined') { logFail('GLTFLoader не найден!'); return false; } 
+    else { logOK('GLTFLoader найден!'); }
     return true;
   }
 
-  // ============================================================
-  // 🔍 ШАГ 1: Проверка доступности файлов через fetch
-  // ============================================================
   async function checkFileExists(url) {
     try {
       const res = await fetch(url, { method: 'HEAD' });
-      if (res.ok) {
-        logOK(`Файл найден (${res.status}): ${url}`);
-        return true;
-      } else {
-        logFail(`Файл НЕ найден (${res.status}): ${url}`);
-        return false;
-      }
-    } catch (e) {
-      logFail(`Сетевая ошибка при проверке: ${url}`);
-      logFail('Причина: ' + e.message);
-      return false;
-    }
+      if (res.ok) { logOK(`Файл найден: ${url}`); return true; } 
+      else { logFail(`Файл НЕ найден: ${url}`); return false; }
+    } catch (e) { logFail(`Сетевая ошибка: ${url}`); return false; }
   }
 
   async function checkAllFiles() {
     logInfo('--- ПРОВЕРКА НАЛИЧИЯ ФАЙЛОВ ---');
-
     const allFiles = [
-      assets.textures.fog,
-      ...assets.textures.roads,
-      ...assets.textures.buildings,
-      assets.models.player,
-      assets.models.run,      // Добавили проверку файла бега
-      assets.models.jump,
-      assets.models.fall,
-      assets.models.dance1,
-      assets.models.dance2,
+      assets.textures.fog, ...assets.textures.roads, ...assets.textures.buildings,
+      assets.models.player, assets.models.run, assets.models.jump, assets.models.fall, assets.models.dance1, assets.models.dance2,
       assets.video,
     ];
-
     let allOk = true;
-    for (const url of allFiles) {
-      const ok = await checkFileExists(url);
-      if (!ok) allOk = false;
-    }
-
-    if (allOk) {
-      logOK('Все файлы найдены на сервере!');
-    } else {
-      logFail('ЕСТЬ ОТСУТСТВУЮЩИЕ ФАЙЛЫ — смотри красные строки выше!');
-    }
-
+    for (const url of allFiles) { const ok = await checkFileExists(url); if (!ok) allOk = false; }
     return allOk;
   }
 
-// ============================================================
-  // ФИКС АНИМАЦИЙ MIXAMO (Идеальный размер для Ready Player Me)
+  // ============================================================
+  // УЛЬТИМАТИВНЫЙ ФИКС АНИМАЦИЙ (БЕЗ БАГОВ ПОД ЗЕМЛЕЙ)
   // ============================================================
   function fixAnimation(clip) {
     if (!clip) return null;
 
-    // Фильтруем треки: оставляем только вращения и позицию таза (Hips)
     clip.tracks = clip.tracks.filter(track => {
-      // Очищаем имена костей от мусора Mixamo
-      track.name = track.name.replace(/.*mixamorig/i, '');
-      if (track.name.startsWith(':')) track.name = track.name.substring(1);
+      // 1. УДАЛЯЕМ ВСЕ ТРЕКИ ПОЗИЦИИ. 
+      // Это на 100% лечит баг "персонаж под землей" и "сплющенный карлик". 
+      // Анимация будет крутить кости, а высоту мы контролируем кодом.
+      if (track.name.endsWith('.position')) return false;
 
-      // Если это трек смещения кости (position)
-      if (track.name.endsWith('.position')) {
-        // Оставляем ТОЛЬКО движение таза (Hips), чтобы он мог подпрыгивать
-        if (track.name.includes('Hips')) {
-          // Переводим амплитуду из сантиметров в метры
-          for (let i = 0; i < track.values.length; i++) {
-            track.values[i] *= 0.01; 
-          }
-          return true; // Сохраняем Hips
-        }
-        // УДАЛЯЕМ позиции всех остальных костей! (Именно они сплющивали модель)
-        return false; 
-      }
-      
-      return true; // Сохраняем все треки вращения (rotation)
+      // 2. ЖЕСТКАЯ ОЧИСТКА ИМЕН
+      let parts = track.name.split('.');
+      let prop = parts.pop(); // 'quaternion'
+      let bone = parts.join('.');
+
+      // Срезаем весь мусор от Blender и Mixamo (Armature_, mixamorig и т.д.)
+      bone = bone.replace(/.*mixamorig/i, '');
+      bone = bone.replace(/^Armature.*?_/i, '');
+      bone = bone.replace(/^Armature.*?\./i, '');
+      if (bone.startsWith(':')) bone = bone.substring(1);
+
+      // Делаем первую букву заглавной (в Ready Player Me кости с большой буквы, например Hips, Spine)
+      bone = bone.charAt(0).toUpperCase() + bone.slice(1);
+
+      track.name = bone + '.' + prop;
+      return true; 
     });
 
     return clip;
   }
+
   // ============================================================
   // ЗАГРУЗКА АССЕТОВ
   // ============================================================
@@ -216,95 +172,61 @@ export function createGame(root, api) {
       loader.load(url,
         (gltf) => { logOK('Загружено: ' + url); resolve(gltf); },
         undefined,
-        (error) => {
-          logFail('ОШИБКА загрузки модели: ' + url);
-          logFail('Сообщение: ' + (error.message || JSON.stringify(error)));
-          reject({ url, error });
-        }
+        (error) => { logFail('ОШИБКА: ' + url); reject({ url, error }); }
       );
     });
   }
 
   function loadTexture(url) {
     return new Promise((resolve, reject) => {
-      logWait('Грузим текстуру: ' + url);
       const loader = new THREE.TextureLoader();
       loader.load(url, 
-        (tex) => {
-          tex.anisotropy = renderer?.capabilities?.getMaxAnisotropy() || 1;
-          logOK('Загружено: ' + url);
-          resolve(tex);
-        }, 
+        (tex) => { tex.anisotropy = renderer?.capabilities?.getMaxAnisotropy() || 1; resolve(tex); }, 
         undefined, 
-        (error) => {
-          logFail('ОШИБКА загрузки текстуры: ' + url);
-          logFail('Сообщение: ' + (error.message || JSON.stringify(error)));
-          reject({ url, error });
-        }
+        (error) => { logFail('ОШИБКА: ' + url); reject({ url, error }); }
       );
     });
   }
 
   async function preloadAssets() {
     try {
-      const libsOk = checkLibraries();
-      if (!libsOk) {
-        if (loadingText) loadingText.innerHTML = '❌ ОШИБКА БИБЛИОТЕК<br>Смотри лог ниже 👇';
-        return;
-      }
-
+      if (!checkLibraries()) return;
       await checkAllFiles();
-
       logInfo('--- НАЧИНАЕМ ЗАГРУЗКУ ---');
 
-      // Текстуры
       loadedTextures.fog = await loadTexture(assets.textures.fog);
-      
       loadedTextures.roads = [];
-      for (let url of assets.textures.roads) {
-        loadedTextures.roads.push(await loadTexture(url));
-      }
-
+      for (let url of assets.textures.roads) loadedTextures.roads.push(await loadTexture(url));
       loadedTextures.buildings = [];
-      for (let url of assets.textures.buildings) {
-        loadedTextures.buildings.push(await loadTexture(url));
-      }
+      for (let url of assets.textures.buildings) loadedTextures.buildings.push(await loadTexture(url));
 
       loadedTextures.roads.forEach(tex => { tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.repeat.set(1, 10); });
       loadedTextures.buildings.forEach(tex => { tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.repeat.set(2, 5); });
 
-      // 1. Грузим ОСНОВНОЕ ТЕЛО (Цветную модель)
+      // 1. Грузим ОСНОВНОЕ ТЕЛО
       const playerGltf = await loadGLTF(assets.models.player);
       playerModel = playerGltf.scene;
       playerModel.scale.set(1, 1, 1); 
       playerModel.position.set(0, 0, 0);
-      
-      // Создаем миксер на основе цветного тела
       mixer = new THREE.AnimationMixer(playerModel);
 
-      // 2. Грузим АНИМАЦИЮ БЕГА (без кожи) и чистим её
+      // 2. Грузим и жестко чистим все анимации
       const runGltf = await loadGLTF(assets.models.run);
-      if (runGltf.animations.length === 0) logFail('В running.glb НЕТ анимаций!');
-      else animations['run'] = fixAnimation(runGltf.animations[0]);
+      animations['run'] = fixAnimation(runGltf.animations[0]);
 
-      // 3. Грузим остальные анимации
       const jumpGltf = await loadGLTF(assets.models.jump);
-      logInfo('Анимаций в jump.glb: ' + jumpGltf.animations.length);
       animations['jump'] = fixAnimation(jumpGltf.animations[0]);
 
       const fallGltf = await loadGLTF(assets.models.fall);
-      logInfo('Анимаций в fall.glb: ' + fallGltf.animations.length);
       animations['fall'] = fixAnimation(fallGltf.animations[0]);
 
       const dance1Gltf = await loadGLTF(assets.models.dance1);
-      logInfo('Анимаций в dance.glb: ' + dance1Gltf.animations.length);
       animations['dance1'] = fixAnimation(dance1Gltf.animations[0]);
 
       const dance2Gltf = await loadGLTF(assets.models.dance2);
-      logInfo('Анимаций в dance2.glb: ' + dance2Gltf.animations.length);
       animations['dance2'] = fixAnimation(dance2Gltf.animations[0]);
 
-      logOK('=== ВСЕ ФАЙЛЫ ЗАГРУЖЕНЫ! ===');
+      logOK('=== ВСЕ ФАЙЛЫ ГОТОВЫ! ===');
       
       setTimeout(() => {
         debugPanel.style.display = 'none';
@@ -313,29 +235,31 @@ export function createGame(root, api) {
       }, 2000);
 
     } catch (e) {
-      console.error("Asset loading error:", e);
-      logFail('==============================');
-      logFail('КРИТИЧЕСКАЯ ОШИБКА ЗАГРУЗКИ:');
-      logFail(e.url ? 'Файл: ' + e.url : 'Неизвестный файл');
-      logFail(e.error ? 'Детали: ' + (e.error.message || JSON.stringify(e.error)) : String(e));
-      logFail('==============================');
-      if (loadingText) loadingText.innerHTML = `❌ КРАШ ЗАГРУЗКИ<br>Смотри лог ниже 👇`;
+      logFail('КРИТИЧЕСКАЯ ОШИБКА ЗАГРУЗКИ');
     }
   }
 
-function playAnim(name, fadeTime = 0.2) {
-    if (!animations[name]) { logFail('Анимация не найдена: ' + name); return; }
-    
-    // Выводим на экран, какая анимация сейчас включилась
-    logInfo('▶️ Включилась анимация: ' + name); 
+  // ============================================================
+  // ИДЕАЛЬНОЕ ВОСПРОИЗВЕДЕНИЕ АНИМАЦИЙ
+  // ============================================================
+  function playAnim(name, fadeTime = 0.2) {
+    if (!animations[name]) { logFail('❌ Анимация сломана: ' + name); return; }
+    logInfo('▶️ Играет: ' + name); 
     
     const action = mixer.clipAction(animations[name]);
     
-    // Плавно переключаем, только если это новая анимация
     if (currentAction && currentAction !== action) {
       currentAction.crossFadeTo(action, fadeTime, true);
     }
     
+    // Прыжок и падение играются 1 раз (не зацикливаются криво)
+    if (name === 'jump' || name === 'fall') {
+      action.setLoop(THREE.LoopOnce);
+      action.clampWhenFinished = true;
+    } else {
+      action.setLoop(THREE.LoopRepeat);
+    }
+
     action.reset();
     action.play();
     currentAction = action;
@@ -373,7 +297,8 @@ function playAnim(name, fadeTime = 0.2) {
 
   function setupWorld() {
     playerGroup = new THREE.Group();
-    playerGroup.position.set(targetX, 0, 0);
+    // Используем константу высоты, чтобы персонаж не тонул
+    playerGroup.position.set(targetX, PLAYER_Y_OFFSET, 0);
     playerGroup.add(playerModel);
     scene.add(playerGroup);
 
@@ -525,8 +450,9 @@ function playAnim(name, fadeTime = 0.2) {
       if (isJumping) {
         playerGroup.position.y += velocityY;
         velocityY += gravity;
-        if (playerGroup.position.y <= 0) { 
-          playerGroup.position.y = 0; 
+        // Возвращаем персонажа на базовую высоту, а не в 0
+        if (playerGroup.position.y <= PLAYER_Y_OFFSET) { 
+          playerGroup.position.y = PLAYER_Y_OFFSET; 
           isJumping = false; 
           velocityY = 0;
           playAnim('run', 0.2); 
@@ -609,7 +535,7 @@ function playAnim(name, fadeTime = 0.2) {
     currentLane = 1; targetX = lanes[currentLane];
     isJumping = false; velocityY = 0; deathTimer = 0;
     
-    playerGroup.position.set(targetX, 0, 0);
+    playerGroup.position.set(targetX, PLAYER_Y_OFFSET, 0);
     camera.position.set(0, 4, 7);
     camera.lookAt(playerGroup.position.x, 2, -10);
     
@@ -650,7 +576,6 @@ function playAnim(name, fadeTime = 0.2) {
     loadingText.style.cssText = 'position:absolute; top:10%; left:50%; transform:translateX(-50%); color:#FF003C; font-size:24px; text-shadow:2px 2px 0 #000; text-align:center; font-family: monospace; line-height: 1.5; white-space:nowrap;';
     uiLayer.appendChild(loadingText);
 
-    // Большая диагностическая панель — занимает почти весь экран
     debugPanel = document.createElement('div');
     debugPanel.style.cssText = `
       position: absolute;
