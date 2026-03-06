@@ -106,7 +106,9 @@ export function createGame(root, api) {
     if (typeof THREE === 'undefined') { logFail('THREE не найден!'); return false; }
     else { logOK('THREE найден.'); }
     if (typeof THREE.GLTFLoader === 'undefined') { logFail('GLTFLoader не найден!'); return false; }
-    else { logOK('GLTFLoader найден!'); }
+    else { logOK('GLTFLoader найден.'); }
+    if (typeof THREE.DRACOLoader === 'undefined') { logFail('DRACOLoader не найден!'); return false; }
+    else { logOK('DRACOLoader найден.'); }
     return true;
   }
 
@@ -151,15 +153,12 @@ export function createGame(root, api) {
     const bones = [];
     targetModel.traverse(o => { if (o.isBone) bones.push(o); });
 
-    const byExact = new Map();
     const byNorm = new Map();
-
     for (const b of bones) {
-      byExact.set(b.name, b.name);
       const n = normalizeBoneName(b.name);
       if (!byNorm.has(n)) byNorm.set(n, b.name);
     }
-    return { bones, byExact, byNorm };
+    return { byNorm };
   }
 
   function findClosestBoneName(trackBoneRaw, boneMap) {
@@ -177,7 +176,6 @@ export function createGame(root, api) {
         if (norm.split('.').pop() === last) return real;
       }
     }
-
     return null;
   }
 
@@ -186,15 +184,12 @@ export function createGame(root, api) {
 
     const boneMap = buildBoneMaps(targetModel);
     let kept = 0;
-    let total = clip.tracks.length;
+    const total = clip.tracks.length;
 
     const fixed = clip.clone();
 
     fixed.tracks = fixed.tracks
-      .filter(track => {
-        if (track.name.endsWith('.position')) return false;
-        return true;
-      })
+      .filter(track => !track.name.endsWith('.position'))
       .map(track => {
         const lastDot = track.name.lastIndexOf('.');
         if (lastDot === -1) return null;
@@ -227,12 +222,16 @@ export function createGame(root, api) {
   function loadGLTF(url) {
     return new Promise((resolve, reject) => {
       logWait('Грузим: ' + url);
+
       const dracoLoader = new THREE.DRACOLoader();
       dracoLoader.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/libs/draco/');
+
       const loader = new THREE.GLTFLoader();
       loader.setDRACOLoader(dracoLoader);
-      loader.load(url,
-        (gltf) => { resolve(gltf); },
+
+      loader.load(
+        url,
+        (gltf) => resolve(gltf),
         undefined,
         (error) => { logFail('ОШИБКА: ' + url); reject({ url, error }); }
       );
@@ -242,7 +241,8 @@ export function createGame(root, api) {
   function loadTexture(url) {
     return new Promise((resolve, reject) => {
       const loader = new THREE.TextureLoader();
-      loader.load(url,
+      loader.load(
+        url,
         (tex) => { tex.anisotropy = renderer?.capabilities?.getMaxAnisotropy() || 1; resolve(tex); },
         undefined,
         (error) => { logFail('ОШИБКА: ' + url); reject({ url, error }); }
@@ -265,7 +265,6 @@ export function createGame(root, api) {
       loadedTextures.roads.forEach(tex => { tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.repeat.set(1, 10); });
       loadedTextures.buildings.forEach(tex => { tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.repeat.set(2, 5); });
 
-      // 1. Грузим ОСНОВНОЕ ТЕЛО
       const playerGltf = await loadGLTF(assets.models.player);
       playerModel = playerGltf.scene;
       playerModel.scale.set(1, 1, 1);
@@ -283,7 +282,6 @@ export function createGame(root, api) {
         return best;
       }
 
-      // Вспомогательная функция, которая ловит ПУСТЫЕ файлы
       function extractAnim(gltf, label) {
         const clip = pickBestClip(gltf, label);
         if (!clip) {
@@ -293,21 +291,20 @@ export function createGame(root, api) {
         return fixAnimation(clip, playerModel);
       }
 
-      // 2. Грузим и чистим все анимации
       const runGltf = await loadGLTF(assets.models.run);
-      animations['run'] = extractAnim(runGltf, 'run');
+      animations.run = extractAnim(runGltf, 'run');
 
       const jumpGltf = await loadGLTF(assets.models.jump);
-      animations['jump'] = extractAnim(jumpGltf, 'jump');
+      animations.jump = extractAnim(jumpGltf, 'jump');
 
       const fallGltf = await loadGLTF(assets.models.fall);
-      animations['fall'] = extractAnim(fallGltf, 'fall');
+      animations.fall = extractAnim(fallGltf, 'fall');
 
       const dance1Gltf = await loadGLTF(assets.models.dance1);
-      animations['dance1'] = extractAnim(dance1Gltf, 'dance');
+      animations.dance1 = extractAnim(dance1Gltf, 'dance');
 
       const dance2Gltf = await loadGLTF(assets.models.dance2);
-      animations['dance2'] = extractAnim(dance2Gltf, 'dance');
+      animations.dance2 = extractAnim(dance2Gltf, 'dance');
 
       logOK('=== ВСЕ ФАЙЛЫ ГОТОВЫ! ===');
 
@@ -315,7 +312,7 @@ export function createGame(root, api) {
         debugPanel.style.display = 'none';
         setupWorld();
         startIntro();
-      }, 2000);
+      }, 1200);
 
     } catch (e) {
       logFail('КРИТИЧЕСКАЯ ОШИБКА ЗАГРУЗКИ');
@@ -323,7 +320,7 @@ export function createGame(root, api) {
   }
 
   // ============================================================
-  // ПЛАВНОЕ ВОСПРОИЗВЕДЕНИЕ (Без залипаний)
+  // ПЛАВНОЕ ВОСПРОИЗВЕДЕНИЕ
   // ============================================================
   function playAnim(name, fadeTime = 0.2) {
     const clip = animations[name];
@@ -350,11 +347,9 @@ export function createGame(root, api) {
 
     next.play();
     currentAction = next;
-
-    logInfo(`🎬 playAnim: ${name}`);
   }
 
-  // --- 2. WORLD INIT ---
+  // --- WORLD INIT ---
   function init3D() {
     scene = new THREE.Scene();
     scene.background = new THREE.Color(0x222222);
@@ -375,6 +370,7 @@ export function createGame(root, api) {
 
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
     scene.add(ambientLight);
+
     const dirLight = new THREE.DirectionalLight(0xffffff, 1);
     dirLight.position.set(10, 20, -10);
     dirLight.castShadow = true;
@@ -393,7 +389,7 @@ export function createGame(root, api) {
     for (let i = 0; i < ROAD_COUNT; i++) {
       const tex = loadedTextures.roads[i % loadedTextures.roads.length];
       const roadGeo = new THREE.PlaneGeometry(ROAD_WIDTH, ROAD_LEN);
-      const roadMat = new THREE.MeshStandardMaterial({ map: tex });
+      const roadMat = new THREE.MeshStandardMaterial({ map: tex, side: THREE.DoubleSide }); // важно
       const road = new THREE.Mesh(roadGeo, roadMat);
       road.rotation.x = -Math.PI / 2;
       road.position.z = -i * ROAD_LEN;
@@ -426,7 +422,7 @@ export function createGame(root, api) {
     coinGeo = new THREE.OctahedronGeometry(0.6);
     coinMat = new THREE.MeshStandardMaterial({ color: 0xFFD700, emissive: 0xaa8800 });
 
-    // --- EXTRA WORLD (чтобы не было пусто) ---
+    // --- EXTRA WORLD ---
     const sideGeo = new THREE.PlaneGeometry(200, 2000);
     const sideMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a });
     const leftGround = new THREE.Mesh(sideGeo, sideMat);
@@ -459,7 +455,7 @@ export function createGame(root, api) {
     scene.add(dust);
   }
 
-  // --- 3. SCENARIOS ---
+  // --- SCENARIOS ---
   function startIntro() {
     gameState = STATE.INTRO;
     loadingText.style.display = 'none';
@@ -480,7 +476,7 @@ export function createGame(root, api) {
     introText.style.display = 'none';
 
     videoElement.style.display = 'block';
-    videoElement.play().catch(e => console.log("Video autoplay blocked", e));
+    videoElement.play().catch(() => {});
 
     setTimeout(() => { startRun(); }, 2000);
   }
@@ -500,13 +496,14 @@ export function createGame(root, api) {
     fogEntity.position.set(0, 5, camera.position.z + 30);
   }
 
-  // --- 4. CONTROLS ---
+  // --- CONTROLS ---
   function moveLeft() { if (currentLane > 0 && gameState === STATE.PLAYING) { currentLane--; targetX = lanes[currentLane]; } }
   function moveRight() { if (currentLane < 2 && gameState === STATE.PLAYING) { currentLane++; targetX = lanes[currentLane]; } }
   function jump() {
     if (!isJumping && gameState === STATE.PLAYING) {
-      isJumping = true; velocityY = jumpPower;
-      playAnim('jump', 0.1);
+      isJumping = true;
+      velocityY = jumpPower;
+      playAnim('jump', 0.08);
     }
   }
 
@@ -525,7 +522,9 @@ export function createGame(root, api) {
     const dy = e.changedTouches[0].clientY - touchStartY;
     if (Math.abs(dx) > Math.abs(dy)) {
       if (Math.abs(dx) > 30) { dx > 0 ? moveRight() : moveLeft(); }
-    } else { if (dy < -30) jump(); }
+    } else {
+      if (dy < -30) jump();
+    }
   }
 
   function setupControls() {
@@ -550,7 +549,7 @@ export function createGame(root, api) {
     }
   }
 
-  // --- 5. GAME LOOP ---
+  // --- GAME LOOP ---
   function animate() {
     if (!running) return;
     animationId = requestAnimationFrame(animate);
@@ -563,44 +562,11 @@ export function createGame(root, api) {
       camera.position.z = Math.cos(Date.now() * 0.001) * 6 + 2;
       camera.lookAt(playerGroup.position.x, 2, playerGroup.position.z);
     }
-  else if (gameState === STATE.DYING) {
-  deathTimer++;
+    else if (gameState === STATE.PLAYING) {
+      speed += 0.0001;
+      playerGroup.position.z -= speed;
+      playerGroup.position.x += (targetX - playerGroup.position.x) * 0.15;
 
-  // 0..90 кадров (~1.5с): просто показываем падение
-  // 90..150 (~1с): туман начинает медленно приближаться
-  // 150+ : туман резко “съедает”
-  const FALL_SHOW_FRAMES = 90;
-  const FOG_SLOW_FRAMES = 60;
-
-  // Камера держит игрока
-  camera.position.z = playerGroup.position.z + 6;
-  camera.position.x = playerGroup.position.x * 0.4;
-  camera.position.y = playerGroup.position.y + 3.8;
-  camera.lookAt(playerGroup.position.x, 1.8, playerGroup.position.z - 6);
-
-  // Туман стоит впереди камеры
-  fogEntity.lookAt(camera.position);
-
-  if (deathTimer <= FALL_SHOW_FRAMES) {
-    // Ничего не двигаем — ты реально видишь fall
-    fogEntity.position.set(0, 5, camera.position.z + 30);
-  } else {
-    const t = deathTimer - FALL_SHOW_FRAMES;
-
-    if (t <= FOG_SLOW_FRAMES) {
-      fogEntity.position.z -= 0.35; // медленно
-    } else {
-      fogEntity.position.z -= 2.2;  // резко
-    }
-
-    if (fogEntity.position.z < camera.position.z + 2) {
-      running = false;
-      overlayGameOver.style.display = 'flex';
-      document.getElementById('goScore').innerText = score;
-      document.getElementById('goCoins').innerText = '+' + coinsCollected;
-    }
-  }
-}
       if (isJumping) {
         playerGroup.position.y += velocityY;
         velocityY += gravity;
@@ -608,7 +574,7 @@ export function createGame(root, api) {
           playerGroup.position.y = PLAYER_Y_OFFSET;
           isJumping = false;
           velocityY = 0;
-          playAnim('run', 0.2);
+          playAnim('run', 0.15);
         }
       }
 
@@ -617,19 +583,18 @@ export function createGame(root, api) {
       camera.position.y = playerGroup.position.y + 4;
       camera.lookAt(playerGroup.position.x, 2, playerGroup.position.z - 10);
 
-    // --- ROAD RECYCLE (без дырок, по заднему краю сегмента) ---
-let minZ = Infinity;
-for (const r of roadMeshes) minZ = Math.min(minZ, r.position.z);
+      // --- ROAD RECYCLE (по заднему краю сегмента) ---
+      let minZ = Infinity;
+      for (const r of roadMeshes) minZ = Math.min(minZ, r.position.z);
 
-// если задний край сегмента оказался позади камеры — переносим вперёд
-const BEHIND_OFFSET = 20; // запас, чтобы вообще не было “просвета”
-for (const r of roadMeshes) {
-  const backEdgeZ = r.position.z + (ROAD_LEN * 0.5);
-  if (backEdgeZ > camera.position.z + BEHIND_OFFSET) {
-    r.position.z = minZ - ROAD_LEN;
-    minZ = r.position.z;
-  }
-}
+      const BEHIND_OFFSET = 25;
+      for (const r of roadMeshes) {
+        const backEdgeZ = r.position.z + (ROAD_LEN * 0.5);
+        if (backEdgeZ > camera.position.z + BEHIND_OFFSET) {
+          r.position.z = minZ - ROAD_LEN;
+          minZ = r.position.z;
+        }
+      }
 
       spawnTimer++;
       if (spawnTimer > 40 / speed) { spawnRow(); spawnTimer = 0; }
@@ -638,18 +603,27 @@ for (const r of roadMeshes) {
 
       for (let i = coins.length - 1; i >= 0; i--) {
         const c = coins[i];
-        if (Math.abs(c.position.z - playerGroup.position.z) < 1.2 && Math.abs(c.position.x - playerGroup.position.x) < 1.2 && playerGroup.position.y < 2.5) {
+        if (Math.abs(c.position.z - playerGroup.position.z) < 1.2 &&
+            Math.abs(c.position.x - playerGroup.position.x) < 1.2 &&
+            playerGroup.position.y < 2.5) {
           scene.remove(c); coins.splice(i, 1);
           coinsCollected += 1;
           document.getElementById('cUi').innerText = 'CASH: ' + coinsCollected;
-        } else if (c.position.z > camera.position.z) { scene.remove(c); coins.splice(i, 1); }
+        } else if (c.position.z > camera.position.z) {
+          scene.remove(c); coins.splice(i, 1);
+        }
       }
 
       for (let i = obstacles.length - 1; i >= 0; i--) {
         const obs = obstacles[i];
-        if (Math.abs(obs.position.z - playerGroup.position.z) < 1.2 && Math.abs(obs.position.x - playerGroup.position.x) < 1.2 && playerGroup.position.y < 2) {
+        if (Math.abs(obs.position.z - playerGroup.position.z) < 1.2 &&
+            Math.abs(obs.position.x - playerGroup.position.x) < 1.2 &&
+            playerGroup.position.y < 2) {
           triggerDeath();
-        } else if (obs.position.z > camera.position.z) { scene.remove(obs); obstacles.splice(i, 1); }
+          break;
+        } else if (obs.position.z > camera.position.z) {
+          scene.remove(obs); obstacles.splice(i, 1);
+        }
       }
 
       buildings.forEach(b => { if (b.position.z > camera.position.z + 10) b.position.z -= 200; });
@@ -659,53 +633,60 @@ for (const r of roadMeshes) {
 
       fogEntity.position.set(0, 5, camera.position.z + 30);
 
-      // --- dust follows camera ---
       const dust = scene.getObjectByName('dust');
       if (dust) dust.position.z = camera.position.z - 50;
-
     }
     else if (gameState === STATE.DYING) {
       deathTimer++;
+
+      const FALL_SHOW_FRAMES = 90; // показываем падение
+      const FOG_SLOW_FRAMES = 60;
+
+      camera.position.z = playerGroup.position.z + 6;
+      camera.position.x = playerGroup.position.x * 0.4;
+      camera.position.y = playerGroup.position.y + 3.8;
+      camera.lookAt(playerGroup.position.x, 1.8, playerGroup.position.z - 6);
+
       fogEntity.lookAt(camera.position);
-      dummyCamera.position.copy(camera.position);
-      dummyCamera.lookAt(fogEntity.position.x, fogEntity.position.y, fogEntity.position.z);
-      camera.quaternion.slerp(dummyCamera.quaternion, 0.1);
 
-      if (deathTimer < 90) {
-        fogEntity.position.z -= speed * 0.8;
+      if (deathTimer <= FALL_SHOW_FRAMES) {
+        fogEntity.position.set(0, 5, camera.position.z + 30);
       } else {
-        fogEntity.position.z -= speed * 8;
-      }
+        const t = deathTimer - FALL_SHOW_FRAMES;
 
-      if (fogEntity.position.z < camera.position.z + 2) {
-        running = false;
-        overlayGameOver.style.display = 'flex';
-        document.getElementById('goScore').innerText = score;
-        document.getElementById('goCoins').innerText = '+' + coinsCollected;
+        if (t <= FOG_SLOW_FRAMES) fogEntity.position.z -= 0.35;
+        else fogEntity.position.z -= 2.2;
+
+        if (fogEntity.position.z < camera.position.z + 2) {
+          running = false;
+          overlayGameOver.style.display = 'flex';
+          document.getElementById('goScore').innerText = score;
+          document.getElementById('goCoins').innerText = '+' + coinsCollected;
+        }
       }
     }
 
     if (renderer && scene && camera) renderer.render(scene, camera);
   }
-function triggerDeath() {
-  gameState = STATE.DYING;
-  deathTimer = 0;
 
-  // Останавливаем движение, чтобы падение было видно
-  speed = 0;
+  function triggerDeath() {
+    gameState = STATE.DYING;
+    deathTimer = 0;
 
-  // Камера чуть ближе — видно падение
-  playAnim('fall', 0.05);
+    // стопаем движение — падение видно
+    speed = 0;
 
-  api.addCoins(coinsCollected);
-  api.setHighScore(score);
-  api.onUiUpdate();
-}
+    playAnim('fall', 0.05);
+
+    api.addCoins(coinsCollected);
+    api.setHighScore(score);
+    api.onUiUpdate();
+  }
 
   function resetGame() {
     speed = 0.3; score = 0; coinsCollected = 0;
     currentLane = 1; targetX = lanes[currentLane];
-    isJumping = false; velocityY = 0; deathTimer = 0;
+    isJumping = false; velocityY = 0; deathTimer = 0; spawnTimer = 0;
 
     playerGroup.position.set(targetX, PLAYER_Y_OFFSET, 0);
     camera.position.set(0, 4, 7);
@@ -733,7 +714,7 @@ function triggerDeath() {
     renderer.setSize(width, height);
   }
 
-  // --- 6. UI CREATION ---
+  // --- UI CREATION ---
   function buildUI() {
     uiLayer = document.createElement('div');
     uiLayer.style.position = 'absolute';
@@ -745,7 +726,8 @@ function triggerDeath() {
 
     loadingText = document.createElement('div');
     loadingText.innerText = 'ЗАГРУЗКА ХАЙПА...';
-    loadingText.style.cssText = 'position:absolute; top:10%; left:50%; transform:translateX(-50%); color:#FF003C; font-size:24px; text-shadow:2px 2px 0 #000; text-align:center; font-family: monospace; line-height: 1.5; white-space:nowrap;';
+    loadingText.style.cssText =
+      'position:absolute; top:10%; left:50%; transform:translateX(-50%); color:#FF003C; font-size:24px; text-shadow:2px 2px 0 #000; text-align:center; font-family: monospace; line-height: 1.5; white-space:nowrap;';
     uiLayer.appendChild(loadingText);
 
     debugPanel = document.createElement('div');
@@ -768,7 +750,8 @@ function triggerDeath() {
 
     introText = document.createElement('div');
     introText.innerText = 'ТАПАЙ ПО ЭКРАНУ!';
-    introText.style.cssText = 'position:absolute; bottom:20%; left:50%; transform:translateX(-50%); color:#00FF41; font-size:40px; text-shadow:3px 3px 0 #000; display:none; animation: pulse 1s infinite alternate; cursor:pointer; pointer-events:auto;';
+    introText.style.cssText =
+      'position:absolute; bottom:20%; left:50%; transform:translateX(-50%); color:#00FF41; font-size:40px; text-shadow:3px 3px 0 #000; display:none; animation: pulse 1s infinite alternate; cursor:pointer; pointer-events:auto;';
     uiLayer.appendChild(introText);
 
     const style = document.createElement('style');
@@ -778,16 +761,20 @@ function triggerDeath() {
     videoElement = document.createElement('video');
     videoElement.src = assets.video;
     videoElement.playsInline = true;
-    videoElement.style.cssText = 'position:absolute; inset:0; width:100%; height:100%; object-fit:cover; display:none; z-index:15; pointer-events:none;';
+    videoElement.style.cssText =
+      'position:absolute; inset:0; width:100%; height:100%; object-fit:cover; display:none; z-index:15; pointer-events:none;';
     root.appendChild(videoElement);
 
     gameUI = document.createElement('div');
-    gameUI.style.cssText = 'position:absolute; top:15px; width:100%; display:none; justify-content:center; gap:30px; z-index:12; text-shadow:2px 2px 0 #000;';
-    gameUI.innerHTML = `<div id="sUi" style="color:#fff; font-size:24px;">SCORE: 0</div><div id="cUi" style="color:#00FF41; font-size:24px;">CASH: 0</div>`;
+    gameUI.style.cssText =
+      'position:absolute; top:15px; width:100%; display:none; justify-content:center; gap:30px; z-index:12; text-shadow:2px 2px 0 #000;';
+    gameUI.innerHTML =
+      `<div id="sUi" style="color:#fff; font-size:24px;">SCORE: 0</div><div id="cUi" style="color:#00FF41; font-size:24px;">CASH: 0</div>`;
     uiLayer.appendChild(gameUI);
 
     overlayGameOver = document.createElement('div');
-    overlayGameOver.style.cssText = 'position:absolute; inset:0; background:rgba(0,0,0,0.9); z-index:20; display:none; flex-direction:column; align-items:center; justify-content:center; color:#fff; text-shadow:2px 2px 0 #000; pointer-events:auto;';
+    overlayGameOver.style.cssText =
+      'position:absolute; inset:0; background:rgba(0,0,0,0.9); z-index:20; display:none; flex-direction:column; align-items:center; justify-content:center; color:#fff; text-shadow:2px 2px 0 #000; pointer-events:auto;';
     overlayGameOver.innerHTML = `
       <h1 style="font-size:40px; margin:0; color:#FF003C; text-align:center;">ФОГ СЪЕЛ!</h1>
       <h2 style="margin:10px 0;">SCORE: <span id="goScore">0</span></h2>
