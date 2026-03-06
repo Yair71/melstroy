@@ -39,7 +39,7 @@ export function createGame(root, api) {
   // --- ENVIRONMENT ---
   let fogEntity;
 
-  // Track segments (road + shoulders) so you NEVER lose the road
+  // Track segments (road + shoulders)
   let trackSegments = [];
 
   // Decorations
@@ -57,12 +57,9 @@ export function createGame(root, api) {
 
   // --- ROAD SETTINGS ---
   const ROAD_WIDTH = 12;
-  const ROAD_LEN = 160;   // longer => less frequent recycle => less visible
-  const ROAD_COUNT = 10;  // more segments => never see gaps
-
-  // If segment is FULLY behind camera by this distance, we recycle it.
-  // Big value => impossible to see the jump.
-  const ROAD_RECYCLE_BEHIND = 120;
+  const ROAD_LEN = 160;
+  const ROAD_COUNT = 10;
+  const ROAD_RECYCLE_BEHIND = 140; // ещё больше запас, чтобы вообще не видеть смену
 
   // --- GAME STATES ---
   const STATE = { LOADING: 0, INTRO: 1, TRANSITION: 2, PLAYING: 3, DYING: 4 };
@@ -76,6 +73,10 @@ export function createGame(root, api) {
   // DYING timing (seconds)
   let deathTime = 0;
   let fogChaseSpeed = 0;
+  let fallClipDuration = 1.2;
+
+  // For 1st-person head turn
+  let deathFogSpawned = false;
 
   let spawnTimer = 0;
 
@@ -125,13 +126,11 @@ export function createGame(root, api) {
     if (typeof THREE.GLTFLoader === 'undefined') { logFail('GLTFLoader не найден!'); return false; }
     logOK('GLTFLoader найден.');
 
-    // DRACO optional
     if (typeof THREE.DRACOLoader === 'undefined') {
       logInfo('DRACOLoader не найден (ок, если модели не Draco-сжаты).');
     } else {
       logOK('DRACOLoader найден.');
     }
-
     return true;
   }
 
@@ -219,7 +218,7 @@ export function createGame(root, api) {
     const total = clip.tracks.length;
 
     fixed.tracks = fixed.tracks
-      .filter(track => !track.name.endsWith('.position')) // prevent model drifting
+      .filter(track => !track.name.endsWith('.position'))
       .map(track => {
         const lastDot = track.name.lastIndexOf('.');
         if (lastDot === -1) return null;
@@ -242,7 +241,7 @@ export function createGame(root, api) {
       return null;
     }
 
-    logOK(`Анимация "${clip.name || 'noname'}" → треки: ${kept}/${total}`);
+    logOK(`Анимация "${clip.name || 'noname'}" → треки: ${kept}/${total} (dur=${fixed.duration.toFixed(2)}s)`);
     return fixed;
   }
 
@@ -255,7 +254,6 @@ export function createGame(root, api) {
 
       const loader = new THREE.GLTFLoader();
 
-      // DRACO optional
       if (typeof THREE.DRACOLoader !== 'undefined') {
         const dracoLoader = new THREE.DRACOLoader();
         dracoLoader.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/libs/draco/');
@@ -286,6 +284,62 @@ export function createGame(root, api) {
     });
   }
 
+  // 💥 ВАЖНО: фикс выбора клипа, чтобы jump/fall НЕ брали dance
+  function pickBestClip(gltf, kind) {
+    if (!gltf.animations || gltf.animations.length === 0) return null;
+
+    const want = (kind || '').toLowerCase();
+
+    // 1) If name matches hint — take it
+    const named = gltf.animations.find(a => (a.name || '').toLowerCase().includes(want));
+    if (named) return named;
+
+    // 2) Otherwise score by duration and track count
+    // Dances are usually long; jump/fall short. We use that.
+    function scoreClip(a) {
+      const dur = a.duration || 0;
+      const tracks = (a.tracks && a.tracks.length) ? a.tracks.length : 0;
+
+      let score = tracks * 0.03;
+
+      if (want.includes('run')) {
+        // prefer ~1s loop (avoid long dances)
+        score -= Math.abs(dur - 1.0) * 2.0;
+        if (dur > 3.0) score -= 8.0;
+      }
+      else if (want.includes('jump')) {
+        // prefer short (0.2..2.5)
+        if (dur > 3.0) score -= 12.0;
+        score += (3.0 - Math.min(3.0, dur)) * 4.0;
+      }
+      else if (want.includes('fall')) {
+        // prefer short-medium (0.4..3.0)
+        if (dur > 4.0) score -= 12.0;
+        score += (3.5 - Math.min(3.5, dur)) * 3.5;
+      }
+      else if (want.includes('dance')) {
+        // prefer long
+        score += Math.min(dur, 8.0) * 2.0;
+        if (dur < 1.0) score -= 10.0;
+      }
+
+      return score;
+    }
+
+    let best = gltf.animations[0];
+    let bestScore = scoreClip(best);
+
+    for (const a of gltf.animations) {
+      const s = scoreClip(a);
+      if (s > bestScore) {
+        best = a;
+        bestScore = s;
+      }
+    }
+
+    return best;
+  }
+
   async function preloadAssets() {
     try {
       if (!checkLibraries()) return;
@@ -301,41 +355,31 @@ export function createGame(root, api) {
       loadedTextures.buildings = [];
       for (let url of assets.textures.buildings) loadedTextures.buildings.push(await loadTexture(url));
 
-      // Texture settings
       loadedTextures.roads.forEach(tex => {
         tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-        tex.repeat.set(1, 14); // tuned for ROAD_LEN=160
+        tex.repeat.set(1, 14);
       });
       loadedTextures.buildings.forEach(tex => {
         tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
         tex.repeat.set(2, 5);
       });
 
-      // Main model
       const playerGltf = await loadGLTF(assets.models.player);
       playerModel = playerGltf.scene;
       playerModel.scale.set(1, 1, 1);
       playerModel.position.set(0, 0, 0);
       mixer = new THREE.AnimationMixer(playerModel);
 
-      function pickBestClip(gltf, hint) {
-        if (!gltf.animations || gltf.animations.length === 0) return null;
-        const want = (hint || '').toLowerCase();
-        const named = gltf.animations.find(a => (a.name || '').toLowerCase().includes(want));
-        if (named) return named;
-        return gltf.animations.reduce((acc, a) => (a.duration > acc.duration ? a : acc), gltf.animations[0]);
-      }
-
-      function extractAnim(gltf, hint) {
-        const clip = pickBestClip(gltf, hint);
-        if (!clip) {
-          logFail('❌ ПУСТОЙ ФАЙЛ: ' + hint);
+      function extractAnim(gltf, kindLabel) {
+        const picked = pickBestClip(gltf, kindLabel);
+        if (!picked) {
+          logFail('❌ ПУСТОЙ ФАЙЛ/нет клипов: ' + kindLabel);
           return null;
         }
-        return fixAnimation(clip, playerModel);
+        logInfo(`🎞️ Выбран клип для "${kindLabel}": "${picked.name || 'noname'}" dur=${picked.duration.toFixed(2)}s`);
+        return fixAnimation(picked, playerModel);
       }
 
-      // Animations
       const runGltf = await loadGLTF(assets.models.run);
       animations.run = extractAnim(runGltf, 'run');
 
@@ -349,7 +393,9 @@ export function createGame(root, api) {
       animations.dance1 = extractAnim(dance1Gltf, 'dance');
 
       const dance2Gltf = await loadGLTF(assets.models.dance2);
-      animations.dance2 = extractAnim(dance2Gltf, 'dance');
+      animations.dance2 = extractAnim(dance2Gltf, 'dance2');
+
+      if (animations.fall) fallClipDuration = Math.max(0.8, animations.fall.duration || 1.2);
 
       logOK('=== ВСЕ ФАЙЛЫ ГОТОВЫ! ===');
 
@@ -400,13 +446,13 @@ export function createGame(root, api) {
   function init3D() {
     scene = new THREE.Scene();
     scene.background = new THREE.Color(0x151515);
-    scene.fog = new THREE.Fog(0x151515, 12, 140);
+    scene.fog = new THREE.Fog(0x151515, 12, 160);
 
     const width = root.clientWidth || window.innerWidth;
     const height = root.clientHeight || window.innerHeight;
 
-    camera = new THREE.PerspectiveCamera(70, width / height, 0.1, 1200);
-    dummyCamera = new THREE.PerspectiveCamera(70, width / height, 0.1, 1200);
+    camera = new THREE.PerspectiveCamera(70, width / height, 0.1, 1400);
+    dummyCamera = new THREE.PerspectiveCamera(70, width / height, 0.1, 1400);
 
     renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(width, height);
@@ -431,30 +477,26 @@ export function createGame(root, api) {
   // WORLD BUILD
   // ============================================================
   function setupWorld() {
-    // Player
     playerGroup = new THREE.Group();
     playerGroup.position.set(targetX, PLAYER_Y_OFFSET, 0);
     playerGroup.add(playerModel);
     scene.add(playerGroup);
 
-    // Infinite-ish ground under everything (follows camera)
-    const groundGeo = new THREE.PlaneGeometry(500, 5000);
-    const groundMat = new THREE.MeshStandardMaterial({ color: 0x0f0f0f });
+    const groundGeo = new THREE.PlaneGeometry(700, 7000);
+    const groundMat = new THREE.MeshStandardMaterial({ color: 0x0e0e0e });
     worldGround = new THREE.Mesh(groundGeo, groundMat);
     worldGround.rotation.x = -Math.PI / 2;
-    worldGround.position.set(0, -0.02, -1200);
+    worldGround.position.set(0, -0.02, -1500);
     worldGround.receiveShadow = true;
     scene.add(worldGround);
 
-    // Far city wall
     farWall = new THREE.Mesh(
-      new THREE.PlaneGeometry(700, 120),
+      new THREE.PlaneGeometry(900, 140),
       new THREE.MeshStandardMaterial({ color: 0x070707, emissive: 0x040404 })
     );
-    farWall.position.set(0, 60, -1600);
+    farWall.position.set(0, 65, -1900);
     scene.add(farWall);
 
-    // Track segments (road + shoulders) => NEVER lose road
     const roadGeo = new THREE.PlaneGeometry(ROAD_WIDTH, ROAD_LEN);
     const roadMatArr = loadedTextures.roads.map(tex => new THREE.MeshStandardMaterial({
       map: tex,
@@ -463,15 +505,15 @@ export function createGame(root, api) {
       metalness: 0
     }));
 
-    const shoulderW = 18; // side area near road
+    const shoulderW = 18;
     const shoulderGeo = new THREE.PlaneGeometry(shoulderW, ROAD_LEN);
     const shoulderMat = new THREE.MeshStandardMaterial({ color: 0x101010, side: THREE.DoubleSide });
 
-    // lane markers (simple)
     const markGeo = new THREE.PlaneGeometry(0.18, ROAD_LEN);
-    const markMat = new THREE.MeshStandardMaterial({ color: 0xeeeeee, emissive: 0x222222, transparent: true, opacity: 0.65, side: THREE.DoubleSide });
+    const markMat = new THREE.MeshStandardMaterial({
+      color: 0xeeeeee, emissive: 0x222222, transparent: true, opacity: 0.65, side: THREE.DoubleSide
+    });
 
-    // barriers
     const barrierGeo = new THREE.BoxGeometry(0.25, 0.7, ROAD_LEN);
     const barrierMat = new THREE.MeshStandardMaterial({ color: 0x090909 });
 
@@ -479,16 +521,14 @@ export function createGame(root, api) {
       const seg = new THREE.Group();
       seg.position.z = -i * ROAD_LEN;
 
-      // road
       const road = new THREE.Mesh(roadGeo, roadMatArr[i % roadMatArr.length]);
       road.rotation.x = -Math.PI / 2;
       road.position.y = 0;
       road.receiveShadow = true;
-      road.frustumCulled = false; // NEVER vanish due to culling
+      road.frustumCulled = false;
       seg.add(road);
       seg.userData.road = road;
 
-      // shoulders (left/right)
       const leftS = new THREE.Mesh(shoulderGeo, shoulderMat);
       leftS.rotation.x = -Math.PI / 2;
       leftS.position.set(-(ROAD_WIDTH / 2 + shoulderW / 2), -0.001, 0);
@@ -500,7 +540,6 @@ export function createGame(root, api) {
       rightS.position.x = (ROAD_WIDTH / 2 + shoulderW / 2);
       seg.add(rightS);
 
-      // lane markers
       const m1 = new THREE.Mesh(markGeo, markMat);
       m1.rotation.x = -Math.PI / 2;
       m1.position.set(-1.5, 0.002, 0);
@@ -511,7 +550,6 @@ export function createGame(root, api) {
       m2.position.x = 1.5;
       seg.add(m2);
 
-      // barriers along edges
       const bL = new THREE.Mesh(barrierGeo, barrierMat);
       bL.position.set(-(ROAD_WIDTH / 2 + 0.15), 0.35, 0);
       bL.frustumCulled = false;
@@ -525,17 +563,16 @@ export function createGame(root, api) {
       trackSegments.push(seg);
     }
 
-    // Fog monster (plane)
     fogEntity = new THREE.Mesh(
-      new THREE.PlaneGeometry(30, 30),
-      new THREE.MeshBasicMaterial({ map: loadedTextures.fog, transparent: true, opacity: 0.95, depthWrite: false })
+      new THREE.PlaneGeometry(42, 42),
+      new THREE.MeshBasicMaterial({ map: loadedTextures.fog, transparent: true, opacity: 0.98, depthWrite: false })
     );
-    fogEntity.position.set(0, 6, 40);
+    fogEntity.position.set(0, 7, 50);
     fogEntity.renderOrder = 999;
+    fogEntity.frustumCulled = false;
     scene.add(fogEntity);
 
-    // Buildings (more + spread far) so world is not empty
-    const maxBuildings = 80;
+    const maxBuildings = 90;
     const bGeo = new THREE.BoxGeometry(6, 40, 10);
 
     for (let i = 0; i < maxBuildings; i++) {
@@ -544,15 +581,14 @@ export function createGame(root, api) {
       const b = new THREE.Mesh(bGeo, bMat);
 
       const side = Math.random() > 0.5 ? 1 : -1;
-      const dist = 16 + Math.random() * 55; // farther from road edges
+      const dist = 18 + Math.random() * 65;
       b.position.x = side * dist;
 
-      // random height
-      const h = 18 + Math.random() * 55;
+      const h = 18 + Math.random() * 70;
       b.scale.y = h / 40;
 
-      b.position.y = (40 * b.scale.y) / 2; // sit on ground
-      b.position.z = -(Math.random() * 2200); // deep world
+      b.position.y = (40 * b.scale.y) / 2;
+      b.position.z = -(Math.random() * 2600);
 
       b.castShadow = true;
       b.receiveShadow = true;
@@ -561,7 +597,6 @@ export function createGame(root, api) {
       buildings.push(b);
     }
 
-    // Obstacles & coins
     obstacleGeo = new THREE.BoxGeometry(2, 2, 2);
     obstacleMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
     coinGeo = new THREE.OctahedronGeometry(0.6);
@@ -610,8 +645,7 @@ export function createGame(root, api) {
     playerGroup.rotation.y = Math.PI;
     playAnim('run', 0.2);
 
-    // keep fog behind (not visible while running)
-    fogEntity.position.set(0, 6, camera.position.z + 45);
+    fogEntity.position.set(0, 7, camera.position.z + 60);
   }
 
   // ============================================================
@@ -667,14 +701,14 @@ export function createGame(root, api) {
   function spawnRow() {
     const obsLane = Math.floor(Math.random() * 3);
     const obs = new THREE.Mesh(obstacleGeo, obstacleMat);
-    obs.position.set(lanes[obsLane], 1, playerGroup.position.z - 110);
+    obs.position.set(lanes[obsLane], 1, playerGroup.position.z - 120);
     scene.add(obs);
     obstacles.push(obs);
 
     const coinLane = Math.floor(Math.random() * 3);
     if (coinLane !== obsLane) {
       const coin = new THREE.Mesh(coinGeo, coinMat);
-      coin.position.set(lanes[coinLane], 1, playerGroup.position.z - 110);
+      coin.position.set(lanes[coinLane], 1, playerGroup.position.z - 120);
       scene.add(coin);
       coins.push(coin);
     }
@@ -702,7 +736,6 @@ export function createGame(root, api) {
       playerGroup.position.z -= speed;
       playerGroup.position.x += (targetX - playerGroup.position.x) * 0.15;
 
-      // Jump physics
       if (isJumping) {
         playerGroup.position.y += velocityY;
         velocityY += gravity;
@@ -716,30 +749,26 @@ export function createGame(root, api) {
 
       // Camera (back view)
       camera.position.z = playerGroup.position.z + 7;
-      camera.position.x = playerGroup.position.x * 0.5;
+      camera.position.x = playerGroup.position.x; // строго сзади, без половинного X
       camera.position.y = playerGroup.position.y + 4;
       camera.lookAt(playerGroup.position.x, 2, playerGroup.position.z - 10);
 
-      // Ground follows camera so world never becomes empty
-      if (worldGround) worldGround.position.z = camera.position.z - 1200;
-      if (farWall) farWall.position.z = camera.position.z - 1700;
+      if (worldGround) worldGround.position.z = camera.position.z - 1500;
+      if (farWall) farWall.position.z = camera.position.z - 2000;
 
-      // Fog stays behind while playing (monster is "there", but hidden)
-      fogEntity.position.set(0, 6, camera.position.z + 45);
+      // Fog hidden behind
+      fogEntity.position.set(playerGroup.position.x, 7, camera.position.z + 70);
 
-      // ---- ROAD RECYCLE (invisible) ----
-      // We recycle ONLY when segment is FULLY behind camera + big margin.
-      // IMPORTANT: use FRONT EDGE of segment (posZ - ROAD_LEN/2), not back edge.
-      let frontMostZ = Infinity; // most forward in our direction is the MIN Z
+      // ROAD RECYCLE (невидимый)
+      let frontMostZ = Infinity;
       for (const seg of trackSegments) frontMostZ = Math.min(frontMostZ, seg.position.z);
 
       for (const seg of trackSegments) {
-        const frontEdgeZ = seg.position.z - (ROAD_LEN * 0.5); // most forward edge
+        const frontEdgeZ = seg.position.z - (ROAD_LEN * 0.5);
         if (frontEdgeZ > camera.position.z + ROAD_RECYCLE_BEHIND) {
           seg.position.z = frontMostZ - ROAD_LEN;
           frontMostZ = seg.position.z;
 
-          // optional: change road texture ONLY while behind camera (safe)
           const road = seg.userData.road;
           if (road && loadedTextures.roads.length > 1) {
             const idx = Math.floor(Math.random() * loadedTextures.roads.length);
@@ -749,11 +778,9 @@ export function createGame(root, api) {
         }
       }
 
-      // Spawn
       spawnTimer += 1;
       if (spawnTimer > (48 / speed)) { spawnRow(); spawnTimer = 0; }
 
-      // Coins spin + collect
       coins.forEach(c => c.rotation.y += 0.05);
 
       for (let i = coins.length - 1; i >= 0; i--) {
@@ -766,12 +793,11 @@ export function createGame(root, api) {
           scene.remove(c); coins.splice(i, 1);
           coinsCollected += 1;
           document.getElementById('cUi').innerText = 'CASH: ' + coinsCollected;
-        } else if (c.position.z > camera.position.z + 30) {
+        } else if (c.position.z > camera.position.z + 40) {
           scene.remove(c); coins.splice(i, 1);
         }
       }
 
-      // Obstacles collision
       for (let i = obstacles.length - 1; i >= 0; i--) {
         const obs = obstacles[i];
         if (
@@ -781,20 +807,19 @@ export function createGame(root, api) {
         ) {
           triggerDeath();
           break;
-        } else if (obs.position.z > camera.position.z + 30) {
+        } else if (obs.position.z > camera.position.z + 40) {
           scene.remove(obs); obstacles.splice(i, 1);
         }
       }
 
-      // Buildings recycle (keep world dense)
       for (const b of buildings) {
-        if (b.position.z > camera.position.z + 80) {
-          b.position.z = camera.position.z - (1800 + Math.random() * 900);
+        if (b.position.z > camera.position.z + 120) {
+          b.position.z = camera.position.z - (2000 + Math.random() * 1200);
           const side = Math.random() > 0.5 ? 1 : -1;
-          const dist = 16 + Math.random() * 55;
+          const dist = 18 + Math.random() * 65;
           b.position.x = side * dist;
 
-          const h = 18 + Math.random() * 55;
+          const h = 18 + Math.random() * 70;
           b.scale.y = h / 40;
           b.position.y = (40 * b.scale.y) / 2;
 
@@ -804,7 +829,6 @@ export function createGame(root, api) {
         }
       }
 
-      // UI
       score = Math.floor(Math.abs(playerGroup.position.z));
       document.getElementById('sUi').innerText = 'SCORE: ' + score;
     }
@@ -812,39 +836,80 @@ export function createGame(root, api) {
     else if (gameState === STATE.DYING) {
       deathTime += delta;
 
-      // Phase 1: SHOW FALL from back (you see fall properly)
-      const FALL_SHOW_TIME = 1.25;
+      // ✅ 1) ПАДЕНИЕ: держим камеру сзади минимум (fallClipDuration + запас)
+      const FALL_SHOW_TIME = Math.max(2.0, fallClipDuration + 0.5);
 
+      // ✅ 2) “Поворот головы” от 1-го лица
+      const HEAD_TURN_TIME = 1.0;
+
+      // ✅ 3) Смотреть на fog 2–3 сек
+      const WATCH_FOG_TIME = 2.7;
+
+      // Phase A: fall from back view
       if (deathTime < FALL_SHOW_TIME) {
-        // keep camera exactly like gameplay (back view)
-        camera.position.z = playerGroup.position.z + 7;
-        camera.position.x = playerGroup.position.x * 0.5;
-        camera.position.y = playerGroup.position.y + 4;
-        camera.lookAt(playerGroup.position.x, 2, playerGroup.position.z - 10);
+        camera.position.z = playerGroup.position.z + 7.2;
+        camera.position.x = playerGroup.position.x;       // строго сзади
+        camera.position.y = playerGroup.position.y + 3.8; // чуть ниже — падение видно
+        camera.lookAt(playerGroup.position.x, 1.8, playerGroup.position.z - 9);
 
-        // fog far behind, not yet chasing
-        fogEntity.position.set(0, 6, camera.position.z + 55);
+        // fog скрыт далеко
+        fogEntity.position.set(playerGroup.position.x, 7, camera.position.z + 80);
         fogEntity.lookAt(camera.position);
-      } else {
-        // Phase 2: FOG CHASE (monster returns)
-        // Put fog behind camera, then move it towards camera rapidly.
-        fogChaseSpeed += delta * 8; // accelerates
-        const chase = 6 + fogChaseSpeed; // speed up
+      }
+      // Phase B: first-person + head turn to fog
+      else {
+        // 1st person head position (approx)
+        const headX = playerGroup.position.x;
+        const headY = playerGroup.position.y + 2.05;
+        const headZ = playerGroup.position.z + 0.3;
 
-        fogEntity.lookAt(camera.position);
-        fogEntity.position.z -= chase; // move towards camera (from behind)
+        camera.position.set(headX, headY, headZ);
 
-        // cinematic: rotate camera toward fog (like original)
-        dummyCamera.position.copy(camera.position);
+        // Spawn fog behind (once)
+        if (!deathFogSpawned) {
+          fogEntity.position.set(headX, headY + 0.6, headZ + 65);
+          fogChaseSpeed = 0;
+          deathFogSpawned = true;
+        }
+
+        // Forward look quaternion
+        dummyCamera.position.set(headX, headY, headZ);
+        dummyCamera.lookAt(headX, headY, headZ - 10);
+        const qForward = dummyCamera.quaternion.clone();
+
+        // Look at fog quaternion
+        dummyCamera.position.set(headX, headY, headZ);
         dummyCamera.lookAt(fogEntity.position.x, fogEntity.position.y, fogEntity.position.z);
-        camera.quaternion.slerp(dummyCamera.quaternion, 0.10);
+        const qToFog = dummyCamera.quaternion.clone();
 
-        // If fog reaches camera => game over
-        if (fogEntity.position.z < camera.position.z + 2) {
-          running = false;
-          overlayGameOver.style.display = 'flex';
-          document.getElementById('goScore').innerText = score;
-          document.getElementById('goCoins').innerText = '+' + coinsCollected;
+        const tTurn = Math.min(1, (deathTime - FALL_SHOW_TIME) / HEAD_TURN_TIME);
+
+        // Smooth head turn
+        camera.quaternion.copy(qForward).slerp(qToFog, tTurn);
+
+        // Move fog toward player while we watch it
+        const tWatch = deathTime - FALL_SHOW_TIME - HEAD_TURN_TIME;
+
+        if (tWatch >= 0) {
+          fogChaseSpeed += delta * 10;          // ускорение
+          const chase = 18 + fogChaseSpeed;     // скорость приближения
+          fogEntity.position.z -= chase * delta;
+
+          fogEntity.lookAt(camera.position);
+
+          // End conditions: time OR close distance
+          const dz = Math.abs(fogEntity.position.z - camera.position.z);
+          const maxWatch = WATCH_FOG_TIME;
+
+          if (tWatch > maxWatch || dz < 3.0) {
+            running = false;
+            overlayGameOver.style.display = 'flex';
+            document.getElementById('goScore').innerText = score;
+            document.getElementById('goCoins').innerText = '+' + coinsCollected;
+          }
+        } else {
+          // before watch phase starts, just keep fog visible but not moving much
+          fogEntity.lookAt(camera.position);
         }
       }
     }
@@ -858,15 +923,12 @@ export function createGame(root, api) {
     gameState = STATE.DYING;
     deathTime = 0;
     fogChaseSpeed = 0;
+    deathFogSpawned = false;
 
-    // Stop movement so fall is visible
+    // stop movement so fall is visible
     speed = 0;
 
-    // play fall
     playAnim('fall', 0.05);
-
-    // place fog behind camera for chase phase
-    fogEntity.position.set(0, 6, camera.position.z + 55);
 
     api.addCoins(coinsCollected);
     api.setHighScore(score);
@@ -886,6 +948,7 @@ export function createGame(root, api) {
 
     deathTime = 0;
     fogChaseSpeed = 0;
+    deathFogSpawned = false;
     spawnTimer = 0;
 
     playerGroup.position.set(targetX, PLAYER_Y_OFFSET, 0);
