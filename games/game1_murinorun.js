@@ -563,11 +563,44 @@ export function createGame(root, api) {
       camera.position.z = Math.cos(Date.now() * 0.001) * 6 + 2;
       camera.lookAt(playerGroup.position.x, 2, playerGroup.position.z);
     }
-    else if (gameState === STATE.PLAYING) {
-      speed += 0.0001;
-      playerGroup.position.z -= speed;
-      playerGroup.position.x += (targetX - playerGroup.position.x) * 0.15;
+  else if (gameState === STATE.DYING) {
+  deathTimer++;
 
+  // 0..90 кадров (~1.5с): просто показываем падение
+  // 90..150 (~1с): туман начинает медленно приближаться
+  // 150+ : туман резко “съедает”
+  const FALL_SHOW_FRAMES = 90;
+  const FOG_SLOW_FRAMES = 60;
+
+  // Камера держит игрока
+  camera.position.z = playerGroup.position.z + 6;
+  camera.position.x = playerGroup.position.x * 0.4;
+  camera.position.y = playerGroup.position.y + 3.8;
+  camera.lookAt(playerGroup.position.x, 1.8, playerGroup.position.z - 6);
+
+  // Туман стоит впереди камеры
+  fogEntity.lookAt(camera.position);
+
+  if (deathTimer <= FALL_SHOW_FRAMES) {
+    // Ничего не двигаем — ты реально видишь fall
+    fogEntity.position.set(0, 5, camera.position.z + 30);
+  } else {
+    const t = deathTimer - FALL_SHOW_FRAMES;
+
+    if (t <= FOG_SLOW_FRAMES) {
+      fogEntity.position.z -= 0.35; // медленно
+    } else {
+      fogEntity.position.z -= 2.2;  // резко
+    }
+
+    if (fogEntity.position.z < camera.position.z + 2) {
+      running = false;
+      overlayGameOver.style.display = 'flex';
+      document.getElementById('goScore').innerText = score;
+      document.getElementById('goCoins').innerText = '+' + coinsCollected;
+    }
+  }
+}
       if (isJumping) {
         playerGroup.position.y += velocityY;
         velocityY += gravity;
@@ -584,16 +617,19 @@ export function createGame(root, api) {
       camera.position.y = playerGroup.position.y + 4;
       camera.lookAt(playerGroup.position.x, 2, playerGroup.position.z - 10);
 
-      // --- ROAD RECYCLE (без дырок) ---
-      let minZ = Infinity;
-      for (const r of roadMeshes) minZ = Math.min(minZ, r.position.z);
+    // --- ROAD RECYCLE (без дырок, по заднему краю сегмента) ---
+let minZ = Infinity;
+for (const r of roadMeshes) minZ = Math.min(minZ, r.position.z);
 
-      for (const r of roadMeshes) {
-        if (r.position.z > camera.position.z + 30) {
-          r.position.z = minZ - ROAD_LEN;
-          minZ = r.position.z;
-        }
-      }
+// если задний край сегмента оказался позади камеры — переносим вперёд
+const BEHIND_OFFSET = 20; // запас, чтобы вообще не было “просвета”
+for (const r of roadMeshes) {
+  const backEdgeZ = r.position.z + (ROAD_LEN * 0.5);
+  if (backEdgeZ > camera.position.z + BEHIND_OFFSET) {
+    r.position.z = minZ - ROAD_LEN;
+    minZ = r.position.z;
+  }
+}
 
       spawnTimer++;
       if (spawnTimer > 40 / speed) { spawnRow(); spawnTimer = 0; }
@@ -651,15 +687,20 @@ export function createGame(root, api) {
 
     if (renderer && scene && camera) renderer.render(scene, camera);
   }
+function triggerDeath() {
+  gameState = STATE.DYING;
+  deathTimer = 0;
 
-  function triggerDeath() {
-    gameState = STATE.DYING;
-    deathTimer = 0;
-    playAnim('fall', 0.1);
-    api.addCoins(coinsCollected);
-    api.setHighScore(score);
-    api.onUiUpdate();
-  }
+  // Останавливаем движение, чтобы падение было видно
+  speed = 0;
+
+  // Камера чуть ближе — видно падение
+  playAnim('fall', 0.05);
+
+  api.addCoins(coinsCollected);
+  api.setHighScore(score);
+  api.onUiUpdate();
+}
 
   function resetGame() {
     speed = 0.3; score = 0; coinsCollected = 0;
