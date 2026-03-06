@@ -38,11 +38,7 @@ export function createGame(root, api) {
 
   // --- ENVIRONMENT ---
   let fogEntity;
-
-  // Track segments (road + shoulders)
   let trackSegments = [];
-
-  // Decorations
   let buildings = [];
   let obstacles = [];
   let coins = [];
@@ -51,7 +47,7 @@ export function createGame(root, api) {
   let obstacleGeo, obstacleMat;
   let coinGeo, coinMat;
 
-  // Ground (infinite-ish)
+  // Ground
   let worldGround;
   let farWall;
 
@@ -59,9 +55,12 @@ export function createGame(root, api) {
   const ROAD_WIDTH = 12;
   const ROAD_LEN = 160;
   const ROAD_COUNT = 10;
-  const ROAD_RECYCLE_BEHIND = 140; // ещё больше запас, чтобы вообще не видеть смену
-const FOG_SIZE = 42;
-const FOG_Y = (FOG_SIZE * 0.5) + 2; // чтобы низ не залезал в землю
+  const ROAD_RECYCLE_BEHIND = 140;
+
+  // --- FOG SETTINGS ---
+  const FOG_SIZE = 42;
+  const FOG_Y = (FOG_SIZE * 0.5) + 2; // чтобы низ не залезал в землю
+
   // --- GAME STATES ---
   const STATE = { LOADING: 0, INTRO: 1, TRANSITION: 2, PLAYING: 3, DYING: 4 };
   let gameState = STATE.LOADING;
@@ -71,14 +70,11 @@ const FOG_Y = (FOG_SIZE * 0.5) + 2; // чтобы низ не залезал в 
   let score = 0;
   let coinsCollected = 0;
 
-  // DYING timing (seconds)
+  // DYING
   let deathTime = 0;
   let fogChaseSpeed = 0;
   let fallClipDuration = 1.2;
-
-  // For 1st-person head turn
   let deathFogSpawned = false;
-
   let spawnTimer = 0;
 
   const lanes = [-3, 0, 3];
@@ -163,7 +159,7 @@ const FOG_Y = (FOG_SIZE * 0.5) + 2; // чтобы низ не залезал в 
   }
 
   // ============================================================
-  // ANIMATION RETARGET (smart-ish)
+  // ANIMATION RETARGET
   // ============================================================
   function normalizeBoneName(name) {
     return name
@@ -205,7 +201,6 @@ const FOG_Y = (FOG_SIZE * 0.5) + 2; // чтобы низ не залезал в 
         if (norm.split('.').pop() === last) return real;
       }
     }
-
     return null;
   }
 
@@ -238,7 +233,7 @@ const FOG_Y = (FOG_SIZE * 0.5) + 2; // чтобы низ не залезал в 
       .filter(Boolean);
 
     if (kept === 0) {
-      logFail(`Анимация "${clip.name || 'noname'}" → 0 треков. Возможно другой риг.`);
+      logFail(`Анимация "${clip.name || 'noname'}" → 0 треков (не привязалась).`);
       return null;
     }
 
@@ -285,59 +280,79 @@ const FOG_Y = (FOG_SIZE * 0.5) + 2; // чтобы низ не залезал в 
     });
   }
 
-  // 💥 ВАЖНО: фикс выбора клипа, чтобы jump/fall НЕ брали dance
+  // 🔥 Супер-выбор клипа: для jump/fall отсекаем dance/idle и берём короткие
   function pickBestClip(gltf, kind) {
     if (!gltf.animations || gltf.animations.length === 0) return null;
 
     const want = (kind || '').toLowerCase();
+    const badWords = ['dance', 'idle', 'tpose', 'walk'];
 
-    // 1) If name matches hint — take it
-    const named = gltf.animations.find(a => (a.name || '').toLowerCase().includes(want));
-    if (named) return named;
+    // 1) по имени (если совпало)
+    const byName = gltf.animations.find(a => (a.name || '').toLowerCase().includes(want));
+    if (byName) return byName;
 
-    // 2) Otherwise score by duration and track count
-    // Dances are usually long; jump/fall short. We use that.
-    function scoreClip(a) {
-      const dur = a.duration || 0;
-      const tracks = (a.tracks && a.tracks.length) ? a.tracks.length : 0;
+    // 2) фильтруем мусор по имени
+    let clips = gltf.animations.slice();
 
-      let score = tracks * 0.03;
-
-      if (want.includes('run')) {
-        // prefer ~1s loop (avoid long dances)
-        score -= Math.abs(dur - 1.0) * 2.0;
-        if (dur > 3.0) score -= 8.0;
-      }
-      else if (want.includes('jump')) {
-        // prefer short (0.2..2.5)
-        if (dur > 3.0) score -= 12.0;
-        score += (3.0 - Math.min(3.0, dur)) * 4.0;
-      }
-      else if (want.includes('fall')) {
-        // prefer short-medium (0.4..3.0)
-        if (dur > 4.0) score -= 12.0;
-        score += (3.5 - Math.min(3.5, dur)) * 3.5;
-      }
-      else if (want.includes('dance')) {
-        // prefer long
-        score += Math.min(dur, 8.0) * 2.0;
-        if (dur < 1.0) score -= 10.0;
-      }
-
-      return score;
+    if (want.includes('jump') || want.includes('fall')) {
+      clips = clips.filter(a => {
+        const n = (a.name || '').toLowerCase();
+        return !badWords.some(w => n.includes(w));
+      });
+      // если всё отфильтровали — возвращаемся ко всем (не ломаемся)
+      if (clips.length === 0) clips = gltf.animations.slice();
     }
 
-    let best = gltf.animations[0];
-    let bestScore = scoreClip(best);
-
-    for (const a of gltf.animations) {
-      const s = scoreClip(a);
-      if (s > bestScore) {
-        best = a;
-        bestScore = s;
+    // 3) для jump/fall берём “короткий нормальный”
+    if (want.includes('jump')) {
+      let best = clips[0];
+      let bestScore = -Infinity;
+      for (const a of clips) {
+        const dur = a.duration || 0;
+        const tracks = a.tracks?.length || 0;
+        // короткая длительность важнее
+        let s = tracks * 0.02;
+        s += (3.0 - Math.min(3.0, dur)) * 5.0; // чем меньше dur, тем лучше
+        if (dur < 0.15) s -= 50; // слишком короткие “тик” клипы — мусор
+        if (dur > 4.0) s -= 30;  // слишком длинные — танцы/циклы
+        if (s > bestScore) { bestScore = s; best = a; }
       }
+      return best;
     }
 
+    if (want.includes('fall')) {
+      let best = clips[0];
+      let bestScore = -Infinity;
+      for (const a of clips) {
+        const dur = a.duration || 0;
+        const tracks = a.tracks?.length || 0;
+        let s = tracks * 0.02;
+        s += (4.0 - Math.min(4.0, dur)) * 4.0;
+        if (dur < 0.2) s -= 50;
+        if (dur > 5.0) s -= 30;
+        if (s > bestScore) { bestScore = s; best = a; }
+      }
+      return best;
+    }
+
+    // run: ближе к 1 секунде
+    if (want.includes('run')) {
+      let best = clips[0];
+      let bestScore = -Infinity;
+      for (const a of clips) {
+        const dur = a.duration || 0;
+        const tracks = a.tracks?.length || 0;
+        let s = tracks * 0.03;
+        s -= Math.abs(dur - 1.0) * 2.2;
+        if (dur > 4.0) s -= 20;
+        if (s > bestScore) { bestScore = s; best = a; }
+      }
+      return best;
+    }
+
+    // dance: самый длинный
+    let best = clips[0];
+    for (const a of clips) if ((a.duration || 0) > (best.duration || 0)) best = a;
     return best;
   }
 
@@ -374,10 +389,10 @@ const FOG_Y = (FOG_SIZE * 0.5) + 2; // чтобы низ не залезал в 
       function extractAnim(gltf, kindLabel) {
         const picked = pickBestClip(gltf, kindLabel);
         if (!picked) {
-          logFail('❌ ПУСТОЙ ФАЙЛ/нет клипов: ' + kindLabel);
+          logFail('❌ НЕТ КЛИПОВ: ' + kindLabel);
           return null;
         }
-        logInfo(`🎞️ Выбран клип для "${kindLabel}": "${picked.name || 'noname'}" dur=${picked.duration.toFixed(2)}s`);
+        logInfo(`🎞️ Клип для "${kindLabel}": "${picked.name || 'noname'}" dur=${picked.duration.toFixed(2)}s`);
         return fixAnimation(picked, playerModel);
       }
 
@@ -398,13 +413,17 @@ const FOG_Y = (FOG_SIZE * 0.5) + 2; // чтобы низ не залезал в 
 
       if (animations.fall) fallClipDuration = Math.max(0.8, animations.fall.duration || 1.2);
 
+      // ВАЖНО: если jump/fall не привязались — ты увидишь это в debug
+      if (!animations.jump) logFail('JUMP КЛИП НЕ ПРИВЯЗАЛСЯ (jump.glb не совпадает по ригу или клип мусор)');
+      if (!animations.fall) logFail('FALL КЛИП НЕ ПРИВЯЗАЛСЯ (fall.glb не совпадает по ригу или клип мусор)');
+
       logOK('=== ВСЕ ФАЙЛЫ ГОТОВЫ! ===');
 
       setTimeout(() => {
         debugPanel.style.display = 'none';
         setupWorld();
         startIntro();
-      }, 900);
+      }, 700);
 
     } catch (e) {
       logFail('КРИТИЧЕСКАЯ ОШИБКА ЗАГРУЗКИ');
@@ -412,39 +431,40 @@ const FOG_Y = (FOG_SIZE * 0.5) + 2; // чтобы низ не залезал в 
   }
 
   // ============================================================
-  // ANIM PLAY
+  // ANIM PLAY (FIXED)
   // ============================================================
- function playAnim(name, fadeTime = 0.12) {
-  const clip = animations[name];
-  if (!clip) { logFail('❌ Нет анимации: ' + name); return; }
+  function playAnim(name, fadeTime = 0.12) {
+    const clip = animations[name];
+    if (!clip) { logFail('❌ Нет анимации: ' + name); return; }
 
-  const next = mixer.clipAction(clip);
+    const next = mixer.clipAction(clip);
 
-  // ВАЖНО: если это jump/fall — рубим всё, чтобы не “перемешивалось” с run/dance
-  if (name === 'jump' || name === 'fall') {
-    mixer.stopAllAction();
-  } else if (currentAction && currentAction !== next) {
-    currentAction.fadeOut(fadeTime);
+    // jump/fall: полностью рубим всё, иначе run/dance мешают
+    if (name === 'jump' || name === 'fall') {
+      mixer.stopAllAction();
+    } else if (currentAction && currentAction !== next) {
+      currentAction.fadeOut(fadeTime);
+    }
+
+    next.reset();
+    next.enabled = true;
+    next.setEffectiveTimeScale(1);
+    next.setEffectiveWeight(1);
+
+    if (name === 'jump' || name === 'fall') {
+      next.setLoop(THREE.LoopOnce, 1);
+      next.clampWhenFinished = true;
+    } else {
+      next.setLoop(THREE.LoopRepeat, Infinity);
+      next.clampWhenFinished = false;
+    }
+
+    next.fadeIn(fadeTime);
+    next.play();
+
+    currentAction = next;
   }
 
-  next.reset();
-  next.enabled = true;
-  next.setEffectiveTimeScale(1);
-  next.setEffectiveWeight(1);
-
-  if (name === 'jump' || name === 'fall') {
-    next.setLoop(THREE.LoopOnce, 1);
-    next.clampWhenFinished = true;
-  } else {
-    next.setLoop(THREE.LoopRepeat, Infinity);
-    next.clampWhenFinished = false;
-  }
-
-  next.fadeIn(fadeTime);
-  next.play();
-
-  currentAction = next;
-}
   // ============================================================
   // 3D INIT
   // ============================================================
@@ -482,11 +502,13 @@ const FOG_Y = (FOG_SIZE * 0.5) + 2; // чтобы низ не залезал в 
   // WORLD BUILD
   // ============================================================
   function setupWorld() {
+    // Player
     playerGroup = new THREE.Group();
     playerGroup.position.set(targetX, PLAYER_Y_OFFSET, 0);
     playerGroup.add(playerModel);
     scene.add(playerGroup);
 
+    // Ground
     const groundGeo = new THREE.PlaneGeometry(700, 7000);
     const groundMat = new THREE.MeshStandardMaterial({ color: 0x0e0e0e });
     worldGround = new THREE.Mesh(groundGeo, groundMat);
@@ -495,6 +517,7 @@ const FOG_Y = (FOG_SIZE * 0.5) + 2; // чтобы низ не залезал в 
     worldGround.receiveShadow = true;
     scene.add(worldGround);
 
+    // Far wall
     farWall = new THREE.Mesh(
       new THREE.PlaneGeometry(900, 140),
       new THREE.MeshStandardMaterial({ color: 0x070707, emissive: 0x040404 })
@@ -502,6 +525,7 @@ const FOG_Y = (FOG_SIZE * 0.5) + 2; // чтобы низ не залезал в 
     farWall.position.set(0, 65, -1900);
     scene.add(farWall);
 
+    // Track segments
     const roadGeo = new THREE.PlaneGeometry(ROAD_WIDTH, ROAD_LEN);
     const roadMatArr = loadedTextures.roads.map(tex => new THREE.MeshStandardMaterial({
       map: tex,
@@ -522,6 +546,7 @@ const FOG_Y = (FOG_SIZE * 0.5) + 2; // чтобы низ не залезал в 
     const barrierGeo = new THREE.BoxGeometry(0.25, 0.7, ROAD_LEN);
     const barrierMat = new THREE.MeshStandardMaterial({ color: 0x090909 });
 
+    trackSegments = [];
     for (let i = 0; i < ROAD_COUNT; i++) {
       const seg = new THREE.Group();
       seg.position.z = -i * ROAD_LEN;
@@ -568,19 +593,25 @@ const FOG_Y = (FOG_SIZE * 0.5) + 2; // чтобы низ не залезал в 
       trackSegments.push(seg);
     }
 
-   fogEntity = new THREE.Mesh(
-  new THREE.PlaneGeometry(FOG_SIZE, FOG_SIZE),
-  new THREE.MeshBasicMaterial({
-    map: loadedTextures.fog,
-    transparent: true,
-    opacity: 0.98,
-    depthWrite: false
-  })
-);
-fogEntity.position.set(0, FOG_Y, 50);
-fogEntity.renderOrder = 999;
-fogEntity.frustumCulled = false;
-scene.add(fogEntity);
+    // Fog
+    fogEntity = new THREE.Mesh(
+      new THREE.PlaneGeometry(FOG_SIZE, FOG_SIZE),
+      new THREE.MeshBasicMaterial({
+        map: loadedTextures.fog,
+        transparent: true,
+        opacity: 0.98,
+        depthWrite: false
+      })
+    );
+    fogEntity.position.set(0, FOG_Y, 50);
+    fogEntity.renderOrder = 999;
+    fogEntity.frustumCulled = false;
+    scene.add(fogEntity);
+
+    // Buildings
+    buildings.forEach(b => scene.remove(b));
+    buildings = [];
+
     const maxBuildings = 90;
     const bGeo = new THREE.BoxGeometry(6, 40, 10);
 
@@ -629,23 +660,18 @@ scene.add(fogEntity);
     root.addEventListener('click', onIntroClick, { once: true });
   }
 
- function onIntroClick() {
-  if (gameState !== STATE.INTRO) return;
+  function onIntroClick() {
+    if (gameState !== STATE.INTRO) return;
 
-  // Сразу убираем интро UI
-  introText.style.display = 'none';
+    introText.style.display = 'none';
+    videoElement.style.display = 'none';
+    videoElement.pause();
 
-  // Сразу убираем видео (если ты не хочешь задержку)
-  videoElement.style.display = 'none';
-  videoElement.pause();
+    if (mixer) mixer.stopAllAction();
+    currentAction = null;
 
-  // СТОПАЕМ танец сразу
-  if (mixer) mixer.stopAllAction();
-  currentAction = null;
-
-  // Сразу стартуем игру
-  startRun();
-}
+    startRun();
+  }
 
   function startRun() {
     gameState = STATE.PLAYING;
@@ -661,7 +687,7 @@ scene.add(fogEntity);
     playerGroup.rotation.y = Math.PI;
     playAnim('run', 0.2);
 
-    fogEntity.position.set(0, 7, camera.position.z + 60);
+    fogEntity.position.set(0, FOG_Y, camera.position.z + 60);
   }
 
   // ============================================================
@@ -683,7 +709,10 @@ scene.add(fogEntity);
     if (!isJumping && gameState === STATE.PLAYING) {
       isJumping = true;
       velocityY = jumpPower;
-      playAnim('jump', 0.08);
+
+      // если jump-анимации нет — хотя бы прыгай физикой (но в debug будет ошибка)
+      if (animations.jump) playAnim('jump', 0.08);
+      else logFail('JUMP: нет клипа (прыжок только физикой).');
     }
   }
 
@@ -731,6 +760,28 @@ scene.add(fogEntity);
   }
 
   // ============================================================
+  // RESET WORLD POSITIONS (fix пустота после рестарта)
+  // ============================================================
+  function resetWorldPositions() {
+    // reset track under player
+    for (let i = 0; i < trackSegments.length; i++) {
+      trackSegments[i].position.z = -i * ROAD_LEN;
+    }
+
+    // reset buildings near player
+    for (const b of buildings) {
+      b.position.z = -(Math.random() * 2600);
+    }
+
+    // ground
+    if (worldGround) worldGround.position.z = -1500;
+    if (farWall) farWall.position.z = -1900;
+
+    // fog
+    if (fogEntity) fogEntity.position.set(0, FOG_Y, 50);
+  }
+
+  // ============================================================
   // GAME LOOP
   // ============================================================
   function animate() {
@@ -745,7 +796,6 @@ scene.add(fogEntity);
       camera.position.z = Math.cos(Date.now() * 0.001) * 6 + 2;
       camera.lookAt(playerGroup.position.x, 2, playerGroup.position.z);
     }
-
     else if (gameState === STATE.PLAYING) {
       speed += 0.00012;
 
@@ -763,19 +813,18 @@ scene.add(fogEntity);
         }
       }
 
-      // Camera (back view)
       camera.position.z = playerGroup.position.z + 7;
-      camera.position.x = playerGroup.position.x; // строго сзади, без половинного X
+      camera.position.x = playerGroup.position.x;
       camera.position.y = playerGroup.position.y + 4;
       camera.lookAt(playerGroup.position.x, 2, playerGroup.position.z - 10);
 
       if (worldGround) worldGround.position.z = camera.position.z - 1500;
       if (farWall) farWall.position.z = camera.position.z - 2000;
 
-      // Fog hidden behind
-      fogEntity.position.set(playerGroup.position.x, 7, camera.position.z + 70);
+      // Fog hidden behind (always correct height)
+      fogEntity.position.set(playerGroup.position.x, FOG_Y, camera.position.z + 70);
 
-      // ROAD RECYCLE (невидимый)
+      // ROAD RECYCLE
       let frontMostZ = Infinity;
       for (const seg of trackSegments) frontMostZ = Math.min(frontMostZ, seg.position.z);
 
@@ -828,103 +877,65 @@ scene.add(fogEntity);
         }
       }
 
-      for (const b of buildings) {
-        if (b.position.z > camera.position.z + 120) {
-          b.position.z = camera.position.z - (2000 + Math.random() * 1200);
-          const side = Math.random() > 0.5 ? 1 : -1;
-          const dist = 18 + Math.random() * 65;
-          b.position.x = side * dist;
-
-          const h = 18 + Math.random() * 70;
-          b.scale.y = h / 40;
-          b.position.y = (40 * b.scale.y) / 2;
-
-          const tex = loadedTextures.buildings[Math.floor(Math.random() * loadedTextures.buildings.length)];
-          b.material.map = tex;
-          b.material.needsUpdate = true;
-        }
-      }
-
       score = Math.floor(Math.abs(playerGroup.position.z));
       document.getElementById('sUi').innerText = 'SCORE: ' + score;
     }
-
     else if (gameState === STATE.DYING) {
       deathTime += delta;
 
-      // ✅ 1) ПАДЕНИЕ: держим камеру сзади минимум (fallClipDuration + запас)
       const FALL_SHOW_TIME = Math.max(2.0, fallClipDuration + 0.5);
-
-      // ✅ 2) “Поворот головы” от 1-го лица
       const HEAD_TURN_TIME = 1.0;
-
-      // ✅ 3) Смотреть на fog 2–3 сек
       const WATCH_FOG_TIME = 2.7;
 
-      // Phase A: fall from back view
       if (deathTime < FALL_SHOW_TIME) {
         camera.position.z = playerGroup.position.z + 7.2;
-        camera.position.x = playerGroup.position.x;       // строго сзади
-        camera.position.y = playerGroup.position.y + 3.8; // чуть ниже — падение видно
+        camera.position.x = playerGroup.position.x;
+        camera.position.y = playerGroup.position.y + 3.8;
         camera.lookAt(playerGroup.position.x, 1.8, playerGroup.position.z - 9);
 
-        // fog скрыт далеко
         fogEntity.position.set(playerGroup.position.x, FOG_Y, camera.position.z + 80);
         fogEntity.lookAt(camera.position);
-      }
-      // Phase B: first-person + head turn to fog
-      else {
-        // 1st person head position (approx)
+      } else {
         const headX = playerGroup.position.x;
         const headY = playerGroup.position.y + 2.05;
         const headZ = playerGroup.position.z + 0.3;
 
         camera.position.set(headX, headY, headZ);
 
-        // Spawn fog behind (once)
         if (!deathFogSpawned) {
-          fogEntity.position.set(headX, headY + 0.6, headZ + 65);
+          fogEntity.position.set(headX, FOG_Y, headZ + 65); // ← ВСЕГДА FOG_Y
           fogChaseSpeed = 0;
           deathFogSpawned = true;
         }
 
-        // Forward look quaternion
         dummyCamera.position.set(headX, headY, headZ);
         dummyCamera.lookAt(headX, headY, headZ - 10);
         const qForward = dummyCamera.quaternion.clone();
 
-        // Look at fog quaternion
         dummyCamera.position.set(headX, headY, headZ);
         dummyCamera.lookAt(fogEntity.position.x, fogEntity.position.y, fogEntity.position.z);
         const qToFog = dummyCamera.quaternion.clone();
 
         const tTurn = Math.min(1, (deathTime - FALL_SHOW_TIME) / HEAD_TURN_TIME);
-
-        // Smooth head turn
         camera.quaternion.copy(qForward).slerp(qToFog, tTurn);
 
-        // Move fog toward player while we watch it
         const tWatch = deathTime - FALL_SHOW_TIME - HEAD_TURN_TIME;
 
         if (tWatch >= 0) {
-          fogChaseSpeed += delta * 10;          // ускорение
-          const chase = 18 + fogChaseSpeed;     // скорость приближения
+          fogChaseSpeed += delta * 10;
+          const chase = 18 + fogChaseSpeed;
           fogEntity.position.z -= chase * delta;
 
           fogEntity.lookAt(camera.position);
 
-          // End conditions: time OR close distance
           const dz = Math.abs(fogEntity.position.z - camera.position.z);
-          const maxWatch = WATCH_FOG_TIME;
-
-          if (tWatch > maxWatch || dz < 3.0) {
+          if (tWatch > WATCH_FOG_TIME || dz < 3.0) {
             running = false;
             overlayGameOver.style.display = 'flex';
             document.getElementById('goScore').innerText = score;
             document.getElementById('goCoins').innerText = '+' + coinsCollected;
           }
         } else {
-          // before watch phase starts, just keep fog visible but not moving much
           fogEntity.lookAt(camera.position);
         }
       }
@@ -941,10 +952,13 @@ scene.add(fogEntity);
     fogChaseSpeed = 0;
     deathFogSpawned = false;
 
-    // stop movement so fall is visible
     speed = 0;
 
-    playAnim('fall', 0.05);
+    if (animations.fall) playAnim('fall', 0.05);
+    else {
+      logFail('FALL: нет клипа (смерть без анимации).');
+      if (mixer) mixer.stopAllAction();
+    }
 
     api.addCoins(coinsCollected);
     api.setHighScore(score);
@@ -967,17 +981,23 @@ scene.add(fogEntity);
     deathFogSpawned = false;
     spawnTimer = 0;
 
+    obstacles.forEach(o => scene.remove(o)); obstacles = [];
+    coins.forEach(c => scene.remove(c)); coins = [];
+
+    // ВАЖНО: вернуть мир к игроку, иначе пустота
+    resetWorldPositions();
+
     playerGroup.position.set(targetX, PLAYER_Y_OFFSET, 0);
 
     camera.position.set(0, 4, 7);
     camera.lookAt(playerGroup.position.x, 2, -10);
 
-    obstacles.forEach(o => scene.remove(o)); obstacles = [];
-    coins.forEach(c => scene.remove(c)); coins = [];
-
     overlayGameOver.style.display = 'none';
     document.getElementById('sUi').innerText = 'SCORE: 0';
     document.getElementById('cUi').innerText = 'CASH: 0';
+
+    if (mixer) mixer.stopAllAction();
+    currentAction = null;
 
     startRun();
     running = true;
