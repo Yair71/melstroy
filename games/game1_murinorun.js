@@ -38,7 +38,11 @@ export function createGame(root, api) {
 
   // --- ENVIRONMENT ---
   let fogEntity;
-  let roadMeshes = [];
+
+  // Track segments (road + shoulders) so you NEVER lose the road
+  let trackSegments = [];
+
+  // Decorations
   let buildings = [];
   let obstacles = [];
   let coins = [];
@@ -47,10 +51,18 @@ export function createGame(root, api) {
   let obstacleGeo, obstacleMat;
   let coinGeo, coinMat;
 
-  // --- ROAD SETTINGS (for stable recycle) ---
+  // Ground (infinite-ish)
+  let worldGround;
+  let farWall;
+
+  // --- ROAD SETTINGS ---
   const ROAD_WIDTH = 12;
-  const ROAD_LEN = 120;
-  const ROAD_COUNT = 6;
+  const ROAD_LEN = 160;   // longer => less frequent recycle => less visible
+  const ROAD_COUNT = 10;  // more segments => never see gaps
+
+  // If segment is FULLY behind camera by this distance, we recycle it.
+  // Big value => impossible to see the jump.
+  const ROAD_RECYCLE_BEHIND = 120;
 
   // --- GAME STATES ---
   const STATE = { LOADING: 0, INTRO: 1, TRANSITION: 2, PLAYING: 3, DYING: 4 };
@@ -60,7 +72,11 @@ export function createGame(root, api) {
   let speed = 0.3;
   let score = 0;
   let coinsCollected = 0;
-  let deathTimer = 0;
+
+  // DYING timing (seconds)
+  let deathTime = 0;
+  let fogChaseSpeed = 0;
+
   let spawnTimer = 0;
 
   const lanes = [-3, 0, 3];
@@ -77,7 +93,7 @@ export function createGame(root, api) {
   let uiLayer, loadingText, debugPanel, introText, videoElement, gameUI, overlayGameOver;
 
   // ============================================================
-  // 🔍 ДИАГНОСТИЧЕСКАЯ ПАНЕЛЬ
+  // 🔍 DEBUG PANEL
   // ============================================================
   function logDebug(msg, color = 'white') {
     console.log(msg);
@@ -104,20 +120,31 @@ export function createGame(root, api) {
   function checkLibraries() {
     logInfo('--- ПРОВЕРКА БИБЛИОТЕК ---');
     if (typeof THREE === 'undefined') { logFail('THREE не найден!'); return false; }
-    else { logOK('THREE найден.'); }
+    logOK('THREE найден.');
+
     if (typeof THREE.GLTFLoader === 'undefined') { logFail('GLTFLoader не найден!'); return false; }
-    else { logOK('GLTFLoader найден.'); }
-    if (typeof THREE.DRACOLoader === 'undefined') { logFail('DRACOLoader не найден!'); return false; }
-    else { logOK('DRACOLoader найден.'); }
+    logOK('GLTFLoader найден.');
+
+    // DRACO optional
+    if (typeof THREE.DRACOLoader === 'undefined') {
+      logInfo('DRACOLoader не найден (ок, если модели не Draco-сжаты).');
+    } else {
+      logOK('DRACOLoader найден.');
+    }
+
     return true;
   }
 
   async function checkFileExists(url) {
     try {
       const res = await fetch(url, { method: 'HEAD' });
-      if (res.ok) { return true; }
-      else { logFail(`Файл НЕ найден: ${url}`); return false; }
-    } catch (e) { logFail(`Сетевая ошибка: ${url}`); return false; }
+      if (res.ok) return true;
+      logFail(`Файл НЕ найден: ${url}`);
+      return false;
+    } catch (e) {
+      logFail(`Сетевая ошибка/HEAD blocked: ${url}`);
+      return false;
+    }
   }
 
   async function checkAllFiles() {
@@ -128,12 +155,15 @@ export function createGame(root, api) {
       assets.video,
     ];
     let allOk = true;
-    for (const url of allFiles) { const ok = await checkFileExists(url); if (!ok) allOk = false; }
+    for (const url of allFiles) {
+      const ok = await checkFileExists(url);
+      if (!ok) allOk = false;
+    }
     return allOk;
   }
 
   // ============================================================
-  // УМНЫЙ ФИКС АНИМАЦИЙ (ретаргет по костям)
+  // ANIMATION RETARGET (smart-ish)
   // ============================================================
   function normalizeBoneName(name) {
     return name
@@ -149,15 +179,14 @@ export function createGame(root, api) {
       .trim();
   }
 
-  function buildBoneMaps(targetModel) {
-    const bones = [];
-    targetModel.traverse(o => { if (o.isBone) bones.push(o); });
-
+  function buildBoneMap(targetModel) {
     const byNorm = new Map();
-    for (const b of bones) {
-      const n = normalizeBoneName(b.name);
-      if (!byNorm.has(n)) byNorm.set(n, b.name);
-    }
+    targetModel.traverse(o => {
+      if (o.isBone) {
+        const n = normalizeBoneName(o.name);
+        if (!byNorm.has(n)) byNorm.set(n, o.name);
+      }
+    });
     return { byNorm };
   }
 
@@ -176,20 +205,21 @@ export function createGame(root, api) {
         if (norm.split('.').pop() === last) return real;
       }
     }
+
     return null;
   }
 
   function fixAnimation(clip, targetModel) {
     if (!clip || !targetModel) return null;
 
-    const boneMap = buildBoneMaps(targetModel);
+    const boneMap = buildBoneMap(targetModel);
+    const fixed = clip.clone();
+
     let kept = 0;
     const total = clip.tracks.length;
 
-    const fixed = clip.clone();
-
     fixed.tracks = fixed.tracks
-      .filter(track => !track.name.endsWith('.position'))
+      .filter(track => !track.name.endsWith('.position')) // prevent model drifting
       .map(track => {
         const lastDot = track.name.lastIndexOf('.');
         if (lastDot === -1) return null;
@@ -208,7 +238,7 @@ export function createGame(root, api) {
       .filter(Boolean);
 
     if (kept === 0) {
-      logFail(`Анимация "${clip.name || 'noname'}" → 0 треков после привязки. Скорее всего другой риг.`);
+      logFail(`Анимация "${clip.name || 'noname'}" → 0 треков. Возможно другой риг.`);
       return null;
     }
 
@@ -217,17 +247,20 @@ export function createGame(root, api) {
   }
 
   // ============================================================
-  // ЗАГРУЗКА АССЕТОВ
+  // ASSET LOADING
   // ============================================================
   function loadGLTF(url) {
     return new Promise((resolve, reject) => {
       logWait('Грузим: ' + url);
 
-      const dracoLoader = new THREE.DRACOLoader();
-      dracoLoader.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/libs/draco/');
-
       const loader = new THREE.GLTFLoader();
-      loader.setDRACOLoader(dracoLoader);
+
+      // DRACO optional
+      if (typeof THREE.DRACOLoader !== 'undefined') {
+        const dracoLoader = new THREE.DRACOLoader();
+        dracoLoader.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/libs/draco/');
+        loader.setDRACOLoader(dracoLoader);
+      }
 
       loader.load(
         url,
@@ -243,7 +276,10 @@ export function createGame(root, api) {
       const loader = new THREE.TextureLoader();
       loader.load(
         url,
-        (tex) => { tex.anisotropy = renderer?.capabilities?.getMaxAnisotropy() || 1; resolve(tex); },
+        (tex) => {
+          tex.anisotropy = renderer?.capabilities?.getMaxAnisotropy?.() || 1;
+          resolve(tex);
+        },
         undefined,
         (error) => { logFail('ОШИБКА: ' + url); reject({ url, error }); }
       );
@@ -254,43 +290,52 @@ export function createGame(root, api) {
     try {
       if (!checkLibraries()) return;
       await checkAllFiles();
+
       logInfo('--- НАЧИНАЕМ ЗАГРУЗКУ ---');
 
       loadedTextures.fog = await loadTexture(assets.textures.fog);
+
       loadedTextures.roads = [];
       for (let url of assets.textures.roads) loadedTextures.roads.push(await loadTexture(url));
+
       loadedTextures.buildings = [];
       for (let url of assets.textures.buildings) loadedTextures.buildings.push(await loadTexture(url));
 
-      loadedTextures.roads.forEach(tex => { tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.repeat.set(1, 10); });
-      loadedTextures.buildings.forEach(tex => { tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.repeat.set(2, 5); });
+      // Texture settings
+      loadedTextures.roads.forEach(tex => {
+        tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+        tex.repeat.set(1, 14); // tuned for ROAD_LEN=160
+      });
+      loadedTextures.buildings.forEach(tex => {
+        tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+        tex.repeat.set(2, 5);
+      });
 
+      // Main model
       const playerGltf = await loadGLTF(assets.models.player);
       playerModel = playerGltf.scene;
       playerModel.scale.set(1, 1, 1);
       playerModel.position.set(0, 0, 0);
       mixer = new THREE.AnimationMixer(playerModel);
 
-      function pickBestClip(gltf, fallbackName) {
+      function pickBestClip(gltf, hint) {
         if (!gltf.animations || gltf.animations.length === 0) return null;
-
-        const want = (fallbackName || '').toLowerCase();
-        let best = gltf.animations.find(a => (a.name || '').toLowerCase().includes(want));
-        if (best) return best;
-
-        best = gltf.animations.reduce((acc, a) => (a.duration > acc.duration ? a : acc), gltf.animations[0]);
-        return best;
+        const want = (hint || '').toLowerCase();
+        const named = gltf.animations.find(a => (a.name || '').toLowerCase().includes(want));
+        if (named) return named;
+        return gltf.animations.reduce((acc, a) => (a.duration > acc.duration ? a : acc), gltf.animations[0]);
       }
 
-      function extractAnim(gltf, label) {
-        const clip = pickBestClip(gltf, label);
+      function extractAnim(gltf, hint) {
+        const clip = pickBestClip(gltf, hint);
         if (!clip) {
-          logFail('❌ ПУСТОЙ ФАЙЛ: внутри ' + label + ' нет анимаций!');
+          logFail('❌ ПУСТОЙ ФАЙЛ: ' + hint);
           return null;
         }
         return fixAnimation(clip, playerModel);
       }
 
+      // Animations
       const runGltf = await loadGLTF(assets.models.run);
       animations.run = extractAnim(runGltf, 'run');
 
@@ -312,7 +357,7 @@ export function createGame(root, api) {
         debugPanel.style.display = 'none';
         setupWorld();
         startIntro();
-      }, 1200);
+      }, 900);
 
     } catch (e) {
       logFail('КРИТИЧЕСКАЯ ОШИБКА ЗАГРУЗКИ');
@@ -320,11 +365,11 @@ export function createGame(root, api) {
   }
 
   // ============================================================
-  // ПЛАВНОЕ ВОСПРОИЗВЕДЕНИЕ
+  // ANIM PLAY
   // ============================================================
   function playAnim(name, fadeTime = 0.2) {
     const clip = animations[name];
-    if (!clip) { logFail('❌ Блок анимации недоступен: ' + name); return; }
+    if (!clip) { logFail('❌ Нет анимации: ' + name); return; }
 
     const next = mixer.clipAction(clip);
 
@@ -349,17 +394,19 @@ export function createGame(root, api) {
     currentAction = next;
   }
 
-  // --- WORLD INIT ---
+  // ============================================================
+  // 3D INIT
+  // ============================================================
   function init3D() {
     scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x222222);
-    scene.fog = new THREE.Fog(0x222222, 10, 80);
+    scene.background = new THREE.Color(0x151515);
+    scene.fog = new THREE.Fog(0x151515, 12, 140);
 
     const width = root.clientWidth || window.innerWidth;
     const height = root.clientHeight || window.innerHeight;
 
-    camera = new THREE.PerspectiveCamera(70, width / height, 0.1, 1000);
-    dummyCamera = new THREE.PerspectiveCamera(70, width / height, 0.1, 1000);
+    camera = new THREE.PerspectiveCamera(70, width / height, 0.1, 1200);
+    dummyCamera = new THREE.PerspectiveCamera(70, width / height, 0.1, 1200);
 
     renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(width, height);
@@ -368,94 +415,162 @@ export function createGame(root, api) {
 
     clock = new THREE.Clock();
 
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
-    scene.add(ambientLight);
+    const ambient = new THREE.AmbientLight(0xffffff, 0.85);
+    scene.add(ambient);
 
-    const dirLight = new THREE.DirectionalLight(0xffffff, 1);
-    dirLight.position.set(10, 20, -10);
-    dirLight.castShadow = true;
-    scene.add(dirLight);
+    const dir = new THREE.DirectionalLight(0xffffff, 1.05);
+    dir.position.set(10, 20, -10);
+    dir.castShadow = true;
+    scene.add(dir);
 
     setupControls();
     window.addEventListener('resize', onWindowResize, false);
   }
 
+  // ============================================================
+  // WORLD BUILD
+  // ============================================================
   function setupWorld() {
+    // Player
     playerGroup = new THREE.Group();
     playerGroup.position.set(targetX, PLAYER_Y_OFFSET, 0);
     playerGroup.add(playerModel);
     scene.add(playerGroup);
 
+    // Infinite-ish ground under everything (follows camera)
+    const groundGeo = new THREE.PlaneGeometry(500, 5000);
+    const groundMat = new THREE.MeshStandardMaterial({ color: 0x0f0f0f });
+    worldGround = new THREE.Mesh(groundGeo, groundMat);
+    worldGround.rotation.x = -Math.PI / 2;
+    worldGround.position.set(0, -0.02, -1200);
+    worldGround.receiveShadow = true;
+    scene.add(worldGround);
+
+    // Far city wall
+    farWall = new THREE.Mesh(
+      new THREE.PlaneGeometry(700, 120),
+      new THREE.MeshStandardMaterial({ color: 0x070707, emissive: 0x040404 })
+    );
+    farWall.position.set(0, 60, -1600);
+    scene.add(farWall);
+
+    // Track segments (road + shoulders) => NEVER lose road
+    const roadGeo = new THREE.PlaneGeometry(ROAD_WIDTH, ROAD_LEN);
+    const roadMatArr = loadedTextures.roads.map(tex => new THREE.MeshStandardMaterial({
+      map: tex,
+      side: THREE.DoubleSide,
+      roughness: 1,
+      metalness: 0
+    }));
+
+    const shoulderW = 18; // side area near road
+    const shoulderGeo = new THREE.PlaneGeometry(shoulderW, ROAD_LEN);
+    const shoulderMat = new THREE.MeshStandardMaterial({ color: 0x101010, side: THREE.DoubleSide });
+
+    // lane markers (simple)
+    const markGeo = new THREE.PlaneGeometry(0.18, ROAD_LEN);
+    const markMat = new THREE.MeshStandardMaterial({ color: 0xeeeeee, emissive: 0x222222, transparent: true, opacity: 0.65, side: THREE.DoubleSide });
+
+    // barriers
+    const barrierGeo = new THREE.BoxGeometry(0.25, 0.7, ROAD_LEN);
+    const barrierMat = new THREE.MeshStandardMaterial({ color: 0x090909 });
+
     for (let i = 0; i < ROAD_COUNT; i++) {
-      const tex = loadedTextures.roads[i % loadedTextures.roads.length];
-      const roadGeo = new THREE.PlaneGeometry(ROAD_WIDTH, ROAD_LEN);
-      const roadMat = new THREE.MeshStandardMaterial({ map: tex, side: THREE.DoubleSide }); // важно
-      const road = new THREE.Mesh(roadGeo, roadMat);
+      const seg = new THREE.Group();
+      seg.position.z = -i * ROAD_LEN;
+
+      // road
+      const road = new THREE.Mesh(roadGeo, roadMatArr[i % roadMatArr.length]);
       road.rotation.x = -Math.PI / 2;
-      road.position.z = -i * ROAD_LEN;
+      road.position.y = 0;
       road.receiveShadow = true;
-      scene.add(road);
-      roadMeshes.push(road);
+      road.frustumCulled = false; // NEVER vanish due to culling
+      seg.add(road);
+      seg.userData.road = road;
+
+      // shoulders (left/right)
+      const leftS = new THREE.Mesh(shoulderGeo, shoulderMat);
+      leftS.rotation.x = -Math.PI / 2;
+      leftS.position.set(-(ROAD_WIDTH / 2 + shoulderW / 2), -0.001, 0);
+      leftS.receiveShadow = true;
+      leftS.frustumCulled = false;
+      seg.add(leftS);
+
+      const rightS = leftS.clone();
+      rightS.position.x = (ROAD_WIDTH / 2 + shoulderW / 2);
+      seg.add(rightS);
+
+      // lane markers
+      const m1 = new THREE.Mesh(markGeo, markMat);
+      m1.rotation.x = -Math.PI / 2;
+      m1.position.set(-1.5, 0.002, 0);
+      m1.frustumCulled = false;
+      seg.add(m1);
+
+      const m2 = m1.clone();
+      m2.position.x = 1.5;
+      seg.add(m2);
+
+      // barriers along edges
+      const bL = new THREE.Mesh(barrierGeo, barrierMat);
+      bL.position.set(-(ROAD_WIDTH / 2 + 0.15), 0.35, 0);
+      bL.frustumCulled = false;
+      seg.add(bL);
+
+      const bR = bL.clone();
+      bR.position.x = (ROAD_WIDTH / 2 + 0.15);
+      seg.add(bR);
+
+      scene.add(seg);
+      trackSegments.push(seg);
     }
 
+    // Fog monster (plane)
     fogEntity = new THREE.Mesh(
-      new THREE.PlaneGeometry(25, 25),
-      new THREE.MeshBasicMaterial({ map: loadedTextures.fog, transparent: true })
+      new THREE.PlaneGeometry(30, 30),
+      new THREE.MeshBasicMaterial({ map: loadedTextures.fog, transparent: true, opacity: 0.95, depthWrite: false })
     );
-    fogEntity.position.set(0, 5, 50);
+    fogEntity.position.set(0, 6, 40);
+    fogEntity.renderOrder = 999;
     scene.add(fogEntity);
 
+    // Buildings (more + spread far) so world is not empty
+    const maxBuildings = 80;
     const bGeo = new THREE.BoxGeometry(6, 40, 10);
-    for (let i = 0; i < 20; i++) {
+
+    for (let i = 0; i < maxBuildings; i++) {
       const tex = loadedTextures.buildings[Math.floor(Math.random() * loadedTextures.buildings.length)];
-      const bMat = new THREE.MeshStandardMaterial({ map: tex });
+      const bMat = new THREE.MeshStandardMaterial({ map: tex, roughness: 1 });
       const b = new THREE.Mesh(bGeo, bMat);
-      b.position.z = -(Math.random() * 200);
-      b.position.x = Math.random() > 0.5 ? 12 : -12;
-      b.position.y = 20;
+
+      const side = Math.random() > 0.5 ? 1 : -1;
+      const dist = 16 + Math.random() * 55; // farther from road edges
+      b.position.x = side * dist;
+
+      // random height
+      const h = 18 + Math.random() * 55;
+      b.scale.y = h / 40;
+
+      b.position.y = (40 * b.scale.y) / 2; // sit on ground
+      b.position.z = -(Math.random() * 2200); // deep world
+
+      b.castShadow = true;
+      b.receiveShadow = true;
+
       scene.add(b);
       buildings.push(b);
     }
 
+    // Obstacles & coins
     obstacleGeo = new THREE.BoxGeometry(2, 2, 2);
     obstacleMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
     coinGeo = new THREE.OctahedronGeometry(0.6);
     coinMat = new THREE.MeshStandardMaterial({ color: 0xFFD700, emissive: 0xaa8800 });
-
-    // --- EXTRA WORLD ---
-    const sideGeo = new THREE.PlaneGeometry(200, 2000);
-    const sideMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a });
-    const leftGround = new THREE.Mesh(sideGeo, sideMat);
-    leftGround.rotation.x = -Math.PI / 2;
-    leftGround.position.set(-40, -0.01, -600);
-    scene.add(leftGround);
-
-    const rightGround = leftGround.clone();
-    rightGround.position.x = 40;
-    scene.add(rightGround);
-
-    const farWall = new THREE.Mesh(
-      new THREE.PlaneGeometry(250, 80),
-      new THREE.MeshStandardMaterial({ color: 0x0c0c0c, emissive: 0x050505 })
-    );
-    farWall.position.set(0, 40, -1200);
-    scene.add(farWall);
-
-    const dustCount = 600;
-    const dustGeo = new THREE.BufferGeometry();
-    const dustPos = new Float32Array(dustCount * 3);
-    for (let i = 0; i < dustCount; i++) {
-      dustPos[i * 3 + 0] = (Math.random() - 0.5) * 40;
-      dustPos[i * 3 + 1] = Math.random() * 12 + 1;
-      dustPos[i * 3 + 2] = -Math.random() * 300;
-    }
-    dustGeo.setAttribute('position', new THREE.BufferAttribute(dustPos, 3));
-    const dust = new THREE.Points(dustGeo, new THREE.PointsMaterial({ color: 0x666666, size: 0.08 }));
-    dust.name = 'dust';
-    scene.add(dust);
   }
 
-  // --- SCENARIOS ---
+  // ============================================================
+  // SCENARIOS
+  // ============================================================
   function startIntro() {
     gameState = STATE.INTRO;
     loadingText.style.display = 'none';
@@ -483,8 +598,10 @@ export function createGame(root, api) {
 
   function startRun() {
     gameState = STATE.PLAYING;
+
     videoElement.style.display = 'none';
     videoElement.pause();
+
     gameUI.style.display = 'flex';
 
     camera.position.set(0, 4, 7);
@@ -493,12 +610,25 @@ export function createGame(root, api) {
     playerGroup.rotation.y = Math.PI;
     playAnim('run', 0.2);
 
-    fogEntity.position.set(0, 5, camera.position.z + 30);
+    // keep fog behind (not visible while running)
+    fogEntity.position.set(0, 6, camera.position.z + 45);
   }
 
-  // --- CONTROLS ---
-  function moveLeft() { if (currentLane > 0 && gameState === STATE.PLAYING) { currentLane--; targetX = lanes[currentLane]; } }
-  function moveRight() { if (currentLane < 2 && gameState === STATE.PLAYING) { currentLane++; targetX = lanes[currentLane]; } }
+  // ============================================================
+  // CONTROLS
+  // ============================================================
+  function moveLeft() {
+    if (currentLane > 0 && gameState === STATE.PLAYING) {
+      currentLane--;
+      targetX = lanes[currentLane];
+    }
+  }
+  function moveRight() {
+    if (currentLane < 2 && gameState === STATE.PLAYING) {
+      currentLane++;
+      targetX = lanes[currentLane];
+    }
+  }
   function jump() {
     if (!isJumping && gameState === STATE.PLAYING) {
       isJumping = true;
@@ -520,6 +650,7 @@ export function createGame(root, api) {
     if (!running || gameState !== STATE.PLAYING) return;
     const dx = e.changedTouches[0].clientX - touchStartX;
     const dy = e.changedTouches[0].clientY - touchStartY;
+
     if (Math.abs(dx) > Math.abs(dy)) {
       if (Math.abs(dx) > 30) { dx > 0 ? moveRight() : moveLeft(); }
     } else {
@@ -536,20 +667,22 @@ export function createGame(root, api) {
   function spawnRow() {
     const obsLane = Math.floor(Math.random() * 3);
     const obs = new THREE.Mesh(obstacleGeo, obstacleMat);
-    obs.position.set(lanes[obsLane], 1, playerGroup.position.z - 100);
+    obs.position.set(lanes[obsLane], 1, playerGroup.position.z - 110);
     scene.add(obs);
     obstacles.push(obs);
 
     const coinLane = Math.floor(Math.random() * 3);
     if (coinLane !== obsLane) {
       const coin = new THREE.Mesh(coinGeo, coinMat);
-      coin.position.set(lanes[coinLane], 1, playerGroup.position.z - 100);
+      coin.position.set(lanes[coinLane], 1, playerGroup.position.z - 110);
       scene.add(coin);
       coins.push(coin);
     }
   }
 
-  // --- GAME LOOP ---
+  // ============================================================
+  // GAME LOOP
+  // ============================================================
   function animate() {
     if (!running) return;
     animationId = requestAnimationFrame(animate);
@@ -562,11 +695,14 @@ export function createGame(root, api) {
       camera.position.z = Math.cos(Date.now() * 0.001) * 6 + 2;
       camera.lookAt(playerGroup.position.x, 2, playerGroup.position.z);
     }
+
     else if (gameState === STATE.PLAYING) {
-      speed += 0.0001;
+      speed += 0.00012;
+
       playerGroup.position.z -= speed;
       playerGroup.position.x += (targetX - playerGroup.position.x) * 0.15;
 
+      // Jump physics
       if (isJumping) {
         playerGroup.position.y += velocityY;
         velocityY += gravity;
@@ -578,85 +714,132 @@ export function createGame(root, api) {
         }
       }
 
+      // Camera (back view)
       camera.position.z = playerGroup.position.z + 7;
       camera.position.x = playerGroup.position.x * 0.5;
       camera.position.y = playerGroup.position.y + 4;
       camera.lookAt(playerGroup.position.x, 2, playerGroup.position.z - 10);
 
-      // --- ROAD RECYCLE (по заднему краю сегмента) ---
-      let minZ = Infinity;
-      for (const r of roadMeshes) minZ = Math.min(minZ, r.position.z);
+      // Ground follows camera so world never becomes empty
+      if (worldGround) worldGround.position.z = camera.position.z - 1200;
+      if (farWall) farWall.position.z = camera.position.z - 1700;
 
-      const BEHIND_OFFSET = 25;
-      for (const r of roadMeshes) {
-        const backEdgeZ = r.position.z + (ROAD_LEN * 0.5);
-        if (backEdgeZ > camera.position.z + BEHIND_OFFSET) {
-          r.position.z = minZ - ROAD_LEN;
-          minZ = r.position.z;
+      // Fog stays behind while playing (monster is "there", but hidden)
+      fogEntity.position.set(0, 6, camera.position.z + 45);
+
+      // ---- ROAD RECYCLE (invisible) ----
+      // We recycle ONLY when segment is FULLY behind camera + big margin.
+      // IMPORTANT: use FRONT EDGE of segment (posZ - ROAD_LEN/2), not back edge.
+      let frontMostZ = Infinity; // most forward in our direction is the MIN Z
+      for (const seg of trackSegments) frontMostZ = Math.min(frontMostZ, seg.position.z);
+
+      for (const seg of trackSegments) {
+        const frontEdgeZ = seg.position.z - (ROAD_LEN * 0.5); // most forward edge
+        if (frontEdgeZ > camera.position.z + ROAD_RECYCLE_BEHIND) {
+          seg.position.z = frontMostZ - ROAD_LEN;
+          frontMostZ = seg.position.z;
+
+          // optional: change road texture ONLY while behind camera (safe)
+          const road = seg.userData.road;
+          if (road && loadedTextures.roads.length > 1) {
+            const idx = Math.floor(Math.random() * loadedTextures.roads.length);
+            road.material.map = loadedTextures.roads[idx];
+            road.material.needsUpdate = true;
+          }
         }
       }
 
-      spawnTimer++;
-      if (spawnTimer > 40 / speed) { spawnRow(); spawnTimer = 0; }
+      // Spawn
+      spawnTimer += 1;
+      if (spawnTimer > (48 / speed)) { spawnRow(); spawnTimer = 0; }
 
+      // Coins spin + collect
       coins.forEach(c => c.rotation.y += 0.05);
 
       for (let i = coins.length - 1; i >= 0; i--) {
         const c = coins[i];
-        if (Math.abs(c.position.z - playerGroup.position.z) < 1.2 &&
-            Math.abs(c.position.x - playerGroup.position.x) < 1.2 &&
-            playerGroup.position.y < 2.5) {
+        if (
+          Math.abs(c.position.z - playerGroup.position.z) < 1.2 &&
+          Math.abs(c.position.x - playerGroup.position.x) < 1.2 &&
+          playerGroup.position.y < 2.5
+        ) {
           scene.remove(c); coins.splice(i, 1);
           coinsCollected += 1;
           document.getElementById('cUi').innerText = 'CASH: ' + coinsCollected;
-        } else if (c.position.z > camera.position.z) {
+        } else if (c.position.z > camera.position.z + 30) {
           scene.remove(c); coins.splice(i, 1);
         }
       }
 
+      // Obstacles collision
       for (let i = obstacles.length - 1; i >= 0; i--) {
         const obs = obstacles[i];
-        if (Math.abs(obs.position.z - playerGroup.position.z) < 1.2 &&
-            Math.abs(obs.position.x - playerGroup.position.x) < 1.2 &&
-            playerGroup.position.y < 2) {
+        if (
+          Math.abs(obs.position.z - playerGroup.position.z) < 1.2 &&
+          Math.abs(obs.position.x - playerGroup.position.x) < 1.2 &&
+          playerGroup.position.y < 2
+        ) {
           triggerDeath();
           break;
-        } else if (obs.position.z > camera.position.z) {
+        } else if (obs.position.z > camera.position.z + 30) {
           scene.remove(obs); obstacles.splice(i, 1);
         }
       }
 
-      buildings.forEach(b => { if (b.position.z > camera.position.z + 10) b.position.z -= 200; });
+      // Buildings recycle (keep world dense)
+      for (const b of buildings) {
+        if (b.position.z > camera.position.z + 80) {
+          b.position.z = camera.position.z - (1800 + Math.random() * 900);
+          const side = Math.random() > 0.5 ? 1 : -1;
+          const dist = 16 + Math.random() * 55;
+          b.position.x = side * dist;
 
+          const h = 18 + Math.random() * 55;
+          b.scale.y = h / 40;
+          b.position.y = (40 * b.scale.y) / 2;
+
+          const tex = loadedTextures.buildings[Math.floor(Math.random() * loadedTextures.buildings.length)];
+          b.material.map = tex;
+          b.material.needsUpdate = true;
+        }
+      }
+
+      // UI
       score = Math.floor(Math.abs(playerGroup.position.z));
       document.getElementById('sUi').innerText = 'SCORE: ' + score;
-
-      fogEntity.position.set(0, 5, camera.position.z + 30);
-
-      const dust = scene.getObjectByName('dust');
-      if (dust) dust.position.z = camera.position.z - 50;
     }
+
     else if (gameState === STATE.DYING) {
-      deathTimer++;
+      deathTime += delta;
 
-      const FALL_SHOW_FRAMES = 90; // показываем падение
-      const FOG_SLOW_FRAMES = 60;
+      // Phase 1: SHOW FALL from back (you see fall properly)
+      const FALL_SHOW_TIME = 1.25;
 
-      camera.position.z = playerGroup.position.z + 6;
-      camera.position.x = playerGroup.position.x * 0.4;
-      camera.position.y = playerGroup.position.y + 3.8;
-      camera.lookAt(playerGroup.position.x, 1.8, playerGroup.position.z - 6);
+      if (deathTime < FALL_SHOW_TIME) {
+        // keep camera exactly like gameplay (back view)
+        camera.position.z = playerGroup.position.z + 7;
+        camera.position.x = playerGroup.position.x * 0.5;
+        camera.position.y = playerGroup.position.y + 4;
+        camera.lookAt(playerGroup.position.x, 2, playerGroup.position.z - 10);
 
-      fogEntity.lookAt(camera.position);
-
-      if (deathTimer <= FALL_SHOW_FRAMES) {
-        fogEntity.position.set(0, 5, camera.position.z + 30);
+        // fog far behind, not yet chasing
+        fogEntity.position.set(0, 6, camera.position.z + 55);
+        fogEntity.lookAt(camera.position);
       } else {
-        const t = deathTimer - FALL_SHOW_FRAMES;
+        // Phase 2: FOG CHASE (monster returns)
+        // Put fog behind camera, then move it towards camera rapidly.
+        fogChaseSpeed += delta * 8; // accelerates
+        const chase = 6 + fogChaseSpeed; // speed up
 
-        if (t <= FOG_SLOW_FRAMES) fogEntity.position.z -= 0.35;
-        else fogEntity.position.z -= 2.2;
+        fogEntity.lookAt(camera.position);
+        fogEntity.position.z -= chase; // move towards camera (from behind)
 
+        // cinematic: rotate camera toward fog (like original)
+        dummyCamera.position.copy(camera.position);
+        dummyCamera.lookAt(fogEntity.position.x, fogEntity.position.y, fogEntity.position.z);
+        camera.quaternion.slerp(dummyCamera.quaternion, 0.10);
+
+        // If fog reaches camera => game over
         if (fogEntity.position.z < camera.position.z + 2) {
           running = false;
           overlayGameOver.style.display = 'flex';
@@ -670,13 +853,20 @@ export function createGame(root, api) {
   }
 
   function triggerDeath() {
-    gameState = STATE.DYING;
-    deathTimer = 0;
+    if (gameState !== STATE.PLAYING) return;
 
-    // стопаем движение — падение видно
+    gameState = STATE.DYING;
+    deathTime = 0;
+    fogChaseSpeed = 0;
+
+    // Stop movement so fall is visible
     speed = 0;
 
+    // play fall
     playAnim('fall', 0.05);
+
+    // place fog behind camera for chase phase
+    fogEntity.position.set(0, 6, camera.position.z + 55);
 
     api.addCoins(coinsCollected);
     api.setHighScore(score);
@@ -684,17 +874,27 @@ export function createGame(root, api) {
   }
 
   function resetGame() {
-    speed = 0.3; score = 0; coinsCollected = 0;
-    currentLane = 1; targetX = lanes[currentLane];
-    isJumping = false; velocityY = 0; deathTimer = 0; spawnTimer = 0;
+    speed = 0.3;
+    score = 0;
+    coinsCollected = 0;
+
+    currentLane = 1;
+    targetX = lanes[currentLane];
+
+    isJumping = false;
+    velocityY = 0;
+
+    deathTime = 0;
+    fogChaseSpeed = 0;
+    spawnTimer = 0;
 
     playerGroup.position.set(targetX, PLAYER_Y_OFFSET, 0);
+
     camera.position.set(0, 4, 7);
     camera.lookAt(playerGroup.position.x, 2, -10);
 
     obstacles.forEach(o => scene.remove(o)); obstacles = [];
     coins.forEach(c => scene.remove(c)); coins = [];
-    buildings.forEach(b => b.position.z = -(Math.random() * 200));
 
     overlayGameOver.style.display = 'none';
     document.getElementById('sUi').innerText = 'SCORE: 0';
@@ -709,12 +909,18 @@ export function createGame(root, api) {
     if (!camera || !renderer || !root) return;
     const width = root.clientWidth || window.innerWidth;
     const height = root.clientHeight || window.innerHeight;
-    camera.aspect = width / height; camera.updateProjectionMatrix();
-    if (dummyCamera) { dummyCamera.aspect = width / height; dummyCamera.updateProjectionMatrix(); }
+    camera.aspect = width / height;
+    camera.updateProjectionMatrix();
+    if (dummyCamera) {
+      dummyCamera.aspect = width / height;
+      dummyCamera.updateProjectionMatrix();
+    }
     renderer.setSize(width, height);
   }
 
-  // --- UI CREATION ---
+  // ============================================================
+  // UI
+  // ============================================================
   function buildUI() {
     uiLayer = document.createElement('div');
     uiLayer.style.position = 'absolute';
@@ -788,6 +994,7 @@ export function createGame(root, api) {
   function start() {
     if (running) return;
     running = true;
+
     root.innerHTML = '';
 
     buildUI();
