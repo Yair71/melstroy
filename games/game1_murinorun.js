@@ -1,4 +1,4 @@
-function createGame(root, api) {
+ export function createGame(root, api) {
 
   let running = false;
 
