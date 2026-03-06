@@ -59,7 +59,7 @@ export function createGame(root, api) {
 
   // --- FOG SETTINGS ---
   const FOG_SIZE = 42;
-  const FOG_Y = FOG_SIZE * 0.5; // 🔥 ИСПРАВЛЕНО: теперь туман ровно на земле
+  const FOG_Y = (FOG_SIZE * 0.5) + 2; // чтобы низ не залезал в землю
 
   // --- GAME STATES ---
   const STATE = { LOADING: 0, INTRO: 1, TRANSITION: 2, PLAYING: 3, DYING: 4 };
@@ -283,9 +283,6 @@ export function createGame(root, api) {
   // 🔥 Супер-выбор клипа: для jump/fall отсекаем dance/idle и берём короткие
   function pickBestClip(gltf, kind) {
     if (!gltf.animations || gltf.animations.length === 0) return null;
-
-    // 🔥 ИСПРАВЛЕНО: Если анимация всего одна (типично для Mixamo), берём её 100%
-    if (gltf.animations.length === 1) return gltf.animations[0];
 
     const want = (kind || '').toLowerCase();
     const badWords = ['dance', 'idle', 'tpose', 'walk'];
