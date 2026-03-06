@@ -60,7 +60,8 @@ export function createGame(root, api) {
   const ROAD_LEN = 160;
   const ROAD_COUNT = 10;
   const ROAD_RECYCLE_BEHIND = 140; // ещё больше запас, чтобы вообще не видеть смену
-
+const FOG_SIZE = 42;
+const FOG_Y = (FOG_SIZE * 0.5) + 2; // чтобы низ не залезал в землю
   // --- GAME STATES ---
   const STATE = { LOADING: 0, INTRO: 1, TRANSITION: 2, PLAYING: 3, DYING: 4 };
   let gameState = STATE.LOADING;
@@ -413,33 +414,37 @@ export function createGame(root, api) {
   // ============================================================
   // ANIM PLAY
   // ============================================================
-  function playAnim(name, fadeTime = 0.2) {
-    const clip = animations[name];
-    if (!clip) { logFail('❌ Нет анимации: ' + name); return; }
+ function playAnim(name, fadeTime = 0.12) {
+  const clip = animations[name];
+  if (!clip) { logFail('❌ Нет анимации: ' + name); return; }
 
-    const next = mixer.clipAction(clip);
+  const next = mixer.clipAction(clip);
 
-    if (name === 'jump' || name === 'fall') {
-      next.setLoop(THREE.LoopOnce, 1);
-      next.clampWhenFinished = true;
-    } else {
-      next.setLoop(THREE.LoopRepeat, Infinity);
-      next.clampWhenFinished = false;
-    }
-
-    next.reset();
-    next.enabled = true;
-    next.setEffectiveTimeScale(1);
-    next.setEffectiveWeight(1);
-
-    if (currentAction && currentAction !== next) {
-      currentAction.crossFadeTo(next, fadeTime, false);
-    }
-
-    next.play();
-    currentAction = next;
+  // ВАЖНО: если это jump/fall — рубим всё, чтобы не “перемешивалось” с run/dance
+  if (name === 'jump' || name === 'fall') {
+    mixer.stopAllAction();
+  } else if (currentAction && currentAction !== next) {
+    currentAction.fadeOut(fadeTime);
   }
 
+  next.reset();
+  next.enabled = true;
+  next.setEffectiveTimeScale(1);
+  next.setEffectiveWeight(1);
+
+  if (name === 'jump' || name === 'fall') {
+    next.setLoop(THREE.LoopOnce, 1);
+    next.clampWhenFinished = true;
+  } else {
+    next.setLoop(THREE.LoopRepeat, Infinity);
+    next.clampWhenFinished = false;
+  }
+
+  next.fadeIn(fadeTime);
+  next.play();
+
+  currentAction = next;
+}
   // ============================================================
   // 3D INIT
   // ============================================================
@@ -563,15 +568,19 @@ export function createGame(root, api) {
       trackSegments.push(seg);
     }
 
-    fogEntity = new THREE.Mesh(
-      new THREE.PlaneGeometry(42, 42),
-      new THREE.MeshBasicMaterial({ map: loadedTextures.fog, transparent: true, opacity: 0.98, depthWrite: false })
-    );
-    fogEntity.position.set(0, 7, 50);
-    fogEntity.renderOrder = 999;
-    fogEntity.frustumCulled = false;
-    scene.add(fogEntity);
-
+   fogEntity = new THREE.Mesh(
+  new THREE.PlaneGeometry(FOG_SIZE, FOG_SIZE),
+  new THREE.MeshBasicMaterial({
+    map: loadedTextures.fog,
+    transparent: true,
+    opacity: 0.98,
+    depthWrite: false
+  })
+);
+fogEntity.position.set(0, FOG_Y, 50);
+fogEntity.renderOrder = 999;
+fogEntity.frustumCulled = false;
+scene.add(fogEntity);
     const maxBuildings = 90;
     const bGeo = new THREE.BoxGeometry(6, 40, 10);
 
@@ -615,21 +624,28 @@ export function createGame(root, api) {
     camera.lookAt(playerGroup.position.x, 2, playerGroup.position.z);
 
     const danceName = Math.random() > 0.5 ? 'dance1' : 'dance2';
-    playAnim(danceName, 0.5);
+    playAnim(danceName, 0.15);
 
     root.addEventListener('click', onIntroClick, { once: true });
   }
 
-  function onIntroClick() {
-    if (gameState !== STATE.INTRO) return;
-    gameState = STATE.TRANSITION;
-    introText.style.display = 'none';
+ function onIntroClick() {
+  if (gameState !== STATE.INTRO) return;
 
-    videoElement.style.display = 'block';
-    videoElement.play().catch(() => {});
+  // Сразу убираем интро UI
+  introText.style.display = 'none';
 
-    setTimeout(() => { startRun(); }, 2000);
-  }
+  // Сразу убираем видео (если ты не хочешь задержку)
+  videoElement.style.display = 'none';
+  videoElement.pause();
+
+  // СТОПАЕМ танец сразу
+  if (mixer) mixer.stopAllAction();
+  currentAction = null;
+
+  // Сразу стартуем игру
+  startRun();
+}
 
   function startRun() {
     gameState = STATE.PLAYING;
@@ -853,7 +869,7 @@ export function createGame(root, api) {
         camera.lookAt(playerGroup.position.x, 1.8, playerGroup.position.z - 9);
 
         // fog скрыт далеко
-        fogEntity.position.set(playerGroup.position.x, 7, camera.position.z + 80);
+        fogEntity.position.set(playerGroup.position.x, FOG_Y, camera.position.z + 80);
         fogEntity.lookAt(camera.position);
       }
       // Phase B: first-person + head turn to fog
