@@ -19,61 +19,61 @@ export const MURINO_CONFIG = {
     video: './assets/mel.webm'
   },
 
-  lanes: [-3.2, 0, 3.2],
+  lanes: [-1.9, 0, 1.9],
 
   gameplay: {
-    startSpeed: 15,
-    maxSpeed: 30,
-    accelPerSecond: 0.2,
-    scoreFactor: 2.1
+    startSpeed: 18,
+    maxSpeed: 34,
+    accelPerSecond: 0.45,
+    scoreFactor: 2.4
   },
 
   player: {
     startLane: 1,
     y: 0,
-    scale: 1.55,
-    laneLerp: 12,
-    gravity: 42,
-    jumpVelocity: 14.5,
-    collisionShrinkX: 0.18,
-    collisionShrinkY: 0.12,
-    collisionShrinkZ: 0.12
+    scale: 2.55,
+    laneLerp: 18,
+    gravity: 44,
+    jumpVelocity: 15.2,
+    collisionShrinkX: 0.12,
+    collisionShrinkY: 0.10,
+    collisionShrinkZ: 0.10
   },
 
   road: {
-    width: 10,
-    length: 44,
-    count: 8
+    width: 7.2,
+    length: 22,
+    count: 12
   },
 
   city: {
-    chunkLength: 72,
-    chunkCount: 6,
-    sideOffset: 15,
-    lampsPerChunk: 3,
+    chunkLength: 52,
+    chunkCount: 8,
+    sideOffset: 8.5,
+    lampsPerChunk: 4,
     buildingRows: 4
   },
 
   obstacles: {
-    minGap: 17,
-    maxGap: 28,
-    lookAhead: 170,
-    cleanupBehind: 20,
-    holeChance: 0.20,
+    minGap: 12,
+    maxGap: 21,
+    lookAhead: 125,
+    cleanupBehind: 18,
+    holeChance: 0.18,
     doubleChance: 0.22,
-    fallingChance: 0.16
+    fallingChance: 0.14
   },
 
   camera: {
-    introPos: { x: 0, y: 2.8, z: 8.2 },
-    gameplayOffset: { x: 0, y: 5.2, z: -8.5 },
-    gameplayLookAhead: { x: 0, y: 2.1, z: 11 },
+    introPos: { x: 0, y: 2.35, z: 5.4 },
+    gameplayOffset: { x: 0, y: 3.4, z: -5.7 },
+    gameplayLookAhead: { x: 0, y: 1.25, z: 8.5 },
     deathDuration: 3.0
   },
 
   fogMonster: {
-    startBehind: 14,
-    deathApproachSpeed: 6.4
+    startBehind: 10,
+    deathApproachSpeed: 7.4
   },
 
   ui: {
