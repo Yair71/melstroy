@@ -5,14 +5,12 @@ import { moveLane, triggerJump, startRunning } from './player.js';
 
 let touchStartX = 0;
 let touchStartY = 0;
-const SWIPE_THRESHOLD = 30; // Минимальная длина свайпа в пикселях
+const SWIPE_THRESHOLD = 30; 
 
 export function setupInput() {
-    // === Клавиатура (ПК) ===
     window.addEventListener('keydown', handleKeyDown);
 
-    // === Свайпы (Мобилки) ===
-    const gameContainer = document.getElementById('app'); // или контейнер игры
+    const gameContainer = document.getElementById('app'); 
     if (gameContainer) {
         gameContainer.addEventListener('touchstart', handleTouchStart, { passive: false });
         gameContainer.addEventListener('touchend', handleTouchEnd, { passive: false });
@@ -30,7 +28,6 @@ export function cleanupInput() {
 
 function handleKeyDown(e) {
     if (state.is(CONFIG.states.INTRO)) {
-        // Любая клавиша стартанет игру
         if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') {
             startGame();
         }
@@ -65,7 +62,6 @@ function handleTouchStart(e) {
 
 function handleTouchEnd(e) {
     if (state.is(CONFIG.states.INTRO)) {
-        // Тап по экрану запускает игру
         startGame();
         return;
     }
@@ -79,20 +75,17 @@ function handleTouchEnd(e) {
         const deltaX = touchEndX - touchStartX;
         const deltaY = touchEndY - touchStartY;
 
-        // Определяем направление свайпа (что больше: горизонтальный или вертикальный сдвиг)
         if (Math.abs(deltaX) > Math.abs(deltaY)) {
-            // Горизонтальный свайп
             if (Math.abs(deltaX) > SWIPE_THRESHOLD) {
                 if (deltaX > 0) {
-                    moveLane(1); // Свайп вправо
+                    moveLane(1); 
                 } else {
-                    moveLane(-1); // Свайп влево
+                    moveLane(-1); 
                 }
             }
         } else {
-            // Вертикальный свайп
             if (Math.abs(deltaY) > SWIPE_THRESHOLD) {
-                if (deltaY < 0) { // Свайп ВВЕРХ (координаты Y идут сверху вниз)
+                if (deltaY < 0) { 
                     triggerJump();
                 }
             }
@@ -104,7 +97,7 @@ function startGame() {
     state.set(CONFIG.states.PLAYING);
     startRunning();
     
-    // Скрываем UI подсказку "Тапни, чтобы начать" (позже добавим в html)
-    const startUi = document.getElementById('startUi');
+    // Скрываем UI подсказку
+    const startUi = document.getElementById('startHintUi');
     if (startUi) startUi.style.display = 'none';
 }
