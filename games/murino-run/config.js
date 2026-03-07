@@ -3,10 +3,10 @@
 export const CONFIG = {
     states: {
         LOADING: 0,
-        INTRO: 1,      // Танцы перед стартом
-        TRANSITION: 2, // Проигрывание mel.webm на лице
-        PLAYING: 3,    // Раннер
-        DYING: 4,      // Падение и поворот камеры к Фогу
+        INTRO: 1,      
+        TRANSITION: 2, 
+        PLAYING: 3,    
+        DYING: 4,      
         GAMEOVER: 5
     },
     assets: {
@@ -34,7 +34,8 @@ export const CONFIG = {
         playerYOffset: 0
     },
     world: {
-        creepyFogColor: 0x111111, // Мрачная атмосфера Мурино
-        creepyAmbientLight: 0x444455
+        creepyFogColor: 0x2a2a35, // Ночной сине-серый
+        creepyAmbientLight: 0x888899, // Светлее, чтобы текстуры читались
+        fogDensity: 0.006 // Туман отодвинут дальше, чтобы город было видно
     }
 };
