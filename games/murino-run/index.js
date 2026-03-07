@@ -3,12 +3,9 @@ import { CONFIG } from './config.js';
 import { state } from './gameState.js';
 import { setupWorld, updateWorld, getInteractables, removeCoin, resetWorld } from './world.js';
 import { setupPlayer, updatePlayer, playerGroup, triggerDeath } from './player.js';
-import { setupCamera, updateCameraAspect, updateCamera, camera } from './camera.js';
+// ВНИМАНИЕ: Импорт camera исправлен!
+import { setupCamera, updateCameraAspect, updateCamera, camera } from './camera.js'; 
 import { setupInput, cleanupInput } from './input.js';
-
-// Загрузчики Three.js (предполагается, что THREE и GLTFLoader подключены глобально или через импорты)
-// import * as THREE from 'three';
-// import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 export function createGame(root, api) {
     let running = false;
@@ -21,13 +18,13 @@ export function createGame(root, api) {
         textures: { roads: [], buildings: [] }
     };
 
-    // UI Элементы
     let uiScore, uiCoins, gameOverScreen;
 
     function init3D() {
         scene = new THREE.Scene();
         scene.background = new THREE.Color(CONFIG.world.creepyFogColor);
-        scene.fog = new THREE.FogExp2(CONFIG.world.creepyFogColor, 0.02);
+        // Исправлена плотность тумана
+        scene.fog = new THREE.FogExp2(CONFIG.world.creepyFogColor, CONFIG.world.fogDensity);
 
         const width = root.clientWidth || window.innerWidth;
         const height = root.clientHeight || window.innerHeight;
@@ -53,7 +50,6 @@ export function createGame(root, api) {
     }
 
     function buildUI() {
-        // Создаем локальный UI для этой мини-игры
         const uiLayer = document.createElement('div');
         uiLayer.style.cssText = 'position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:10;';
         
@@ -61,6 +57,18 @@ export function createGame(root, api) {
         hud.style.cssText = 'padding: 20px; font-family: monospace; font-size: 20px; color: #00FF41; text-shadow: 2px 2px 0 #000;';
         hud.innerHTML = `SCORE: <span id="runScore">0</span> | КЭШ: <span id="runCoins">0</span>`;
         uiLayer.appendChild(hud);
+
+        // === ПОДСКАЗКА ДЛЯ СТАРТА ===
+        const startHint = document.createElement('div');
+        startHint.id = 'startHintUi';
+        startHint.style.cssText = 'position:absolute; top:70%; left:50%; transform:translate(-50%, -50%); color:#fff; font-size:30px; font-weight:bold; font-family:sans-serif; text-shadow:2px 2px 0px #000; animation: pulse 1s infinite alternate; pointer-events:none; z-index:15; text-align:center; width:100%;';
+        startHint.innerHTML = 'ТАПНИ ПО ЭКРАНУ<br><span style="font-size:20px; color:#00FF41;">ЧТОБЫ БЕЖАТЬ</span>';
+        
+        const style = document.createElement('style');
+        style.innerHTML = `@keyframes pulse { from { opacity: 1; transform: translate(-50%, -50%) scale(1); } to { opacity: 0.3; transform: translate(-50%, -50%) scale(0.95); } }`;
+        document.head.appendChild(style);
+        
+        uiLayer.appendChild(startHint);
 
         gameOverScreen = document.createElement('div');
         gameOverScreen.style.cssText = 'position:absolute; inset:0; background:rgba(0,0,0,0.8); display:none; flex-direction:column; align-items:center; justify-content:center; color:#fff; pointer-events:auto;';
@@ -85,7 +93,6 @@ export function createGame(root, api) {
         const gltfLoader = new THREE.GLTFLoader();
         const texLoader = new THREE.TextureLoader();
 
-        // Промисы для паралелльной загрузки (чтобы было быстро)
         const loadModel = (key, path) => new Promise(res => gltfLoader.load(path, gltf => { loadedAssets.models[key] = gltf; res(); }));
         const loadTex = (path) => new Promise(res => texLoader.load(path, tex => res(tex)));
 
@@ -104,12 +111,11 @@ export function createGame(root, api) {
 
             root.removeChild(loadingText);
             
-            // Инициализация модулей после загрузки ассетов
             setupWorld(scene, loadedAssets);
             setupPlayer(scene, loadedAssets.models);
             setupInput();
             
-            state.reset(); // Переводим в INTRO
+            state.reset(); 
             animate();
         } catch (e) {
             console.error("Ошибка загрузки ассетов:", e);
@@ -123,31 +129,24 @@ export function createGame(root, api) {
         const { obstacles, coins } = getInteractables();
         const pX = playerGroup.position.x;
         const pY = playerGroup.position.y;
-        const pZ = playerGroup.position.z; // Всегда около 0
+        const pZ = playerGroup.position.z; 
 
-        // Проверка монет
         for (let i = coins.length - 1; i >= 0; i--) {
             const coin = coins[i];
-            // Если монета близко по Z и X, и игрок не перепрыгнул ее с огромным запасом
             if (Math.abs(coin.position.z - pZ) < 1.5 && Math.abs(coin.position.x - pX) < 1.0) {
                 if (pY < coin.position.y + 1) {
-                    state.coins += 1; // Можно умножать на донатный бустер!
+                    state.coins += 1; 
                     uiCoins.innerText = state.coins;
                     removeCoin(coin);
-                    // Тут можно добавить звук сбора монеты
                 }
             }
         }
 
-        // Проверка препятствий (СМЕРТЬ)
         for (let i = 0; i < obstacles.length; i++) {
             const obs = obstacles[i];
-            // Хитбокс препятствия
             if (Math.abs(obs.position.z - pZ) < 1.5 && Math.abs(obs.position.x - pX) < 1.2) {
-                // Проверяем высоту (смог ли перепрыгнуть)
-                // Если высота игрока меньше, чем высота препятствия + небольшой запас — врезались
                 if (pY < obs.position.y + 1.2) {
-                    triggerDeath(); // Запускаем анимацию смерти из player.js
+                    triggerDeath(); 
                     break;
                 }
             }
@@ -158,10 +157,9 @@ export function createGame(root, api) {
         if (!running) return;
         animationId = requestAnimationFrame(animate);
 
-        const delta = Math.min(clock.getDelta(), 0.1); // Ограничиваем лаги
+        const delta = Math.min(clock.getDelta(), 0.1); 
 
         if (state.is(CONFIG.states.PLAYING)) {
-            // Увеличиваем скорость со временем (лудомания!)
             state.speed += CONFIG.physics.speedMultiplier * delta;
             state.score += state.speed * delta * 10;
             uiScore.innerText = Math.floor(state.score);
@@ -169,7 +167,6 @@ export function createGame(root, api) {
             updateWorld(delta, state.speed);
             checkCollisions();
         } else if (state.is(CONFIG.states.DYING)) {
-            // Мир останавливается, работает только камера и падение
             updateWorld(delta, 0); 
         }
 
@@ -178,12 +175,13 @@ export function createGame(root, api) {
         const { fogEntity } = getInteractables();
         updateCamera(delta, fogEntity);
 
-        renderer.render(scene, camera);
+        if (camera) {
+            renderer.render(scene, camera);
+        }
     }
 
     function showGameOverUI() {
         gameOverScreen.style.display = 'flex';
-        // Здесь можно отправить заработанные монеты в глобальный стейт лобби (api.addCoins(state.coins))
         if (api && api.addCoins) {
             api.addCoins(state.coins);
         }
@@ -191,10 +189,14 @@ export function createGame(root, api) {
 
     function restartGame() {
         gameOverScreen.style.display = 'none';
+        
+        // Показываем подсказку снова
+        const startHint = document.getElementById('startHintUi');
+        if (startHint) startHint.style.display = 'block';
+
         resetWorld();
-        state.reset(); // Возвращаем в INTRO (танцы)
+        state.reset(); 
         playerGroup.position.set(CONFIG.physics.lanes[1], CONFIG.physics.playerYOffset, 0);
-        // Сбрасываем камеру
         setupCamera(scene, window.innerWidth, window.innerHeight);
     }
 
@@ -213,7 +215,7 @@ export function createGame(root, api) {
         
         buildUI();
         init3D();
-        loadAssets(); // Загрузит ассеты и вызовет animate()
+        loadAssets(); 
     }
 
     function stop() {
