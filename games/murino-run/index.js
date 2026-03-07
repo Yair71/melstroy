@@ -49,11 +49,11 @@ export function createGame(root, api = {}) {
   ui.canvasHost.appendChild(renderer.domElement);
 
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x070707);
-  scene.fog = new THREE.FogExp2(0x080808, 0.03);
+  scene.background = new THREE.Color(0x050505);
+  scene.fog = new THREE.FogExp2(0x050505, 0.05);
 
   const camera = new THREE.PerspectiveCamera(
-    55,
+    60,
     (root.clientWidth || window.innerWidth) / (root.clientHeight || window.innerHeight),
     0.1,
     500
@@ -67,23 +67,23 @@ export function createGame(root, api = {}) {
 
   const clock = new THREE.Clock();
 
-  const hemi = new THREE.HemisphereLight(0x6f7b8b, 0x050505, 1.25);
+  const hemi = new THREE.HemisphereLight(0x7a8596, 0x030303, 1.15);
   scene.add(hemi);
 
-  const dir = new THREE.DirectionalLight(0xe8eef7, 1.55);
-  dir.position.set(8, 22, 10);
+  const dir = new THREE.DirectionalLight(0xe9eef8, 1.35);
+  dir.position.set(5, 16, 7);
   dir.castShadow = true;
   dir.shadow.mapSize.set(2048, 2048);
-  dir.shadow.camera.left = -40;
-  dir.shadow.camera.right = 40;
-  dir.shadow.camera.top = 40;
-  dir.shadow.camera.bottom = -40;
+  dir.shadow.camera.left = -22;
+  dir.shadow.camera.right = 22;
+  dir.shadow.camera.top = 22;
+  dir.shadow.camera.bottom = -22;
   dir.shadow.camera.near = 1;
-  dir.shadow.camera.far = 100;
+  dir.shadow.camera.far = 80;
   scene.add(dir);
 
-  const fill = new THREE.PointLight(0x88aaff, 1.1, 26, 2);
-  fill.position.set(0, 4, -5);
+  const fill = new THREE.PointLight(0x95b6ff, 0.8, 16, 2);
+  fill.position.set(0, 3.5, -3);
   scene.add(fill);
 
   let assets = null;
@@ -96,9 +96,9 @@ export function createGame(root, api = {}) {
   };
 
   function updateIntroCamera(dt) {
-    const targetPos = new THREE.Vector3(0, 2.6, 7.7);
+    const targetPos = new THREE.Vector3(0, 2.15, 4.9);
     camera.position.lerp(targetPos, 1 - Math.pow(0.001, dt));
-    camera.lookAt(new THREE.Vector3(0, 1.8, 0));
+    camera.lookAt(new THREE.Vector3(0, 1.2, 0));
   }
 
   function updateGameplayCamera(dt) {
@@ -116,22 +116,25 @@ export function createGame(root, api = {}) {
       playerPos.z + config.camera.gameplayLookAhead.z
     );
 
-    camera.position.lerp(camPos, 1 - Math.pow(0.001, dt));
+    camera.position.lerp(camPos, 1 - Math.pow(0.0001, dt));
     camera.lookAt(lookAt);
+
+    const laneDelta = player.laneTarget() - player.laneIndex();
+    camera.rotation.z = THREE.MathUtils.lerp(camera.rotation.z, -laneDelta * 0.03, 0.08);
   }
 
   function updateDeathCamera(dt) {
     deathState.elapsed += dt;
     const t = Math.min(deathState.elapsed / config.camera.deathDuration, 1);
 
-    const eyePos = player.group.position.clone().add(new THREE.Vector3(0, 1.8, 0.18));
+    const eyePos = player.group.position.clone().add(new THREE.Vector3(0, 1.55, 0.12));
     camera.position.lerp(eyePos, 1 - Math.pow(0.0001, dt));
 
     const lookTarget = player.group.position.clone().add(
       new THREE.Vector3(
-        Math.sin(t * Math.PI) * 0.9,
-        1.7,
-        6.0 - t * 3.8
+        Math.sin(t * Math.PI) * 0.6,
+        1.45,
+        5.0 - t * 3.1
       )
     );
 
@@ -148,8 +151,8 @@ export function createGame(root, api = {}) {
     if (phase.value !== 'intro') return;
     phase.value = 'transition';
 
-    ui.subtitle.textContent = 'Face video... then run.';
-    await player.showFaceVideoBriefly(900);
+    ui.subtitle.textContent = 'MELSTROY IS RUNNING...';
+    await player.showFaceVideoBriefly(700);
 
     player.playRun();
     phase.value = 'running';
@@ -204,6 +207,7 @@ export function createGame(root, api = {}) {
       assets = await loadMurinoAssets(renderer, config);
       player = createPlayer(scene, assets, config);
       world = createWorld(scene, assets, config);
+
       player.playIntroDance();
 
       input = attachMurinoInput(renderer.domElement, {
@@ -214,7 +218,6 @@ export function createGame(root, api = {}) {
       });
 
       ui.showIntro(config.ui.title, config.ui.subtitle);
-
       ui.startBtn.onclick = startRun;
       ui.restartBtn.onclick = restart;
 
@@ -224,7 +227,7 @@ export function createGame(root, api = {}) {
       animate();
     } catch (err) {
       console.error('[MurinoRun] init error:', err);
-      ui.showError(err?.message || 'Check assets and CDN loaders.');
+      ui.showError(err?.message || 'Check assets and loader scripts.');
       ui.restartBtn.onclick = restart;
     }
   }
@@ -249,14 +252,6 @@ export function createGame(root, api = {}) {
       world.update(distance, dt);
       updateGameplayCamera(dt);
 
-      const playerBounds = player.getBounds().clone();
-      playerBounds.min.z += distance;
-      playerBounds.max.z += distance;
-
-      const shiftedPlayerBounds = player.getBounds().clone();
-      shiftedPlayerBounds.min.z += distance;
-      shiftedPlayerBounds.max.z += distance;
-
       const playerWorldBounds = player.getBounds().clone();
       playerWorldBounds.min.z += distance;
       playerWorldBounds.max.z += distance;
@@ -264,10 +259,13 @@ export function createGame(root, api = {}) {
       const hit = world.getObstacleHit(
         playerWorldBounds,
         player.group.position.x,
-        player.isJumping()
+        player.isJumping(),
+        distance
       );
 
-      if (hit) startDeath();
+      if (hit) {
+        startDeath();
+      }
 
       ui.setScore(score);
     }
