@@ -3,7 +3,7 @@ import { CONFIG } from './config.js';
 import { state } from './gameState.js';
 import { setupWorld, updateWorld, getInteractables, removeCoin, resetWorld } from './world.js';
 import { setupPlayer, updatePlayer, playerGroup, triggerDeath } from './player.js';
-import { setupCamera, updateCameraAspect, updateCamera } from './camera.js';
+import { setupCamera, updateCameraAspect, updateCamera, camera } from './camera.js';
 import { setupInput, cleanupInput } from './input.js';
 
 // Загрузчики Three.js (предполагается, что THREE и GLTFLoader подключены глобально или через импорты)
