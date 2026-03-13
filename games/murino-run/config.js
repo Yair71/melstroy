@@ -24,23 +24,23 @@ export const ASSETS = {
 
 // --- GAME PHYSICS & SETTINGS ---
 export const CONFIG = {
-    lanes: [-3, 0, 3],       // Left, Center, Right X positions
-    gravity: -0.015,         // Pulls player down during jump
-    jumpPower: 0.3,          // Initial upward velocity
-    initialSpeed: 0.3,       // Starting forward speed
-    speedMultiplier: 0.0001, // How much speed increases per frame
+    lanes: [-3, 0, 3],       
+    gravity: -0.015,         
+    jumpPower: 0.3,          
+    initialSpeed: 0.3,       
+    speedMultiplier: 0.0001, 
     roadWidth: 12,
     roadLen: 120,
     roadCount: 6,
-    playerYOffset: 0,        // Base Y position for the player model
-    modelScale: 0.012        // УМЕНЬШАЕМ ГОДЗИЛЛУ (Твикни это число, если размер не тот)
+    playerYOffset: 0,        
+    modelScale: 1.0          // <-- ВЕРНУЛИ НОРМАЛЬНЫЙ РАЗМЕР!
 };
 
 // --- GAME STATES ---
 export const STATE = {
     LOADING: 'LOADING',
-    INTRO: 'INTRO',           // Dancing, waiting for click
-    TRANSITION: 'TRANSITION', // Video playing
-    PLAYING: 'PLAYING',       // Running
-    DYING: 'DYING'            // Fall animation, fog eating
+    INTRO: 'INTRO',           
+    TRANSITION: 'TRANSITION', 
+    PLAYING: 'PLAYING',       
+    DYING: 'DYING'            
 };
