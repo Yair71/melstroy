@@ -30,34 +30,13 @@ export function switchModel(modelKey) {
     const gltf = loadedAssets.models[modelKey];
     if (!gltf) return;
 
+    // --- ЖЕЛЕЗОБЕТОННЫЙ РАЗМЕР И ПОВОРОТ БЕЗ МУТАЦИЙ ---
     gltf.scene.rotation.y = Math.PI; 
+    gltf.scene.scale.set(CONFIG.modelScale, CONFIG.modelScale, CONFIG.modelScale);
     
-    gltf.scene.scale.set(1, 1, 1);
-    gltf.scene.position.set(0, 0, 0);
-    gltf.scene.updateMatrixWorld(true);
-
-    const box = new THREE.Box3().setFromObject(gltf.scene);
-    const size = box.getSize(new THREE.Vector3());
-
-    const maxDim = Math.max(size.x, size.y, size.z);
-
-    if (maxDim > 0) {
-        let scaleFactor = CONFIG.modelHeight / maxDim;
-        
-        if (modelKey === 'jump') scaleFactor *= 1.2; 
-        
-        gltf.scene.scale.set(scaleFactor, scaleFactor, scaleFactor);
-        gltf.scene.updateMatrixWorld(true);
-        
-        const newBox = new THREE.Box3().setFromObject(gltf.scene);
-        
-        gltf.scene.position.y = (0 - newBox.min.y);
-
-        // --- ФИКС ПРОВАЛИВАНИЯ ПОД АСФАЛЬТ ПРИ ПАДЕНИИ ---
-        if (modelKey === 'fall') {
-            gltf.scene.position.y += 0.8; // Приподнимаем модельку, чтобы она лежала на дороге
-        }
-    }
+    // Берем ручной отступ высоты из конфига, чтобы ноги не проваливались
+    const yOffset = CONFIG.animOffsets[modelKey] || 0;
+    gltf.scene.position.set(0, yOffset, 0);
 
     playerGroup.add(gltf.scene);
     currentModelKey = modelKey;
