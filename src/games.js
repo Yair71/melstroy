@@ -1,54 +1,72 @@
+// games.js
+
 export const GAMES = [
   {
-    id: "murinorun", // Изменили ID
+    id: "murinorun",
     tag: "3D Action",
     titleKey: { ru: "Побег из Мурино", en: "Murino Escape" },
     descKey: {
       ru: "Беги от Фога, собирай кэш. Не оглядывайся.",
       en: "Run from Fog, collect cash. Don't look back."
     },
-    modulePath: "../games/game1_murinorun.js", // Новый путь
+    // Указываем путь к главному файлу нашей модульной сборки
+    modulePath: "./murino-run/index.js", 
     enabled: true
   },
 
-  // Заглушки: ты позже скажешь, какие именно игры
+  // Заглушки для будущих вирусных хитов:
   {
-    id: "game2",
+    id: "table_smash",
     tag: "Arcade",
-    titleKey: { ru: "Game #2", en: "Game #2" },
-    descKey: { ru: "Скоро подключим.", en: "Coming soon." },
+    titleKey: { ru: "Круши Столы", en: "Table Smasher" },
+    descKey: { 
+      ru: "Легендарный развал столов. Кликай, ломай, лутай донаты!", 
+      en: "Legendary table smashing. Click, break, loot donates!" 
+    },
     modulePath: null,
     enabled: false
   },
   {
-    id: "game3",
-    tag: "Click",
-    titleKey: { ru: "Game #3", en: "Game #3" },
-    descKey: { ru: "Скоро подключим.", en: "Coming soon." },
+    id: "stream_def",
+    tag: "Tower Def",
+    titleKey: { ru: "Оборона Стрима", en: "Stream Defense" },
+    descKey: { 
+      ru: "Защити свою вебку от хейтеров и ботов. Строй башни из энергетиков.", 
+      en: "Defend your webcam from haters and bots. Build energy drink towers." 
+    },
     modulePath: null,
     enabled: false
   },
   {
-    id: "game4",
-    tag: "Luck",
-    titleKey: { ru: "Game #4", en: "Game #4" },
-    descKey: { ru: "Скоро подключим.", en: "Coming soon." },
+    id: "mell_roulette",
+    tag: "Лудка 🎰",
+    titleKey: { ru: "Колесо Фортуны", en: "Mell Roulette" },
+    descKey: { 
+      ru: "Ставь собранный КЭШ. Х2 или слив баланса? Почувствуй азарт.", 
+      en: "Bet your collected CASH. X2 or lose it all? Feel the thrill." 
+    },
     modulePath: null,
     enabled: false
   },
   {
-    id: "game5",
+    id: "meme_quiz",
     tag: "Quiz",
-    titleKey: { ru: "Game #5", en: "Game #5" },
-    descKey: { ru: "Скоро подключим.", en: "Coming soon." },
+    titleKey: { ru: "Угадай Цитату", en: "Quote Quiz" },
+    descKey: { 
+      ru: "Проверка на олдовость. Угадай мем по аудио-вставке.", 
+      en: "Test your meme knowledge. Guess the meme by audio." 
+    },
     modulePath: null,
     enabled: false
   },
   {
-    id: "game6",
-    tag: "🔥",
-    titleKey: { ru: "Game #6", en: "Game #6" },
-    descKey: { ru: "Слот под самую вирусную.", en: "Slot for your most viral idea." },
+    id: "flappy_mell",
+    tag: "🔥 VIRAL",
+    titleKey: { ru: "Flappy Mell", en: "Flappy Mell" },
+    descKey: { 
+      ru: "Лети на частном джете, уклоняйся от банов Твича. Хардкор!", 
+      en: "Fly on a private jet, dodge Twitch bans. Hardcore!" 
+    },
     modulePath: null,
     enabled: false
   }
