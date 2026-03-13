@@ -5,7 +5,7 @@ import { initWorld, updateWorld } from './world.js';
 import { initFogMonster, updateFogMonster, fogMonster } from './fog.js';
 import { initObstacles, updateObstacles } from './obstacles.js';
 import { initInput } from './input.js';
-import { initUI, updateUI, showReadyToStart } from './ui.js'; 
+import { initUI, updateUI, showReadyToStart } from './ui.js'; // <-- ДОБАВИЛИ showReadyToStart
 
 export function createGame(root, api) {
     let scene, renderer, clock, camera;
@@ -26,6 +26,7 @@ export function createGame(root, api) {
 
         window.addEventListener('resize', onWindowResize);
 
+        // ЖДЕМ ПОКА СКАЧАЮТСЯ АССЕТЫ (в это время висит экран "ЗАГРУЗКА...")
         const assetsLoaded = await loadAssets();
         if (!assetsLoaded) {
             root.innerHTML = '<h2 style="color:red; text-align:center; padding-top:50px;">Failed to load assets. Check console.</h2>';
@@ -39,7 +40,7 @@ export function createGame(root, api) {
         initObstacles(scene);
         initInput();
 
-       
+        // АССЕТЫ СКАЧАЛИСЬ! УБИРАЕМ ЗАГРУЗКУ, ПОКАЗЫВАЕМ "ЖМИ НА ЭКРАН"
         showReadyToStart();
 
         animate();
@@ -76,8 +77,8 @@ export function createGame(root, api) {
             root.innerHTML = ''; 
             isRunning = true;
             
-            initUI(root); 
-            init3D();    
+            initUI(root); // Сначала UI (покажет Загрузку)
+            init3D();     // Потом 3D
         },
         stop: () => {
             isRunning = false;
