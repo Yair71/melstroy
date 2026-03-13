@@ -3,61 +3,64 @@ import { gameState } from './gameState.js';
 
 let camera;
 let deathTimer = 0;
+let dummyCam; // Невидимая камера для расчета плавного поворота шеи
 
 export function initCamera(scene) {
-    // 75 degree FOV, standard aspect ratio
     camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    
-    // Default 3rd person position
-    camera.position.set(0, 5, 10);
-    camera.lookAt(0, 0, 0);
-    
+    dummyCam = new THREE.PerspectiveCamera(); 
+    resetCamera();
     scene.add(camera);
     return camera;
+}
+
+// МГНОВЕННЫЙ СБРОС (фиксит баг, когда при рестарте видно место смерти)
+export function resetCamera() {
+    if (camera) {
+        camera.position.set(0, 5, 10);
+        camera.lookAt(0, 0, 0);
+        deathTimer = 0;
+    }
 }
 
 export function updateCamera(playerGroup, fogGroup, deltaTime) {
     if (!camera || !playerGroup) return;
 
     if (gameState.current === STATE.INTRO || gameState.current === STATE.PLAYING) {
-        // --- 3RD PERSON FOLLOW CAMERA ---
-        deathTimer = 0; // Reset death timer
-        
-        // Smoothly follow player's X position (lane changes)
+        deathTimer = 0;
         camera.position.x += (playerGroup.position.x - camera.position.x) * 0.1;
-        
-        // Keep fixed distance behind and above the player
         camera.position.z = playerGroup.position.z + 8;
         camera.position.y = playerGroup.position.y + 4;
-        
-        // Always look slightly ahead of the player
         camera.lookAt(playerGroup.position.x, playerGroup.position.y + 2, playerGroup.position.z - 5);
-    } 
+    }
     else if (gameState.current === STATE.DYING) {
-        // --- DEATH SCREAMER SEQUENCE ---
         deathTimer += deltaTime;
+        
+        // Позиция глаз Мелстроя (от первого лица)
+        const headPos = new THREE.Vector3(playerGroup.position.x, playerGroup.position.y + 3.5, playerGroup.position.z);
 
-        // Move camera close to player's head (1st person view transition)
-        const headY = playerGroup.position.y + 2.5;
-        camera.position.x += (playerGroup.position.x - camera.position.x) * 0.05;
-        camera.position.y += (headY - camera.position.y) * 0.05;
-        camera.position.z += (playerGroup.position.z + 1 - camera.position.z) * 0.05; // Move slightly in front of face
-
-        // Turn around to look at the Fog Monster after 0.5 seconds
-        if (fogGroup && deathTimer > 0.5) {
-            const targetLook = new THREE.Vector3(
-                fogGroup.position.x,
-                fogGroup.position.y + 4, // Look at monster's face/body
-                fogGroup.position.z
-            );
+        if (deathTimer < 1.2) {
+            // ФАЗА 1: Смотрим со стороны, как он падает (1.2 секунды)
+            camera.lookAt(playerGroup.position);
+        } 
+        else if (deathTimer < 1.7) {
+            // ФАЗА 2: Переключаемся в глаза и смотрим вперед на препятствие
+            camera.position.copy(headPos);
+            camera.lookAt(headPos.x, headPos.y, headPos.z - 10);
+        } 
+        else {
+            // ФАЗА 3: Плавный поворот шеи назад на Фога
+            camera.position.copy(headPos);
             
-            // Look directly at the fog
-            camera.lookAt(targetLook);
+            // Направляем невидимую камеру прямо на лицо Фога
+            dummyCam.position.copy(camera.position);
+            dummyCam.lookAt(fogGroup.position.x, fogGroup.position.y + 3, fogGroup.position.z);
+            
+            // Плавно интерполируем (поворачиваем) основную камеру к невидимой
+            camera.quaternion.slerp(dummyCam.quaternion, 0.08); 
         }
     }
 }
 
-// Handle window resizing
 export function resizeCamera() {
     if (camera) {
         camera.aspect = window.innerWidth / window.innerHeight;
