@@ -1,6 +1,7 @@
 import { CONFIG, STATE } from './config.js';
 import { gameState } from './gameState.js';
 import { switchModel } from './player.js';
+import { playTransition } from './ui.js'; // <-- Импортируем запуск из UI
 
 let touchStartX = 0;
 let touchStartY = 0;
@@ -8,6 +9,12 @@ let touchStartY = 0;
 export function initInput() {
     // --- KEYBOARD CONTROLS (PC) ---
     window.addEventListener('keydown', (e) => {
+        // Если танцует - запускаем видео
+        if (gameState.current === STATE.INTRO) {
+            playTransition();
+            return;
+        }
+
         if (gameState.current !== STATE.PLAYING) return;
 
         switch(e.code) {
@@ -34,11 +41,17 @@ export function initInput() {
     }, { passive: true });
 
     window.addEventListener('touchend', (e) => {
+        // Если танцует - запускаем видео
+        if (gameState.current === STATE.INTRO) {
+            playTransition();
+            return;
+        }
+
         if (gameState.current !== STATE.PLAYING) return;
 
         const touchEndX = e.changedTouches[0].screenX;
         const touchEndY = e.changedTouches[0].screenY;
-        
+
         handleSwipe(touchStartX, touchStartY, touchEndX, touchEndY);
     }, { passive: true });
 }
@@ -61,7 +74,7 @@ function jump() {
     if (!gameState.isJumping) {
         gameState.isJumping = true;
         gameState.velocityY = CONFIG.jumpPower;
-        
+
         // Swap to jump model immediately
         switchModel('jump');
     }
@@ -70,7 +83,7 @@ function jump() {
 function handleSwipe(startX, startY, endX, endY) {
     const deltaX = endX - startX;
     const deltaY = endY - startY;
-    
+
     // Minimum swipe distance to trigger action
     const threshold = 30;
 
@@ -85,7 +98,6 @@ function handleSwipe(startX, startY, endX, endY) {
         if (Math.abs(deltaY) > threshold) {
             // Swipe Up (Negative Y is up on screen)
             if (deltaY < 0) jump();
-            // Optional: Swipe down to roll/slide (if you add a roll.glb later)
         }
     }
 }
