@@ -7,10 +7,33 @@ let mixer;
 let currentAction;
 let currentModelKey = null;
 
+// Глобальные переменные для фиксации размера и высоты (чтобы не прыгали)
+let globalScale = 1;
+let globalYOffset = 0;
+
 export function initPlayer(scene) {
     playerGroup = new THREE.Group();
     playerGroup.position.set(CONFIG.lanes[1], CONFIG.playerYOffset, 0);
     scene.add(playerGroup);
+
+    // --- МАГИЯ: ВЫЧИСЛЯЕМ ИДЕАЛЬНЫЙ РОСТ И НОГИ НА ЗЕМЛЕ 1 РАЗ ПО МОДЕЛИ 'run' ---
+    const runGltf = loadedAssets.models['run'];
+    if (runGltf) {
+        // Сброс позиций для точного замера
+        runGltf.scene.position.set(0, 0, 0);
+        runGltf.scene.scale.set(1, 1, 1);
+        runGltf.scene.updateMatrixWorld(true);
+
+        const box = new THREE.Box3().setFromObject(runGltf.scene);
+        const size = box.getSize(new THREE.Vector3());
+
+        if (size.y > 0) {
+            // Фиксируем масштаб для всех
+            globalScale = CONFIG.modelHeight / size.y;
+            // Сдвигаем всю модель вверх ровно на ту высоту, которая проваливалась под ноль
+            globalYOffset = (0 - box.min.y) * globalScale;
+        }
+    }
 
     const dances = ['dance1', 'dance2'];
     switchModel(dances[Math.floor(Math.random() * dances.length)]);
@@ -30,19 +53,10 @@ export function switchModel(modelKey) {
     const gltf = loadedAssets.models[modelKey];
     if (!gltf) return;
 
-    // --- МАГИЯ: АВТО-ВЫРАВНИВАНИЕ РОСТА И ПОВОРОТ ---
-    // 1. Поворачиваем спиной к камере
-    gltf.scene.rotation.y = Math.PI; 
-    
-    // 2. Вычисляем текущий размер модели из Блендера
-    const box = new THREE.Box3().setFromObject(gltf.scene);
-    const size = box.getSize(new THREE.Vector3());
-    
-    // 3. Подгоняем масштаб, чтобы высота всегда была ровно CONFIG.modelHeight (4.5)
-    if (size.y > 0) {
-        const scaleFactor = CONFIG.modelHeight / size.y;
-        gltf.scene.scale.set(scaleFactor, scaleFactor, scaleFactor);
-    }
+    // --- ПРИМЕНЯЕМ ЕДИНЫЕ НАСТРОЙКИ КО ВСЕМ МОДЕЛЯМ ---
+    gltf.scene.rotation.y = Math.PI; // Поворот спиной
+    gltf.scene.scale.set(globalScale, globalScale, globalScale); // Единый рост
+    gltf.scene.position.y = globalYOffset; // Идеально на асфальте
 
     playerGroup.add(gltf.scene);
     currentModelKey = modelKey;
