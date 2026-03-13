@@ -30,10 +30,8 @@ export function switchModel(modelKey) {
     const gltf = loadedAssets.models[modelKey];
     if (!gltf) return;
 
-    // --- МАГИЯ 2.0: ИДЕАЛЬНЫЙ РОСТ И НОГИ ДЛЯ ЛЮБОЙ ПОЗЫ ---
-    gltf.scene.rotation.y = Math.PI; // Поворот спиной к нам
+    gltf.scene.rotation.y = Math.PI; 
     
-    // Сбрасываем масштаб для чистого замера
     gltf.scene.scale.set(1, 1, 1);
     gltf.scene.position.set(0, 0, 0);
     gltf.scene.updateMatrixWorld(true);
@@ -41,23 +39,24 @@ export function switchModel(modelKey) {
     const box = new THREE.Box3().setFromObject(gltf.scene);
     const size = box.getSize(new THREE.Vector3());
 
-    // Ищем самую длинную сторону (чтобы прыжок не раздувался, если модель сжалась по Y)
     const maxDim = Math.max(size.x, size.y, size.z);
 
     if (maxDim > 0) {
         let scaleFactor = CONFIG.modelHeight / maxDim;
         
-        // Небольшая компенсация для прыжка, чтобы он визуально не казался слишком мелким
         if (modelKey === 'jump') scaleFactor *= 1.2; 
         
         gltf.scene.scale.set(scaleFactor, scaleFactor, scaleFactor);
         gltf.scene.updateMatrixWorld(true);
         
-        // Вычисляем новую нижнюю точку (пятки) после изменения масштаба
         const newBox = new THREE.Box3().setFromObject(gltf.scene);
         
-        // Ставим модель так, чтобы пятки были строго на нуле (на асфальте)
         gltf.scene.position.y = (0 - newBox.min.y);
+
+        // --- ФИКС ПРОВАЛИВАНИЯ ПОД АСФАЛЬТ ПРИ ПАДЕНИИ ---
+        if (modelKey === 'fall') {
+            gltf.scene.position.y += 0.8; // Приподнимаем модельку, чтобы она лежала на дороге
+        }
     }
 
     playerGroup.add(gltf.scene);
