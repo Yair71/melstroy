@@ -1,26 +1,13 @@
 import { CONFIG, STATE } from './config.js';
 import { gameState } from './gameState.js';
 import { switchModel } from './player.js';
-import { playTransition } from './ui.js';
 
 let touchStartX = 0;
 let touchStartY = 0;
 
 export function initInput() {
-    // --- ЖЕЛЕЗОБЕТОННЫЙ КЛИК/ТАП ДЛЯ СТАРТА (ПК и ТЕЛЕФОН) ---
-    window.addEventListener('pointerdown', () => {
-        if (gameState.current === STATE.INTRO) {
-            playTransition();
-        }
-    });
-
-    // --- KEYBOARD CONTROLS (PC) ---
+  
     window.addEventListener('keydown', (e) => {
-        if (gameState.current === STATE.INTRO) {
-            playTransition();
-            return;
-        }
-
         if (gameState.current !== STATE.PLAYING) return;
 
         switch(e.code) {
@@ -30,18 +17,12 @@ export function initInput() {
         }
     });
 
-    // --- SWIPE CONTROLS (MOBILE) ---
     window.addEventListener('touchstart', (e) => {
         touchStartX = e.changedTouches[0].screenX;
         touchStartY = e.changedTouches[0].screenY;
     }, { passive: true });
 
     window.addEventListener('touchend', (e) => {
-        if (gameState.current === STATE.INTRO) {
-            playTransition();
-            return;
-        }
-
         if (gameState.current !== STATE.PLAYING) return;
 
         const touchEndX = e.changedTouches[0].screenX;
