@@ -108,4 +108,5 @@ export function updateObstacles(playerGroup, deltaTime) {
 function triggerDeath() {
     console.log("CRASH! Fog is coming...");
     gameState.current = STATE.DYING;
-    switchModel('
+    switchModel('fall'); // Play the fall.glb animation once
+}
