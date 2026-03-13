@@ -7,99 +7,98 @@ import { initObstacles, updateObstacles } from './obstacles.js';
 import { initInput } from './input.js';
 import { initUI, updateUI } from './ui.js';
 
-let scene, renderer, clock;
-let animationId;
-let isRunning = false;
-let rootContainer = null;
+export function createGame(root, api) {
+    let scene, renderer, clock, camera;
+    let animationId;
+    let isRunning = false;
 
-async function init3D() {
-    // 1. Scene setup
-    scene = new THREE.Scene();
-    clock = new THREE.Clock();
+    // Exporting hub API globally so our UI can reward coins upon death
+    window.mellApi = api;
 
-    // 2. Renderer setup
-    renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(window.devicePixelRatio);
-    renderer.shadowMap.enabled = true;
-    rootContainer.appendChild(renderer.domElement);
+    async function init3D() {
+        // 1. Scene setup
+        scene = new THREE.Scene();
+        clock = new THREE.Clock();
 
-    // 3. Handle resize
-    window.addEventListener('resize', onWindowResize);
-
-    // 4. Load all .glb models and textures
-    const assetsLoaded = await loadAssets();
-    if (!assetsLoaded) {
-        rootContainer.innerHTML = '<h2 style="color:red; text-align:center; padding-top:50px;">Failed to load assets. Check console.</h2>';
-        return;
-    }
-
-    // 5. Initialize all game modules
-    initCamera(scene);
-    initWorld(scene);
-    initPlayer(scene);
-    initFogMonster(scene);
-    initObstacles(scene);
-    initInput();
-
-    // 6. Start game loop
-    animate();
-}
-
-function animate() {
-    if (!isRunning) return;
-    animationId = requestAnimationFrame(animate);
-
-    const deltaTime = clock.getDelta();
-
-    // Update all modules
-    updatePlayer(deltaTime);
-    updateWorld(deltaTime);
-    updateFogMonster(playerGroup, deltaTime);
-    updateObstacles(playerGroup, deltaTime);
-    updateCamera(playerGroup, fogMonster, deltaTime);
-    updateUI();
-
-    renderer.render(scene, camera);
-}
-
-function onWindowResize() {
-    resizeCamera();
-    if (renderer) {
+        // 2. Renderer setup
+        renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
-    }
-}
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.shadowMap.enabled = true;
+        root.appendChild(renderer.domElement);
 
-// --- EXPORTED FUNCTIONS FOR THE LOBBY HUB ---
-export function start(container) {
-    if (isRunning) return;
-    
-    rootContainer = container;
-    rootContainer.innerHTML = ''; // Clear container
-    isRunning = true;
+        // 3. Handle resize
+        window.addEventListener('resize', onWindowResize);
 
-    // Initialize UI first (shows loading/start screen)
-    initUI(rootContainer);
+        // 4. Load all .glb models and textures
+        const assetsLoaded = await loadAssets();
+        if (!assetsLoaded) {
+            root.innerHTML = '<h2 style="color:red; text-align:center; padding-top:50px;">Failed to load assets. Check console.</h2>';
+            return;
+        }
 
-    // Initialize 3D Engine and Game
-    init3D();
-}
+        // 5. Initialize all game modules
+        camera = initCamera(scene);
+        initWorld(scene);
+        initPlayer(scene);
+        initFogMonster(scene);
+        initObstacles(scene);
+        initInput();
 
-export function stop() {
-    isRunning = false;
-    
-    if (animationId) {
-        cancelAnimationFrame(animationId);
+        // 6. Start game loop
+        animate();
     }
-    window.removeEventListener('resize', onWindowResize);
-    
-    // Clean up DOM
-    if (rootContainer) {
-        rootContainer.innerHTML = '';
+
+    function animate() {
+        if (!isRunning) return;
+        animationId = requestAnimationFrame(animate);
+
+        const deltaTime = clock.getDelta();
+
+        // Update all modules
+        updatePlayer(deltaTime);
+        updateWorld(deltaTime);
+        updateFogMonster(playerGroup, deltaTime);
+        updateObstacles(playerGroup, deltaTime);
+        updateCamera(playerGroup, fogMonster, deltaTime);
+        updateUI();
+
+        if (renderer && scene && camera) {
+            renderer.render(scene, camera);
+        }
     }
-    
-    // Dispose renderer to prevent memory leaks
-    if (renderer) {
-        renderer.dispose();
+
+    function onWindowResize() {
+        resizeCamera();
+        if (renderer && root) {
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
     }
+
+    // --- RETURN THE OBJECT EXPECTED BY THE HUB ---
+    return {
+        start: () => {
+            if (isRunning) return;
+            root.innerHTML = ''; // Clear container
+            isRunning = true;
+            
+            // Initialize UI first (shows loading/start screen)
+            initUI(root);
+            
+            // Initialize 3D Engine and Game
+            init3D();
+        },
+        stop: () => {
+            isRunning = false;
+            
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+            }
+            window.removeEventListener('resize', onWindowResize);
+            
+            // Clean up DOM and memory
+            if (root) root.innerHTML = '';
+            if (renderer) renderer.dispose();
+        }
+    };
 }
