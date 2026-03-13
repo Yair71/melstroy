@@ -1,4 +1,3 @@
-// --- ASSET PATHS ---
 export const ASSETS = {
     models: {
         run: './assets/run.glb',
@@ -9,20 +8,12 @@ export const ASSETS = {
     },
     textures: {
         fog: './assets/fog.png',
-        roads: [
-            './assets/road1.png', 
-            './assets/road2.png', 
-            './assets/road3.png'
-        ],
-        buildings: [
-            './assets/building4.png', 
-            './assets/building5.png'
-        ]
+        roads: ['./assets/road1.png', './assets/road2.png', './assets/road3.png'],
+        buildings: ['./assets/building4.png', './assets/building5.png']
     },
     video: './assets/mel.webm'
 };
 
-// --- GAME PHYSICS & SETTINGS ---
 export const CONFIG = {
     lanes: [-3, 0, 3],
     gravity: -0.015,
@@ -33,10 +24,9 @@ export const CONFIG = {
     roadLen: 120,
     roadCount: 6,
     playerYOffset: 0,
-    modelScale: 0.05         // <-- ИСПРАВИЛИ РАЗМЕР!
+    modelHeight: 4.5    // <-- АВТО-РОСТ ДЛЯ ВСЕХ МОДЕЛЕЙ (сделали побольше)
 };
 
-// --- GAME STATES ---
 export const STATE = {
     LOADING: 'LOADING',
     INTRO: 'INTRO',
