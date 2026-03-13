@@ -1,8 +1,9 @@
 import { STATE, CONFIG, ASSETS } from './config.js';
 import { gameState } from './gameState.js';
 import { switchModel } from './player.js';
-import { resetObstacles } from './obstacles.js'; 
-import { resetFogMonster } from './fog.js';       
+import { resetObstacles } from './obstacles.js';
+import { resetFogMonster } from './fog.js';
+import { resetCamera } from './camera.js'; // <-- ИМПОРТ СБРОСА КАМЕРЫ
 
 let container;
 let uiLayer, loadingScreen, introScreen, hudLayer, gameOverScreen, videoPlayer;
@@ -19,7 +20,6 @@ export function initUI(gameContainer) {
     style.innerHTML = `@keyframes pulseMsg { 0% { opacity: 0.5; transform: scale(0.95); } 100% { opacity: 1; transform: scale(1.05); } }`;
     document.head.appendChild(style);
 
-    // --- 0. ЭКРАН ЗАГРУЗКИ (Показывается сразу) ---
     loadingScreen = document.createElement('div');
     loadingScreen.style.cssText = 'position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; background:#000; pointer-events:auto; z-index:30;';
     loadingScreen.innerHTML = `
@@ -27,7 +27,6 @@ export function initUI(gameContainer) {
     `;
     uiLayer.appendChild(loadingScreen);
 
-    // --- 1. ИНТРО (Скрыто до конца загрузки. pointer-events:auto делает весь экран кликабельным!) ---
     introScreen = document.createElement('div');
     introScreen.style.cssText = 'position:absolute; inset:0; display:none; flex-direction:column; align-items:center; justify-content:flex-end; padding-bottom: 20%; pointer-events:auto; cursor:pointer; z-index:25;';
     introScreen.innerHTML = `
@@ -35,21 +34,18 @@ export function initUI(gameContainer) {
     `;
     uiLayer.appendChild(introScreen);
 
-    // ЖЕЛЕЗОБЕТОННЫЙ СТАРТ ПО КЛИКУ/ТАПУ НА ИНТРО-ЭКРАН
     introScreen.addEventListener('click', playTransition);
-    introScreen.addEventListener('touchstart', (e) => { 
-        e.preventDefault(); 
-        playTransition(); 
+    introScreen.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        playTransition();
     }, {passive: false});
 
-    // --- 2. ВИДЕО ---
     videoPlayer = document.createElement('video');
     videoPlayer.src = ASSETS.video;
     videoPlayer.style.cssText = 'position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); width:80%; max-width:400px; display:none; z-index:15; border-radius:20px; box-shadow:0 0 30px #000; pointer-events:none;';
     videoPlayer.playsInline = true;
     uiLayer.appendChild(videoPlayer);
 
-    // --- 3. HUD ---
     hudLayer = document.createElement('div');
     hudLayer.style.cssText = 'position:absolute; top:20px; left:20px; right:20px; display:none; justify-content:space-between; color:#fff; font-size:24px; font-weight:bold; text-shadow:2px 2px 0 #000;';
     hudLayer.innerHTML = `
@@ -58,7 +54,6 @@ export function initUI(gameContainer) {
     `;
     uiLayer.appendChild(hudLayer);
 
-    // --- 4. ЭКРАН СМЕРТИ ---
     gameOverScreen = document.createElement('div');
     gameOverScreen.style.cssText = 'position:absolute; inset:0; background:rgba(0,0,0,0.9); display:none; flex-direction:column; align-items:center; justify-content:center; color:#fff; text-shadow:2px 2px 0 #000; pointer-events:auto; z-index:20;';
     gameOverScreen.innerHTML = `
@@ -72,7 +67,6 @@ export function initUI(gameContainer) {
     gameOverScreen.querySelector('#btnRestartGame').addEventListener('click', restartGame);
 }
 
-// ЭТА ФУНКЦИЯ ВЫЗЫВАЕТСЯ ИЗ index.js КОГДА МОДЕЛИ СКАЧАЛИСЬ
 export function showReadyToStart() {
     loadingScreen.style.display = 'none';
     introScreen.style.display = 'flex';
@@ -81,10 +75,10 @@ export function showReadyToStart() {
 
 function playTransition() {
     if (gameState.current !== STATE.INTRO) return;
-    
+
     introScreen.style.display = 'none';
     gameState.current = STATE.TRANSITION;
-    
+
     videoPlayer.style.display = 'block';
     videoPlayer.play().catch(() => {
         videoPlayer.style.display = 'none';
@@ -99,20 +93,26 @@ function playTransition() {
 
 function startGame() {
     gameState.reset();
-    resetObstacles();     
-    resetFogMonster();    
-    isDeathScreenScheduled = false; 
-    
+    resetCamera();        // <-- МГНОВЕННЫЙ СБРОС КАМЕРЫ НА СТАРТ
+    resetObstacles();
+    resetFogMonster();
+    isDeathScreenScheduled = false;
+
     hudLayer.style.display = 'flex';
-    switchModel('run'); 
+    switchModel('run');
 }
 
 function restartGame() {
     gameOverScreen.style.display = 'none';
     hudLayer.style.display = 'none';
-    introScreen.style.display = 'flex'; // Снова показываем невидимую кнопку старта
-    isDeathScreenScheduled = false; 
+    introScreen.style.display = 'flex';
     
+    gameState.reset();    // <-- СБРОС КООРДИНАТ ДО 0
+    resetCamera();        // <-- МГНОВЕННЫЙ СБРОС КАМЕРЫ НА СТАРТ
+    resetObstacles();     // Очистка блоков
+    resetFogMonster();    // Убираем фога
+    isDeathScreenScheduled = false;
+
     const dances = ['dance1', 'dance2'];
     switchModel(dances[Math.floor(Math.random() * dances.length)]);
     gameState.current = STATE.INTRO;
@@ -122,27 +122,29 @@ export function updateUI() {
     if (gameState.current === STATE.PLAYING) {
         document.getElementById('hudScore').innerText = Math.floor(gameState.score);
         document.getElementById('hudCoins').innerText = gameState.coins;
-        
-        gameState.speed += CONFIG.speedMultiplier; 
-        gameState.score += (gameState.speed * 10); 
-    } 
+
+        gameState.speed += CONFIG.speedMultiplier;
+        gameState.score += (gameState.speed * 10);
+    }
     else if (gameState.current === STATE.DYING) {
         hudLayer.style.display = 'none';
-        
+
         if (!isDeathScreenScheduled) {
             isDeathScreenScheduled = true;
+            
+            // Ждем 3.5 секунды (пока пройдет анимация смерти, поворот и налет монстра)
             setTimeout(() => {
                 document.getElementById('goScore').innerText = Math.floor(gameState.score);
                 document.getElementById('goCoins').innerText = gameState.coins;
-                
+
                 if (window.mellApi && gameState.coins > 0) {
                     window.mellApi.addCoins(gameState.coins);
-                    window.mellApi.onUiUpdate(); 
-                    gameState.coins = 0; 
+                    window.mellApi.onUiUpdate();
+                    gameState.coins = 0;
                 }
-                
+
                 gameOverScreen.style.display = 'flex';
-            }, 2000);
+            }, 3500); 
         }
     }
 }
