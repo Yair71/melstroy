@@ -1,17 +1,16 @@
 export const GAMES = [
   {
-    id: "murinorun", // Изменили ID
+    id: "murinorun",
     tag: "3D Action",
     titleKey: { ru: "Побег из Мурино", en: "Murino Escape" },
     descKey: {
       ru: "Беги от Фога, собирай кэш. Не оглядывайся.",
       en: "Run from Fog, collect cash. Don't look back."
     },
-    modulePath: "../games/game1_murinorun.js", // Новый путь
+    // Updated path to our new modular structure
+    modulePath: "../games/murino-run/index.js", 
     enabled: true
   },
-
-  // Заглушки: ты позже скажешь, какие именно игры
   {
     id: "game2",
     tag: "Arcade",
@@ -53,4 +52,3 @@ export const GAMES = [
     enabled: false
   }
 ];
-
