@@ -43,7 +43,7 @@ export async function loadAssets() {
                 }
             });
             
-            loadedAssets.models[key] = gltf.scene;
+         loadedAssets.models[key] = gltf;
         }
 
         // 2. Load Fog Monster Texture
