@@ -1,4 +1,4 @@
-import { STATE, ASSETS } from './config.js';
+import { STATE, CONFIG, ASSETS } from './config.js'; // Добавили CONFIG
 import { gameState } from './gameState.js';
 import { switchModel } from './player.js';
 
@@ -44,7 +44,7 @@ export function initUI(gameContainer) {
     gameOverScreen.innerHTML = `
         <h1 style="font-size:50px; margin:0; color:#FF003C; text-align:center;">ФОГ СЪЕЛ!</h1>
         <h2 style="margin:10px 0;">SCORE: <span id="goScore">0</span></h2>
-        <h2 style="color:#00FF41; margin:0;">СОВРЕТ КЭШ: <span id="goCoins">0</span></h2>
+        <h2 style="color:#00FF41; margin:0;">СОБРАН КЭШ: <span id="goCoins">0</span></h2>
         <button id="btnRestartGame" style="margin-top:30px; padding:15px 40px; font-size:24px; font-weight:bold; background:#FF003C; color:#fff; border:none; border-radius:10px; cursor:pointer; box-shadow:0 4px 0 #8f0022;">ЕЩЕ РАЗ</button>
     `;
     uiLayer.appendChild(gameOverScreen);
@@ -91,9 +91,9 @@ export function updateUI() {
         document.getElementById('hudScore').innerText = Math.floor(gameState.score);
         document.getElementById('hudCoins').innerText = gameState.coins;
         
-        // Gradually increase speed
-        gameState.speed += STATE.speedMultiplier; 
-        gameState.score += gameState.speed; 
+        // Исправлено: берем из CONFIG!
+        gameState.speed += CONFIG.speedMultiplier; 
+        gameState.score += (gameState.speed * 10); // Очки капают быстрее
     } 
     else if (gameState.current === STATE.DYING) {
         hudLayer.style.display = 'none';
@@ -103,6 +103,14 @@ export function updateUI() {
             if (gameOverScreen.style.display === 'none') {
                 document.getElementById('goScore').innerText = Math.floor(gameState.score);
                 document.getElementById('goCoins').innerText = gameState.coins;
+                
+                // Начисляем кэш через API лобби!
+                if (window.mellApi && gameState.coins > 0) {
+                    window.mellApi.addCoins(gameState.coins);
+                    window.mellApi.onUiUpdate(); // Обновляем шапку хаба
+                    gameState.coins = 0; // Сбрасываем, чтобы не начислить дважды
+                }
+                
                 gameOverScreen.style.display = 'flex';
             }
         }, 2000);
