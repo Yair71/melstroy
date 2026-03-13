@@ -1,5 +1,3 @@
-// games.js
-
 export const GAMES = [
   {
     id: "murinorun",
@@ -9,8 +7,8 @@ export const GAMES = [
       ru: "Беги от Фога, собирай кэш. Не оглядывайся.",
       en: "Run from Fog, collect cash. Don't look back."
     },
-    // Указываем путь к главному файлу нашей модульной сборки
-    modulePath: "./murino-run/index.js", 
+    // ВОТ ЗДЕСЬ ИСПРАВЛЕННЫЙ ПУТЬ:
+    modulePath: "../games/murino-run/index.js", 
     enabled: true
   },
 
