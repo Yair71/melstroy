@@ -11,6 +11,10 @@ export function initPlayer(scene) {
     // 1. Create a container group for the player
     playerGroup = new THREE.Group();
     playerGroup.position.set(CONFIG.lanes[1], CONFIG.playerYOffset, 0);
+    
+    // ПРИМЕНЯЕМ МАСШТАБ ИЗ КОНФИГА!
+    playerGroup.scale.set(CONFIG.modelScale, CONFIG.modelScale, CONFIG.modelScale);
+    
     scene.add(playerGroup);
 
     // 2. Start with a random dance for the INTRO state
