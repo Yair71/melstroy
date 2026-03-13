@@ -29,19 +29,19 @@ export const CONFIG = {
     },
 
     // Paths to your pre-baked models and media
-    ASSETS: {
+   ASSETS: {
         MODELS: {
-            RUN: './assets/models/run.glb',
-            JUMP: './assets/models/jump.glb',
-            FALL: './assets/models/fall.glb',
-            DANCE1: './assets/models/dance1.glb',
-            DANCE2: './assets/models/dance2.glb',
-            FOG: './assets/models/fog.glb',
-            OBSTACLE_BLOCK: './assets/models/block.glb',
-            OBSTACLE_HOLE: './assets/models/hole.glb'
+            RUN: './assets/run.glb',
+            JUMP: './assets/jump.glb',
+            FALL: './assets/fall.glb',
+            DANCE1: './assets/dance1.glb',
+            DANCE2: './assets/dance2.glb',
+            // Ниже оставляем так, у нас в коде есть заглушки (красные кубы), если этих файлов нет
+            FOG: './assets/fog.glb', 
+            OBSTACLE_BLOCK: './assets/block.glb',
+            OBSTACLE_HOLE: './assets/hole.glb'
         },
         MEDIA: {
-            MEL_FACE_VIDEO: './assets/videos/mel.webm'
+            MEL_FACE_VIDEO: './assets/mel.webm'
         }
     }
-};
