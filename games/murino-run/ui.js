@@ -3,7 +3,7 @@ import { gameState } from './gameState.js';
 import { switchModel } from './player.js';
 import { resetObstacles } from './obstacles.js';
 import { resetFogMonster } from './fog.js';
-import { resetCamera } from './camera.js'; // <-- ИМПОРТ СБРОСА КАМЕРЫ
+import { resetCamera } from './camera.js'; 
 
 let container;
 let uiLayer, loadingScreen, introScreen, hudLayer, gameOverScreen, videoPlayer;
@@ -93,7 +93,7 @@ function playTransition() {
 
 function startGame() {
     gameState.reset();
-    resetCamera();        // <-- МГНОВЕННЫЙ СБРОС КАМЕРЫ НА СТАРТ
+    resetCamera();        
     resetObstacles();
     resetFogMonster();
     isDeathScreenScheduled = false;
@@ -107,10 +107,10 @@ function restartGame() {
     hudLayer.style.display = 'none';
     introScreen.style.display = 'flex';
     
-    gameState.reset();    // <-- СБРОС КООРДИНАТ ДО 0
-    resetCamera();        // <-- МГНОВЕННЫЙ СБРОС КАМЕРЫ НА СТАРТ
-    resetObstacles();     // Очистка блоков
-    resetFogMonster();    // Убираем фога
+    gameState.reset();    
+    resetCamera();        
+    resetObstacles();     
+    resetFogMonster();    
     isDeathScreenScheduled = false;
 
     const dances = ['dance1', 'dance2'];
@@ -132,7 +132,7 @@ export function updateUI() {
         if (!isDeathScreenScheduled) {
             isDeathScreenScheduled = true;
             
-            // Ждем 3.5 секунды (пока пройдет анимация смерти, поворот и налет монстра)
+            // <-- ФИКС ТАЙМИНГА (уменьшили до 2.8 сек, чтобы было встык со скримером) -->
             setTimeout(() => {
                 document.getElementById('goScore').innerText = Math.floor(gameState.score);
                 document.getElementById('goCoins').innerText = gameState.coins;
@@ -144,7 +144,7 @@ export function updateUI() {
                 }
 
                 gameOverScreen.style.display = 'flex';
-            }, 3500); 
+            }, 2800); 
         }
     }
 }
