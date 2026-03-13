@@ -6,7 +6,7 @@ let touchStartX = 0;
 let touchStartY = 0;
 
 export function initInput() {
-  
+    // --- KEYBOARD CONTROLS (PC) ---
     window.addEventListener('keydown', (e) => {
         if (gameState.current !== STATE.PLAYING) return;
 
@@ -17,6 +17,7 @@ export function initInput() {
         }
     });
 
+    // --- SWIPE CONTROLS (MOBILE) ---
     window.addEventListener('touchstart', (e) => {
         touchStartX = e.changedTouches[0].screenX;
         touchStartY = e.changedTouches[0].screenY;
