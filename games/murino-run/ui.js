@@ -27,7 +27,7 @@ export function initUI(gameContainer) {
     `;
     uiLayer.appendChild(loadingScreen);
 
-    // --- 1. ИНТРО (Скрыто до конца загрузки. pointer-events:auto делает весь экран кликабельным!) ---
+   
     introScreen = document.createElement('div');
     introScreen.style.cssText = 'position:absolute; inset:0; display:none; flex-direction:column; align-items:center; justify-content:flex-end; padding-bottom: 20%; pointer-events:auto; cursor:pointer; z-index:25;';
     introScreen.innerHTML = `
@@ -35,21 +35,21 @@ export function initUI(gameContainer) {
     `;
     uiLayer.appendChild(introScreen);
 
-    // ЖЕЛЕЗОБЕТОННЫЙ СТАРТ ПО КЛИКУ/ТАПУ НА ИНТРО-ЭКРАН
+  
     introScreen.addEventListener('click', playTransition);
     introScreen.addEventListener('touchstart', (e) => { 
         e.preventDefault(); 
         playTransition(); 
     }, {passive: false});
 
-    // --- 2. ВИДЕО ---
+   
     videoPlayer = document.createElement('video');
     videoPlayer.src = ASSETS.video;
     videoPlayer.style.cssText = 'position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); width:80%; max-width:400px; display:none; z-index:15; border-radius:20px; box-shadow:0 0 30px #000; pointer-events:none;';
     videoPlayer.playsInline = true;
     uiLayer.appendChild(videoPlayer);
 
-    // --- 3. HUD ---
+  
     hudLayer = document.createElement('div');
     hudLayer.style.cssText = 'position:absolute; top:20px; left:20px; right:20px; display:none; justify-content:space-between; color:#fff; font-size:24px; font-weight:bold; text-shadow:2px 2px 0 #000;';
     hudLayer.innerHTML = `
@@ -58,7 +58,7 @@ export function initUI(gameContainer) {
     `;
     uiLayer.appendChild(hudLayer);
 
-    // --- 4. ЭКРАН СМЕРТИ ---
+
     gameOverScreen = document.createElement('div');
     gameOverScreen.style.cssText = 'position:absolute; inset:0; background:rgba(0,0,0,0.9); display:none; flex-direction:column; align-items:center; justify-content:center; color:#fff; text-shadow:2px 2px 0 #000; pointer-events:auto; z-index:20;';
     gameOverScreen.innerHTML = `
@@ -72,7 +72,7 @@ export function initUI(gameContainer) {
     gameOverScreen.querySelector('#btnRestartGame').addEventListener('click', restartGame);
 }
 
-// ЭТА ФУНКЦИЯ ВЫЗЫВАЕТСЯ ИЗ index.js КОГДА МОДЕЛИ СКАЧАЛИСЬ
+
 export function showReadyToStart() {
     loadingScreen.style.display = 'none';
     introScreen.style.display = 'flex';
@@ -110,7 +110,7 @@ function startGame() {
 function restartGame() {
     gameOverScreen.style.display = 'none';
     hudLayer.style.display = 'none';
-    introScreen.style.display = 'flex'; // Снова показываем невидимую кнопку старта
+    introScreen.style.display = 'flex'; 
     isDeathScreenScheduled = false; 
     
     const dances = ['dance1', 'dance2'];
