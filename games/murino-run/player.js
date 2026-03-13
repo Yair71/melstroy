@@ -30,11 +30,15 @@ export function switchModel(modelKey) {
     const gltf = loadedAssets.models[modelKey];
     if (!gltf) return;
 
-    // --- ЖЕЛЕЗОБЕТОННЫЙ РАЗМЕР И ПОВОРОТ БЕЗ МУТАЦИЙ ---
     gltf.scene.rotation.y = Math.PI; 
-    gltf.scene.scale.set(CONFIG.modelScale, CONFIG.modelScale, CONFIG.modelScale);
     
-    // Берем ручной отступ высоты из конфига, чтобы ноги не проваливались
+    // --- ПРИМЕНЯЕМ ИНДИВИДУАЛЬНЫЙ РАЗМЕР ИЗ КОНФИГА ---
+    const customScale = CONFIG.animScales[modelKey] || 1.0;
+    const finalScale = CONFIG.baseScale * customScale;
+    
+    gltf.scene.scale.set(finalScale, finalScale, finalScale);
+    
+    // Применяем отступ от асфальта
     const yOffset = CONFIG.animOffsets[modelKey] || 0;
     gltf.scene.position.set(0, yOffset, 0);
 
@@ -69,6 +73,7 @@ export function updatePlayer(deltaTime) {
         gameState.velocityY += CONFIG.gravity;
         playerGroup.position.y += gameState.velocityY;
 
+        // Приземление
         if (playerGroup.position.y <= CONFIG.playerYOffset) {
             playerGroup.position.y = CONFIG.playerYOffset;
             gameState.isJumping = false;
