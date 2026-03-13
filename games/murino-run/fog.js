@@ -20,23 +20,30 @@ export function updateFogMonster(playerGroup, deltaTime) {
     if (!fogMonster || !playerGroup) return;
 
     if (gameState.current === STATE.PLAYING) {
+        // --- ПРЯЧЕМ ФОГА ВО ВРЕМЯ БЕГА ---
+        fogMonster.visible = false; 
+        
         localDeathTimer = 0;
-        fogMonster.position.x += (playerGroup.position.x - fogMonster.position.x) * 0.05;
-        const targetZ = playerGroup.position.z + 12;
-        fogMonster.position.z += (targetZ - fogMonster.position.z) * 0.1;
-        breathingTime += deltaTime * 5;
-        fogMonster.position.y = 4 + Math.sin(breathingTime) * 0.5;
+        
+        // Держим его позади камеры, чтобы он был готов к прыжку при смерти
+        fogMonster.position.x = playerGroup.position.x;
+        fogMonster.position.z = playerGroup.position.z + 20; 
+        fogMonster.position.y = 4;
+        
     }
     else if (gameState.current === STATE.DYING) {
+        // --- ПОКАЗЫВАЕМ ФОГА ДЛЯ ЭПИЧНОЙ СЦЕНЫ СМЕРТИ ---
+        fogMonster.visible = true; 
+        
         localDeathTimer += deltaTime;
         
         // Ждем 1.7 секунды (пока камера не повернется к нему лицом)
         if (localDeathTimer > 1.7) {
-            // Целевая Z - чуть перед камерой, чтобы перекрыть экран, но не пройти насквозь
+            // Целевая Z - чуть перед камерой, чтобы перекрыть экран
             const targetZ = playerGroup.position.z + 1.5; 
             
             if (fogMonster.position.z > targetZ) {
-                fogMonster.position.z -= 25 * deltaTime; // Быстрый рывок!
+                fogMonster.position.z -= 25 * deltaTime; // Быстрый рывок в лицо!
             }
             
             // Летим на уровень глаз
@@ -49,6 +56,7 @@ export function updateFogMonster(playerGroup, deltaTime) {
 export function resetFogMonster() {
     if (fogMonster) {
         fogMonster.position.set(0, 4, 15);
+        fogMonster.visible = false; // Прячем при рестарте
         localDeathTimer = 0;
     }
 }
