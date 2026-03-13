@@ -32,7 +32,8 @@ export const CONFIG = {
     roadWidth: 12,
     roadLen: 120,
     roadCount: 6,
-    playerYOffset: 0         // Base Y position for the player model
+    playerYOffset: 0,        // Base Y position for the player model
+    modelScale: 0.012        // УМЕНЬШАЕМ ГОДЗИЛЛУ (Твикни это число, если размер не тот)
 };
 
 // --- GAME STATES ---
