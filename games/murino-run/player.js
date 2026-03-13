@@ -7,33 +7,10 @@ let mixer;
 let currentAction;
 let currentModelKey = null;
 
-// Глобальные переменные для фиксации размера и высоты (чтобы не прыгали)
-let globalScale = 1;
-let globalYOffset = 0;
-
 export function initPlayer(scene) {
     playerGroup = new THREE.Group();
     playerGroup.position.set(CONFIG.lanes[1], CONFIG.playerYOffset, 0);
     scene.add(playerGroup);
-
-    // --- МАГИЯ: ВЫЧИСЛЯЕМ ИДЕАЛЬНЫЙ РОСТ И НОГИ НА ЗЕМЛЕ 1 РАЗ ПО МОДЕЛИ 'run' ---
-    const runGltf = loadedAssets.models['run'];
-    if (runGltf) {
-        // Сброс позиций для точного замера
-        runGltf.scene.position.set(0, 0, 0);
-        runGltf.scene.scale.set(1, 1, 1);
-        runGltf.scene.updateMatrixWorld(true);
-
-        const box = new THREE.Box3().setFromObject(runGltf.scene);
-        const size = box.getSize(new THREE.Vector3());
-
-        if (size.y > 0) {
-            // Фиксируем масштаб для всех
-            globalScale = CONFIG.modelHeight / size.y;
-            // Сдвигаем всю модель вверх ровно на ту высоту, которая проваливалась под ноль
-            globalYOffset = (0 - box.min.y) * globalScale;
-        }
-    }
 
     const dances = ['dance1', 'dance2'];
     switchModel(dances[Math.floor(Math.random() * dances.length)]);
@@ -53,10 +30,35 @@ export function switchModel(modelKey) {
     const gltf = loadedAssets.models[modelKey];
     if (!gltf) return;
 
-    // --- ПРИМЕНЯЕМ ЕДИНЫЕ НАСТРОЙКИ КО ВСЕМ МОДЕЛЯМ ---
-    gltf.scene.rotation.y = Math.PI; // Поворот спиной
-    gltf.scene.scale.set(globalScale, globalScale, globalScale); // Единый рост
-    gltf.scene.position.y = globalYOffset; // Идеально на асфальте
+    // --- МАГИЯ 2.0: ИДЕАЛЬНЫЙ РОСТ И НОГИ ДЛЯ ЛЮБОЙ ПОЗЫ ---
+    gltf.scene.rotation.y = Math.PI; // Поворот спиной к нам
+    
+    // Сбрасываем масштаб для чистого замера
+    gltf.scene.scale.set(1, 1, 1);
+    gltf.scene.position.set(0, 0, 0);
+    gltf.scene.updateMatrixWorld(true);
+
+    const box = new THREE.Box3().setFromObject(gltf.scene);
+    const size = box.getSize(new THREE.Vector3());
+
+    // Ищем самую длинную сторону (чтобы прыжок не раздувался, если модель сжалась по Y)
+    const maxDim = Math.max(size.x, size.y, size.z);
+
+    if (maxDim > 0) {
+        let scaleFactor = CONFIG.modelHeight / maxDim;
+        
+        // Небольшая компенсация для прыжка, чтобы он визуально не казался слишком мелким
+        if (modelKey === 'jump') scaleFactor *= 1.2; 
+        
+        gltf.scene.scale.set(scaleFactor, scaleFactor, scaleFactor);
+        gltf.scene.updateMatrixWorld(true);
+        
+        // Вычисляем новую нижнюю точку (пятки) после изменения масштаба
+        const newBox = new THREE.Box3().setFromObject(gltf.scene);
+        
+        // Ставим модель так, чтобы пятки были строго на нуле (на асфальте)
+        gltf.scene.position.y = (0 - newBox.min.y);
+    }
 
     playerGroup.add(gltf.scene);
     currentModelKey = modelKey;
