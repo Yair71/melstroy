@@ -1,7 +1,7 @@
 import { CONFIG, STATE } from './config.js';
 import { gameState } from './gameState.js';
 import { loadedAssets } from './assets.js';
-import { spawnCrater } from './obstacles.js'; // <-- ИМПОРТИРУЕМ КРАТЕР
+import { spawnCrater } from './obstacles.js';
 
 export let playerGroup;
 let mixer;
@@ -22,7 +22,7 @@ export function switchModel(modelKey) {
   if (currentModelKey === modelKey) return;
   if (mixer) mixer.stopAllAction();
 
-  while(playerGroup.children.length > 0){
+  while (playerGroup.children.length > 0) {
     playerGroup.remove(playerGroup.children[0]);
   }
 
@@ -31,11 +31,11 @@ export function switchModel(modelKey) {
 
   gltf.scene.scale.set(1, 1, 1);
   gltf.scene.position.set(0, 0, 0);
-  
+
   if (modelKey.includes('dance')) {
-      gltf.scene.rotation.y = -Math.PI / 2; 
+    gltf.scene.rotation.y = -Math.PI / 2;
   } else {
-      gltf.scene.rotation.y = Math.PI; 
+    gltf.scene.rotation.y = Math.PI;
   }
 
   gltf.scene.updateMatrixWorld(true);
@@ -52,10 +52,10 @@ export function switchModel(modelKey) {
     gltf.scene.updateMatrixWorld(true);
 
     const newBox = new THREE.Box3().setFromObject(gltf.scene);
-    gltf.scene.position.y = (0 - newBox.min.y); 
+    gltf.scene.position.y = 0 - newBox.min.y;
 
     if (modelKey === 'fall') {
-      gltf.scene.position.y += 0.2; 
+      gltf.scene.position.y += 0.2;
     }
   }
 
@@ -81,27 +81,26 @@ export function updatePlayer(deltaTime) {
   if (mixer) mixer.update(deltaTime);
 
   if (gameState.current === STATE.INTRO) {
-      playerGroup.position.x = CONFIG.roadWidth / 2 - 1.5;
-      playerGroup.position.y = CONFIG.playerYOffset; // Жестко стоит на земле
-      return;
+    playerGroup.position.x = CONFIG.roadWidth / 2 - 1.5;
+    playerGroup.position.y = CONFIG.playerYOffset;
+    return;
   }
-  
+
   if (gameState.current === STATE.DYING) return;
 
   const lerpSpeed = 10;
   playerGroup.position.x += (gameState.targetX - playerGroup.position.x) * lerpSpeed * deltaTime;
 
-  // ЛОГИКА ПРЫЖКА С ЖЕСТКОЙ ЗАЩИТОЙ ОТ ПРОВАЛИВАНИЯ
   if (gameState.isJumping) {
     gameState.velocityY += CONFIG.gravity;
     playerGroup.position.y += gameState.velocityY;
 
     if (playerGroup.position.y <= CONFIG.playerYOffset) {
-      playerGroup.position.y = CONFIG.playerYOffset; // Намертво блокируем падение под текстуры
+      playerGroup.position.y = CONFIG.playerYOffset;
       gameState.isJumping = false;
       gameState.velocityY = 0;
-      
-      // СПАВНИМ КРАСИВЫЙ КРАТЕР
+
+      // Landing crack — looks like the character is heavy
       spawnCrater(playerGroup.position.x, playerGroup.position.z);
 
       if (gameState.current === STATE.PLAYING) {
@@ -109,7 +108,6 @@ export function updatePlayer(deltaTime) {
       }
     }
   } else {
-    // Если не прыгаем, гарантированно держим на земле
     playerGroup.position.y = CONFIG.playerYOffset;
   }
 }
