@@ -52,8 +52,9 @@ export function switchModel(modelKey) {
     const newBox = new THREE.Box3().setFromObject(gltf.scene);
     gltf.scene.position.y = 0 - newBox.min.y;
 
+    // Немного приподнимаем модель при падении, чтобы точно не цепляла текстуры
     if (modelKey === 'fall') {
-      gltf.scene.position.y += 0.2;
+      gltf.scene.position.y += 0.3;
     }
   }
 
@@ -63,10 +64,9 @@ export function switchModel(modelKey) {
   if (gltf.animations && gltf.animations.length > 0) {
     const clip = gltf.animations[0];
 
-    // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ ROOT MOTION: 
-    // Если это анимация прыжка, мы удаляем все треки изменения позиции (Y), 
-    // чтобы анимация шевелила только руками/ногами, но не поднимала модель вверх.
-    if (modelKey === 'jump') {
+    // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ ROOT MOTION:
+    // Отрезаем треки позиции и для прыжка, и для падения.
+    if (modelKey === 'jump' || modelKey === 'fall') {
       clip.tracks = clip.tracks.filter(track => !track.name.toLowerCase().includes('position'));
     }
 
@@ -94,12 +94,21 @@ export function updatePlayer(deltaTime) {
     return;
   }
 
-  if (gameState.current === STATE.DYING) return;
+  // Если персонаж умирает, добавляем физику падения тела на землю, чтобы он не зависал в воздухе
+  if (gameState.current === STATE.DYING) {
+    if (playerGroup.position.y > CONFIG.playerYOffset) {
+      playerGroup.position.y -= 12 * deltaTime; // Тело падает вниз
+      if (playerGroup.position.y < CONFIG.playerYOffset) {
+        playerGroup.position.y = CONFIG.playerYOffset;
+      }
+    }
+    return;
+  }
 
   const lerpSpeed = 10;
   playerGroup.position.x += (gameState.targetX - playerGroup.position.x) * lerpSpeed * deltaTime;
 
-  // Точный контроль высоты математикой, теперь анимация не сможет этому помешать
+  // Точный контроль высоты математикой для прыжка
   if (gameState.isJumping) {
     gameState.jumpTimer += deltaTime;
     const progress = gameState.jumpTimer / CONFIG.jumpDuration;
