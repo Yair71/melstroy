@@ -13,23 +13,23 @@ export function spawnObstacle(zPos) {
     const laneIndex = Math.floor(Math.random() * 3);
     const xPos = CONFIG.lanes[laneIndex];
     const type = Math.floor(Math.random() * 3);
-    
+
     let mesh;
     let isHole = false;
 
     if (type === 0 || type === 1) {
-        const height = type === 0 ? 1.5 : 3; 
+        const height = type === 0 ? 1.5 : 3;
         const geo = new THREE.BoxGeometry(2, height, 2);
-        const mat = new THREE.MeshStandardMaterial({ color: 0x880000 }); 
+        const mat = new THREE.MeshStandardMaterial({ color: 0x880000 });
         mesh = new THREE.Mesh(geo, mat);
         mesh.position.set(xPos, height / 2, zPos);
     } else {
         isHole = true;
         const geo = new THREE.PlaneGeometry(3, 3);
-        const mat = new THREE.MeshBasicMaterial({ color: 0x000000 }); 
+        const mat = new THREE.MeshBasicMaterial({ color: 0x000000 });
         mesh = new THREE.Mesh(geo, mat);
         mesh.rotation.x = -Math.PI / 2;
-        mesh.position.set(xPos, 0.01, zPos); 
+        mesh.position.set(xPos, 0.01, zPos);
     }
 
     mesh.userData = { isHole, passed: false };
@@ -62,7 +62,7 @@ export function updateObstacles(playerGroup, deltaTime) {
         if (obs.position.z > playerGroup.position.z + 2 && !obs.userData.passed) {
             obs.userData.passed = true;
             gameState.score += 10;
-            gameState.coins += 1; 
+            gameState.coins += 1;
         }
 
         if (obs.position.z > 15) {
@@ -75,18 +75,29 @@ export function updateObstacles(playerGroup, deltaTime) {
 
     gameState.spawnTimer -= deltaTime;
     if (gameState.spawnTimer <= 0) {
-        spawnObstacle(-80 - Math.random() * 40); 
-        gameState.spawnTimer = 1.0 + Math.random() * 1.5 - (gameState.speed * 2); 
+        
+        // --- ЗАЩИТА ОТ СПАВНА В ОДНОМ МЕСТЕ ---
+        let minZ = -80;
+        if (activeObstacles.length > 0) {
+            for (let obs of activeObstacles) {
+                if (obs.position.z < minZ) minZ = obs.position.z;
+            }
+        }
+        // Спавним новое препятствие минимум на 20-40 метров дальше самого дальнего
+        const safeSpawnZ = minZ - 20 - (Math.random() * 20);
+        
+        spawnObstacle(safeSpawnZ);
+        
+        gameState.spawnTimer = 1.0 + Math.random() * 1.5 - (gameState.speed * 2);
         if (gameState.spawnTimer < 0.5) gameState.spawnTimer = 0.5;
     }
 }
 
 function triggerDeath() {
     gameState.current = STATE.DYING;
-    switchModel('fall'); 
+    switchModel('fall');
 }
 
-// <-- ДОБАВЛЕНО ДЛЯ РЕСТАРТА -->
 export function resetObstacles() {
     for (let obs of activeObstacles) {
         sceneRef.remove(obs);
