@@ -221,7 +221,6 @@ export function updateObstacles(playerGroup, deltaTime) {
 
   const moveSpeed = gameState.speed * 60 * deltaTime;
 
-  // cracks
   for (let i = activeCracks.length - 1; i >= 0; i--) {
     const crack = activeCracks[i];
     crack.position.z += moveSpeed;
@@ -232,24 +231,22 @@ export function updateObstacles(playerGroup, deltaTime) {
     }
   }
 
-  // obstacles
   for (let i = activeObstacles.length - 1; i >= 0; i--) {
     const obs = activeObstacles[i];
     obs.position.z += moveSpeed;
 
     const zDistance = Math.abs(obs.position.z - playerGroup.position.z);
     
-    // ИСПРАВЛЕНИЕ: Сделали коллизию чуть "уже", чтобы можно было спасаться в последнюю секунду
-    const collisionZ = 1.15; // Было 1.25
+    // МАТЕМАТИКА АНТИ-КЛИППИНГА: 1.25 - это идеальное касание спины игрока и передней стенки блока
+    const collisionZ = 1.25; 
 
     if (zDistance < collisionZ) {
       const xDistance = Math.abs(obs.position.x - playerGroup.position.x);
 
-      // ИСПРАВЛЕНИЕ: Даем игроку проскальзывать по бокам (было 1.05)
       if (xDistance < 0.95) {
         if (obs.userData.isHole) {
           if (playerGroup.position.y < 0.55) {
-            triggerDeath(obs);
+            triggerDeath(obs, playerGroup);
           }
         } else {
           const requiredHeight =
@@ -258,7 +255,7 @@ export function updateObstacles(playerGroup, deltaTime) {
               : obs.userData.blockHeight - 0.25;
 
           if (playerGroup.position.y < requiredHeight) {
-            triggerDeath(obs);
+            triggerDeath(obs, playerGroup);
           }
         }
       }
@@ -275,7 +272,6 @@ export function updateObstacles(playerGroup, deltaTime) {
     }
   }
 
-  // coins
   for (let i = activeCoins.length - 1; i >= 0; i--) {
     const coin = activeCoins[i];
 
@@ -317,26 +313,35 @@ export function updateObstacles(playerGroup, deltaTime) {
   }
 }
 
-function triggerDeath(obstacle = null) {
-  if (gameState.current === STATE.DYING) return; // Защита от дублей
+// ПЕРЕДАЕМ ИГРОКА СЮДА ДЛЯ ТОЧНОГО КОНТРОЛЯ ТЕЛЕПОРТАЦИИ
+function triggerDeath(obstacle, playerGroup) {
+  if (gameState.current === STATE.DYING) return; 
 
   gameState.current = STATE.DYING;
   switchModel('fall');
 
   if (obstacle && !obstacle.userData.isHole) {
-    // Если игрок прыгал и зацепил верх крыши (не долетел) - он приземляется НА блок
-    if (playerGroup.position.y > obstacle.userData.blockHeight - 0.65) {
+    // ЖЕСТКАЯ ПРОВЕРКА: Только если игрок САМ нажал прыжок и почти долетел
+    if (gameState.isJumping && playerGroup.position.y > obstacle.userData.blockHeight * 0.45) {
       gameState.deathTargetY = obstacle.userData.blockHeight;
+      gameState.deathPushVelocity = -2; // Легкое скольжение на крышу
     } else {
-      // Игрок жестко врезался лицом в блок: отскакивает от него как от камня назад (к камере)
+      // Игрок врезался лицом в стену (не прыгал или прыгнул слишком поздно)
       gameState.deathTargetY = CONFIG.playerYOffset;
-      gameState.deathPushVelocity = 10; // Сила отскока
+      
+      // АНТИ-КЛИППИНГ: Ставим игрока ровно в 1 миллиметре перед блоком. Никакого захода в текстуры!
+      playerGroup.position.z = obstacle.position.z + 1.25;
+      
+      // Мощный физический отскок в сторону камеры
+      gameState.deathPushVelocity = 15; 
     }
   } else if (obstacle && obstacle.userData.isHole) {
     // Проваливается в черную дыру
-    gameState.deathTargetY = -2.0; 
+    gameState.deathTargetY = -2.0;
+    gameState.deathPushVelocity = 0;
   } else {
     gameState.deathTargetY = CONFIG.playerYOffset;
+    gameState.deathPushVelocity = 0;
   }
 }
 
