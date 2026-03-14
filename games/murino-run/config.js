@@ -19,7 +19,7 @@ export const CONFIG = {
 
   // Jump physics
   gravity: -30,
-  jumpPower: 9.8,
+  jumpPower: 7,
 
   // Game speed
   initialSpeed: 0.3,
