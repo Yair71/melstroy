@@ -46,7 +46,6 @@ export function switchModel(modelKey) {
 
   if (maxDim > 0) {
     const scaleFactor = CONFIG.modelHeight / maxDim;
-
     gltf.scene.scale.set(scaleFactor, scaleFactor, scaleFactor);
     gltf.scene.updateMatrixWorld(true);
 
@@ -91,28 +90,28 @@ export function updatePlayer(deltaTime) {
   const lerpSpeed = 10;
   playerGroup.position.x += (gameState.targetX - playerGroup.position.x) * lerpSpeed * deltaTime;
 
-  // Stable physics even if FPS changes
-  const physicsDelta = Math.min(deltaTime, 1 / 30);
-
+  // НОВАЯ СИСТЕМА ПРЫЖКА (Синусоида)
   if (gameState.isJumping) {
-    gameState.velocityY += CONFIG.gravity * physicsDelta;
-    playerGroup.position.y += gameState.velocityY * physicsDelta;
+    gameState.jumpTimer += deltaTime;
+    const progress = gameState.jumpTimer / CONFIG.jumpDuration;
 
-    if (playerGroup.position.y <= CONFIG.playerYOffset) {
+    if (progress >= 1.0) {
+      // Игрок приземлился
       playerGroup.position.y = CONFIG.playerYOffset;
       gameState.isJumping = false;
-      gameState.velocityY = 0;
+      gameState.jumpTimer = 0;
 
-      // Heavy landing crack
+      // Оставляем трещину при приземлении
       spawnCrater(playerGroup.position.x, playerGroup.position.z, 1.0, false);
 
       if (gameState.current === STATE.PLAYING) {
         switchModel('run');
       }
+    } else {
+      // Идеальная дуга на точно заданную высоту Y
+      playerGroup.position.y = CONFIG.playerYOffset + Math.sin(progress * Math.PI) * CONFIG.jumpHeight;
     }
   } else {
     playerGroup.position.y = CONFIG.playerYOffset;
   }
 }
-
-
