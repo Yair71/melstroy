@@ -47,11 +47,11 @@ export function initUI(gameContainer) {
     uiLayer.appendChild(videoPlayer);
 
     hudLayer = document.createElement('div');
-    hudLayer.style.cssText = 'position:absolute; top:20px; left:20px; right:20px; display:none; justify-content:space-between; color:#fff; font-size:24px; font-weight:bold; text-shadow:2px 2px 0 #000;';
-    hudLayer.innerHTML = `
-        <div>SCORE: <span id="hudScore">0</span></div>
-        <div style="color:#00FF41;">CASH: <span id="hudCoins">0</span></div>
-    `;
+   hudLayer.style.cssText = 'position:absolute; top:20px; left:20px; right:20px; display:none; justify-content:space-between; color:#fff; font-size:28px; font-weight:900; text-shadow:3px 3px 0 #000, -1px -1px 0 #000; font-family: "Impact", sans-serif;';
+hudLayer.innerHTML = `
+  <div style="background: rgba(0,0,0,0.5); padding: 10px 20px; border-radius: 15px; border: 2px solid #fff;">SCORE: <span id="hudScore" style="color: #fff;">0</span></div>
+  <div style="background: rgba(0,0,0,0.5); padding: 10px 20px; border-radius: 15px; border: 2px solid #FFD700; color:#FFD700;">CASH: <span id="hudCoins">0</span></div>
+`;
     uiLayer.appendChild(hudLayer);
 
     gameOverScreen = document.createElement('div');
