@@ -4,30 +4,143 @@ import { switchModel } from './player.js';
 
 let sceneRef;
 export const activeObstacles = [];
-export const activeCoins = []; 
-export const activeCracks = []; 
+export const activeCoins = [];
+export const activeCracks = [];
 
 export function initObstacles(scene) {
   sceneRef = scene;
 }
 
-
+// ─── CRACK PATTERN on landing ───────────────────────────────────────────────
+// Creates jagged crack lines radiating outward like the character is heavy
 export function spawnCrater(x, z) {
+  const crackGroup = new THREE.Group();
+  crackGroup.position.set(x, 0.04, z);
 
-  const geo = new THREE.CircleGeometry(1.6, 24);
-  const mat = new THREE.MeshBasicMaterial({ color: 0x030303, transparent: true, opacity: 0.85 });
-  const crater = new THREE.Mesh(geo, mat);
-  crater.rotation.x = -Math.PI / 2;
-  crater.position.set(x, 0.03, z); 
-  sceneRef.add(crater);
-  activeCracks.push(crater);
+  const numRays = 8 + Math.floor(Math.random() * 5); // 8–12 rays
+  const points = [];
+
+  for (let r = 0; r < numRays; r++) {
+    const baseAngle = (r / numRays) * Math.PI * 2;
+    const angle = baseAngle + (Math.random() - 0.5) * 0.4;
+
+    // Each ray has 3–4 segments that zigzag
+    const segments = 3 + Math.floor(Math.random() * 2);
+    let cx = 0, cz = 0;
+    const maxLen = 1.0 + Math.random() * 0.8; // ray total length
+
+    for (let s = 0; s < segments; s++) {
+      const frac = (s + 1) / segments;
+      const jitter = (Math.random() - 0.5) * 0.25;
+      const nx = Math.cos(angle + jitter) * maxLen * frac;
+      const nz = Math.sin(angle + jitter) * maxLen * frac;
+
+      points.push(cx, 0, cz);
+      points.push(nx, 0, nz);
+
+      // Occasionally spawn a short branch off the ray
+      if (s === 1 && Math.random() > 0.5) {
+        const branchAngle = angle + (Math.random() - 0.5) * 0.9;
+        const branchLen = maxLen * 0.35;
+        points.push(cx, 0, cz);
+        points.push(cx + Math.cos(branchAngle) * branchLen, 0, cz + Math.sin(branchAngle) * branchLen);
+      }
+
+      cx = nx;
+      cz = nz;
+    }
+  }
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(points), 3));
+
+  const mat = new THREE.LineBasicMaterial({
+    color: 0x111111,
+    linewidth: 2,
+    transparent: true,
+    opacity: 0.95
+  });
+
+  const lines = new THREE.LineSegments(geo, mat);
+  lines.rotation.x = -Math.PI / 2;
+  crackGroup.add(lines);
+
+  // Dark center burn mark (small, subtle)
+  const burnGeo = new THREE.CircleGeometry(0.22, 12);
+  const burnMat = new THREE.MeshBasicMaterial({ color: 0x050505, transparent: true, opacity: 0.9 });
+  const burn = new THREE.Mesh(burnGeo, burnMat);
+  burn.rotation.x = -Math.PI / 2;
+  crackGroup.add(burn);
+
+  sceneRef.add(crackGroup);
+  activeCracks.push(crackGroup);
+}
+
+// ─── METEOR IMPACT CRATER (bigger, with shockwave ring) ─────────────────────
+function spawnMeteorCrater(x, z) {
+  const group = new THREE.Group();
+  group.position.set(x, 0.05, z);
+
+  // Dark scorched ground disc
+  const discGeo = new THREE.CircleGeometry(2.2, 32);
+  const discMat = new THREE.MeshBasicMaterial({ color: 0x080808, transparent: true, opacity: 0.92 });
+  const disc = new THREE.Mesh(discGeo, discMat);
+  disc.rotation.x = -Math.PI / 2;
+  group.add(disc);
+
+  // Radiating cracks (more dramatic than player cracks)
+  const numRays = 14;
+  const points = [];
+  for (let r = 0; r < numRays; r++) {
+    const angle = (r / numRays) * Math.PI * 2 + (Math.random() - 0.5) * 0.2;
+    const len = 2.0 + Math.random() * 1.2;
+    let cx = 0, cz = 0;
+    const segs = 4;
+    for (let s = 0; s < segs; s++) {
+      const frac = (s + 1) / segs;
+      const j = (Math.random() - 0.5) * 0.3;
+      const nx = Math.cos(angle + j) * len * frac;
+      const nz = Math.sin(angle + j) * len * frac;
+      points.push(cx, 0, cz, nx, 0, nz);
+      if (s === 1 && Math.random() > 0.4) {
+        const ba = angle + (Math.random() - 0.5) * 1.0;
+        const bl = len * 0.4;
+        points.push(cx, 0, cz, cx + Math.cos(ba) * bl, 0, cz + Math.sin(ba) * bl);
+      }
+      cx = nx; cz = nz;
+    }
+  }
+  const crackGeo = new THREE.BufferGeometry();
+  crackGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(points), 3));
+  const crackMat = new THREE.LineBasicMaterial({ color: 0x0a0a0a, transparent: true, opacity: 1.0 });
+  const cracks = new THREE.LineSegments(crackGeo, crackMat);
+  cracks.rotation.x = -Math.PI / 2;
+  group.add(cracks);
+
+  sceneRef.add(group);
+  activeCracks.push(group);
+
+  // Shockwave ring — expands outward then fades
+  spawnShockwave(x, z);
+}
+
+function spawnShockwave(x, z) {
+  const ring = new THREE.Mesh(
+    new THREE.RingGeometry(0.1, 0.5, 32),
+    new THREE.MeshBasicMaterial({ color: 0xff6600, transparent: true, opacity: 0.85, side: THREE.DoubleSide })
+  );
+  ring.rotation.x = -Math.PI / 2;
+  ring.position.set(x, 0.06, z);
+  ring.userData = { isShockwave: true, age: 0 };
+  sceneRef.add(ring);
+  activeCracks.push(ring); // reuse array so it gets moved with world
 }
 
 export function spawnObstacle(zPos) {
   const laneIndex = Math.floor(Math.random() * 3);
   const xPos = CONFIG.lanes[laneIndex];
-  
- 
+
+  // 10% chance meteor
   const isSeed = Math.random() < 0.10;
   let type;
   if (isSeed) type = 3;
@@ -43,6 +156,7 @@ export function spawnObstacle(zPos) {
     const mat = new THREE.MeshStandardMaterial({ color: 0x550000 });
     mesh = new THREE.Mesh(geo, mat);
     mesh.position.set(xPos, height / 2, zPos);
+
   } else if (type === 2) {
     isHole = true;
     const geo = new THREE.PlaneGeometry(3, 3);
@@ -50,17 +164,36 @@ export function spawnObstacle(zPos) {
     mesh = new THREE.Mesh(geo, mat);
     mesh.rotation.x = -Math.PI / 2;
     mesh.position.set(xPos, 0.01, zPos);
+
   } else {
+    // ─── METEOR ────────────────────────────────────────────────────────────
     isMeteor = true;
- 
-    const geo = new THREE.IcosahedronGeometry(1.5, 1);
-    const mat = new THREE.MeshStandardMaterial({ color: 0x2b1d14, roughness: 0.9, flatShading: true });
+
+    // Larger icosahedron — visually 2×2 footprint
+    const geo = new THREE.IcosahedronGeometry(2.0, 2);
+
+    // Dark rocky material with flat shading for faceted look
+    const mat = new THREE.MeshStandardMaterial({
+      color: 0x1a0f0a,
+      roughness: 1.0,
+      metalness: 0.0,
+      flatShading: true
+    });
     mesh = new THREE.Mesh(geo, mat);
-  
-    mesh.position.set(xPos, 40, zPos - 20); 
+
+    // Start FAR above — will fall into view dramatically
+    mesh.position.set(xPos, 120, zPos - 30);
+
+    // Give it a random spin axis for organic tumbling
+    mesh.userData.spinX = (Math.random() - 0.5) * 8;
+    mesh.userData.spinZ = (Math.random() - 0.5) * 4;
+
+    // Attach a glowing orange point-light so it lights up the ground as it falls
+    const meteorLight = new THREE.PointLight(0xff4400, 3, 20);
+    mesh.add(meteorLight);
   }
 
-  mesh.userData = { isHole, isMeteor, passed: false, landed: false };
+  mesh.userData = { ...mesh.userData, isHole, isMeteor, passed: false, landed: false };
   sceneRef.add(mesh);
   activeObstacles.push(mesh);
 
@@ -68,21 +201,21 @@ export function spawnObstacle(zPos) {
 }
 
 function spawnCoinPattern(zPos, blockedLaneIndex) {
-    const availableLanes = [0, 1, 2].filter(l => l !== blockedLaneIndex);
-    if(availableLanes.length === 0) return;
-    const targetLane = availableLanes[Math.floor(Math.random() * availableLanes.length)];
-    const xPos = CONFIG.lanes[targetLane];
-    
-    for(let i=0; i<3; i++) {
-        const geo = new THREE.CylinderGeometry(0.5, 0.5, 0.2, 16);
-        const mat = new THREE.MeshStandardMaterial({ color: 0xFFD700, metalness: 0.8, roughness: 0.2 });
-        const coin = new THREE.Mesh(geo, mat);
-        coin.rotation.x = Math.PI / 2;
-        coin.position.set(xPos, 1, zPos - (i * 2));
-        coin.userData = { collected: false };
-        sceneRef.add(coin);
-        activeCoins.push(coin);
-    }
+  const availableLanes = [0, 1, 2].filter(l => l !== blockedLaneIndex);
+  if (availableLanes.length === 0) return;
+  const targetLane = availableLanes[Math.floor(Math.random() * availableLanes.length)];
+  const xPos = CONFIG.lanes[targetLane];
+
+  for (let i = 0; i < 3; i++) {
+    const geo = new THREE.CylinderGeometry(0.5, 0.5, 0.2, 16);
+    const mat = new THREE.MeshStandardMaterial({ color: 0xFFD700, metalness: 0.8, roughness: 0.2 });
+    const coin = new THREE.Mesh(geo, mat);
+    coin.rotation.x = Math.PI / 2;
+    coin.position.set(xPos, 1, zPos - (i * 2));
+    coin.userData = { collected: false };
+    sceneRef.add(coin);
+    activeCoins.push(coin);
+  }
 }
 
 export function updateObstacles(playerGroup, deltaTime) {
@@ -90,35 +223,85 @@ export function updateObstacles(playerGroup, deltaTime) {
 
   const moveSpeed = gameState.speed * 60 * deltaTime;
 
-
+  // ─── CRACKS / SHOCKWAVES ──────────────────────────────────────────────────
   for (let i = activeCracks.length - 1; i >= 0; i--) {
-      const crater = activeCracks[i];
-      crater.position.z += moveSpeed;
-      if (crater.position.z > 15) {
-          sceneRef.remove(crater);
-          crater.geometry.dispose();
-          crater.material.dispose();
-          activeCracks.splice(i, 1);
+    const obj = activeCracks[i];
+
+    if (obj.userData.isShockwave) {
+      obj.userData.age += deltaTime;
+      const t = obj.userData.age;
+      const scale = 1 + t * 9;          // expands fast
+      obj.scale.set(scale, scale, scale);
+      obj.material.opacity = Math.max(0, 0.85 - t * 2.5);
+      if (obj.material.opacity <= 0) {
+        sceneRef.remove(obj);
+        obj.geometry.dispose();
+        obj.material.dispose();
+        activeCracks.splice(i, 1);
+        continue;
       }
+    }
+
+    obj.position.z += moveSpeed;
+    if (obj.position.z > 15) {
+      sceneRef.remove(obj);
+      if (obj.geometry) obj.geometry.dispose();
+      if (obj.material) obj.material.dispose();
+      // for groups, dispose children
+      obj.traverse && obj.traverse(child => {
+        if (child.geometry) child.geometry.dispose();
+        if (child.material) child.material.dispose();
+      });
+      activeCracks.splice(i, 1);
+    }
   }
 
-
+  // ─── OBSTACLES & METEOR ───────────────────────────────────────────────────
   for (let i = activeObstacles.length - 1; i >= 0; i--) {
     const obs = activeObstacles[i];
     obs.position.z += moveSpeed;
 
-  
     if (obs.userData.isMeteor) {
-        if (obs.position.y > 1.5) {
-            obs.position.y -= 60 * deltaTime; // Летит как пуля
-            obs.rotation.x += 10 * deltaTime;
-        } else if (!obs.userData.landed) {
-            obs.position.y = 1.5; // Ложится на землю
-            obs.userData.landed = true;
-            spawnCrater(obs.position.x, obs.position.z); // Бабах! Кратер
+      if (!obs.userData.landed) {
+        // Accelerating fall (simulate gravity) — starts slow, ends very fast
+        if (!obs.userData.fallVelocity) obs.userData.fallVelocity = 5;
+        obs.userData.fallVelocity += 80 * deltaTime; // acceleration
+
+        obs.position.y -= obs.userData.fallVelocity * deltaTime;
+
+        // Tumble while falling
+        obs.rotation.x += (obs.userData.spinX || 5) * deltaTime;
+        obs.rotation.z += (obs.userData.spinZ || 2) * deltaTime;
+
+        // Impact! land at y = 2.0 (radius of meteor)
+        if (obs.position.y <= 2.0) {
+          obs.position.y = 2.0;
+          obs.userData.landed = true;
+
+          // Remove the glow light on landing
+          obs.children.forEach(child => {
+            if (child.isLight) obs.remove(child);
+          });
+
+          // Spawn dramatic impact crater + shockwave
+          spawnMeteorCrater(obs.position.x, obs.position.z);
+
+          // Camera shake simulation: briefly shift the obstacle violently (visual punch)
+          obs.userData.shakeTimer = 0.18;
+          obs.userData.shakeOriginX = obs.position.x;
         }
+      } else {
+        // Landed — do a short settle shake
+        if (obs.userData.shakeTimer > 0) {
+          obs.userData.shakeTimer -= deltaTime;
+          obs.position.x = obs.userData.shakeOriginX + (Math.random() - 0.5) * 0.3;
+        } else {
+          obs.position.x = obs.userData.shakeOriginX || obs.position.x;
+        }
+      }
     }
 
+    // ─── Collision ─────────────────────────────────────────────────────────
     const zDistance = Math.abs(obs.position.z - playerGroup.position.z);
     if (zDistance < 1.5) {
       const xDistance = Math.abs(obs.position.x - playerGroup.position.x);
@@ -126,7 +309,8 @@ export function updateObstacles(playerGroup, deltaTime) {
         if (obs.userData.isHole) {
           if (playerGroup.position.y < 0.5) triggerDeath();
         } else if (obs.userData.isMeteor) {
-          if (playerGroup.position.y < 3.0) triggerDeath(); 
+          // Meteor radius is 2.0, player must jump OVER it (y > 2.2 to clear)
+          if (playerGroup.position.y < 2.2) triggerDeath();
         } else {
           const blockHeight = obs.geometry.parameters.height;
           if (playerGroup.position.y < blockHeight - 0.2) triggerDeath();
@@ -141,50 +325,50 @@ export function updateObstacles(playerGroup, deltaTime) {
 
     if (obs.position.z > 15) {
       sceneRef.remove(obs);
-      obs.geometry.dispose();
-      obs.material.dispose();
+      obs.geometry && obs.geometry.dispose();
+      obs.material && obs.material.dispose();
       activeObstacles.splice(i, 1);
     }
   }
 
-  
+  // ─── COINS ────────────────────────────────────────────────────────────────
   for (let i = activeCoins.length - 1; i >= 0; i--) {
-      const coin = activeCoins[i];
+    const coin = activeCoins[i];
 
-      if (coin.userData.collected) {
-          coin.position.y += 10 * deltaTime;
-          coin.scale.setScalar(Math.max(0, coin.scale.x - 5 * deltaTime));
-          coin.rotation.z += 20 * deltaTime;
-          
-          if (coin.scale.x <= 0.05) {
-              sceneRef.remove(coin);
-              coin.geometry.dispose();
-              coin.material.dispose();
-              activeCoins.splice(i, 1);
-          }
-          continue; 
+    if (coin.userData.collected) {
+      coin.position.y += 10 * deltaTime;
+      coin.scale.setScalar(Math.max(0, coin.scale.x - 5 * deltaTime));
+      coin.rotation.z += 20 * deltaTime;
+      if (coin.scale.x <= 0.05) {
+        sceneRef.remove(coin);
+        coin.geometry.dispose();
+        coin.material.dispose();
+        activeCoins.splice(i, 1);
       }
+      continue;
+    }
 
-      coin.position.z += moveSpeed;
-      coin.rotation.z += 5 * deltaTime;
+    coin.position.z += moveSpeed;
+    coin.rotation.z += 5 * deltaTime;
 
-      const zDist = Math.abs(coin.position.z - playerGroup.position.z);
-      const xDist = Math.abs(coin.position.x - playerGroup.position.x);
-      const yDist = Math.abs(coin.position.y - playerGroup.position.y);
+    const zDist = Math.abs(coin.position.z - playerGroup.position.z);
+    const xDist = Math.abs(coin.position.x - playerGroup.position.x);
+    const yDist = Math.abs(coin.position.y - playerGroup.position.y);
 
-      if (zDist < 1.5 && xDist < 1.5 && yDist < 2) {
-          gameState.coins += 1;
-          coin.userData.collected = true; 
-      }
+    if (zDist < 1.5 && xDist < 1.5 && yDist < 2) {
+      gameState.coins += 1;
+      coin.userData.collected = true;
+    }
 
-      if (coin.position.z > 15) {
-          sceneRef.remove(coin);
-          coin.geometry.dispose();
-          coin.material.dispose();
-          activeCoins.splice(i, 1);
-      }
+    if (coin.position.z > 15) {
+      sceneRef.remove(coin);
+      coin.geometry.dispose();
+      coin.material.dispose();
+      activeCoins.splice(i, 1);
+    }
   }
 
+  // ─── SPAWN TIMER ──────────────────────────────────────────────────────────
   gameState.spawnTimer -= deltaTime;
   if (gameState.spawnTimer <= 0) {
     spawnObstacle(-80 - Math.random() * 40);
@@ -201,11 +385,11 @@ function triggerDeath() {
 export function resetObstacles() {
   for (let obs of activeObstacles) {
     sceneRef.remove(obs);
-    obs.geometry.dispose();
-    obs.material.dispose();
+    obs.geometry && obs.geometry.dispose();
+    obs.material && obs.material.dispose();
   }
   activeObstacles.length = 0;
-  
+
   for (let coin of activeCoins) {
     sceneRef.remove(coin);
     coin.geometry.dispose();
@@ -213,10 +397,14 @@ export function resetObstacles() {
   }
   activeCoins.length = 0;
 
-  for (let crater of activeCracks) {
-    sceneRef.remove(crater);
-    crater.geometry.dispose();
-    crater.material.dispose();
+  for (let obj of activeCracks) {
+    sceneRef.remove(obj);
+    obj.traverse && obj.traverse(child => {
+      if (child.geometry) child.geometry.dispose();
+      if (child.material) child.material.dispose();
+    });
+    if (obj.geometry) obj.geometry.dispose();
+    if (obj.material) obj.material.dispose();
   }
   activeCracks.length = 0;
 }
