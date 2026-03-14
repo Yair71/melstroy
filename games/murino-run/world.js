@@ -5,29 +5,44 @@ import { loadedAssets } from './assets.js';
 let sceneRef;
 const roadSegments = [];
 const buildings = [];
+let particles; // Система насекомых/пыли
 
 export function initWorld(scene) {
   sceneRef = scene;
 
-  // Жуткий, темный туман
-  scene.fog = new THREE.FogExp2(0x05050a, 0.025); 
-  scene.background = new THREE.Color(0x05050a);
+  // Густой жуткий туман
+  scene.fog = new THREE.FogExp2(0x0a0a14, 0.03); 
+  scene.background = new THREE.Color(0x0a0a14);
 
   const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
   scene.add(ambientLight);
 
-  const dirLight = new THREE.DirectionalLight(0x5555aa, 1.5);
+  const dirLight = new THREE.DirectionalLight(0x7777cc, 1.5);
   dirLight.position.set(10, 20, 10);
-  dirLight.castShadow = true; // Тень Мелстроя остается
+  dirLight.castShadow = true;
   scene.add(dirLight);
 
-  // Добавляем землю, чтобы здания не стояли в пустоте
-  const groundGeo = new THREE.PlaneGeometry(300, 300);
-  const groundMat = new THREE.MeshStandardMaterial({ color: 0x08080a, roughness: 1 });
+  // МАССИВНАЯ ЗЕМЛЯ: Здания больше не висят в пустоте
+  const groundGeo = new THREE.PlaneGeometry(1000, 1000);
+  const groundMat = new THREE.MeshStandardMaterial({ color: 0x050508, roughness: 1 });
   const groundMesh = new THREE.Mesh(groundGeo, groundMat);
   groundMesh.rotation.x = -Math.PI / 2;
-  groundMesh.position.y = -0.1; // Чуть ниже дороги
+  groundMesh.position.y = -0.1; // Прямо под дорогой
   scene.add(groundMesh);
+
+  // НАСЕКОМЫЕ / ПЫЛЬЦА В ВОЗДУХЕ
+  const partGeo = new THREE.BufferGeometry();
+  const partCount = 800;
+  const posArr = new Float32Array(partCount * 3);
+  for(let i = 0; i < partCount * 3; i += 3) {
+      posArr[i] = (Math.random() - 0.5) * 80;     // X
+      posArr[i+1] = Math.random() * 20;           // Y
+      posArr[i+2] = (Math.random() - 0.5) * 80;   // Z
+  }
+  partGeo.setAttribute('position', new THREE.BufferAttribute(posArr, 3));
+  const partMat = new THREE.PointsMaterial({ size: 0.15, color: 0x88ffaa, transparent: true, opacity: 0.6 });
+  particles = new THREE.Points(partGeo, partMat);
+  scene.add(particles);
 
   for (let i = 0; i < CONFIG.roadCount; i++) {
     createRoadSegment(i * (-CONFIG.roadLen / CONFIG.roadCount));
@@ -64,16 +79,15 @@ function spawnBuilding(zPos) {
   const width = 8 + Math.random() * 8;
 
   const geo = new THREE.BoxGeometry(width, height, width);
-  const mat = new THREE.MeshStandardMaterial({ map: tex, color: 0x444455 });
+  const mat = new THREE.MeshStandardMaterial({ map: tex, color: 0x333344 });
   const mesh = new THREE.Mesh(geo, mat);
 
-  // Расширяем мир: здания стоят дальше друг от друга и рандомно
   const side = Math.random() > 0.5 ? 1 : -1;
-  mesh.position.x = side * (CONFIG.roadWidth / 2 + width / 2 + 1 + Math.random() * 6);
-  mesh.position.y = height / 2; 
+  mesh.position.x = side * (CONFIG.roadWidth / 2 + width / 2 + 1 + Math.random() * 5);
+  // Вкапываем здание в землю, чтобы не висело
+  mesh.position.y = height / 2 - 0.1; 
   mesh.position.z = zPos;
   
-  // УБРАЛИ ТЕНЬ ОТ ЗДАНИЙ
   mesh.castShadow = false; 
   mesh.receiveShadow = false;
 
@@ -95,4 +109,15 @@ export function updateWorld(deltaTime) {
     b.position.z += moveSpeed;
     if (b.position.z > 40) b.position.z -= (200 + Math.random() * 50);
   });
+
+  // Анимация насекомых (плавно летают)
+  if (particles) {
+      const positions = particles.geometry.attributes.position.array;
+      for(let i = 1; i < positions.length; i += 3) {
+          positions[i] -= 0.5 * deltaTime; // Медленно опускаются
+          positions[i-1] += Math.sin(positions[i] * 5) * 0.05; // Виляют по X
+          if (positions[i] < 0) positions[i] = 20; // Спавнятся сверху
+      }
+      particles.geometry.attributes.position.needsUpdate = true;
+  }
 }
