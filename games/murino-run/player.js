@@ -32,16 +32,19 @@ export function switchModel(modelKey) {
 
     gltf.scene.rotation.y = Math.PI; 
     
-    // --- ЖЕЛЕЗОБЕТОННЫЙ РАЗМЕР ИЗ КОНФИГА (Без умных вычислений) ---
-    const baseScale = CONFIG.modelScale || 0.08;
+    // 1. ПРИМЕНЯЕМ МАСШТАБ
+    const baseScale = CONFIG.modelScale || 0.2;
     const customScale = CONFIG.animScales ? (CONFIG.animScales[modelKey] || 1.0) : 1.0;
     const finalScale = baseScale * customScale;
-    
     gltf.scene.scale.set(finalScale, finalScale, finalScale);
     
-    // Применяем отступ от асфальта
-    const yOffset = CONFIG.animOffsets ? (CONFIG.animOffsets[modelKey] || 0) : 0;
-    gltf.scene.position.set(0, yOffset, 0);
+    // 2. ИДЕАЛЬНАЯ ПОСТАНОВКА НА АСФАЛЬТ
+    gltf.scene.position.set(0, 0, 0);
+    gltf.scene.updateMatrixWorld(true);
+    const box = new THREE.Box3().setFromObject(gltf.scene);
+    
+    // Сдвигаем модельку вверх ровно настолько, насколько она провалилась вниз
+    gltf.scene.position.y = (0 - box.min.y);
 
     playerGroup.add(gltf.scene);
     currentModelKey = modelKey;
@@ -74,7 +77,7 @@ export function updatePlayer(deltaTime) {
         gameState.velocityY += CONFIG.gravity;
         playerGroup.position.y += gameState.velocityY;
 
-        // Приземление
+        // Жесткое приземление
         if (playerGroup.position.y <= CONFIG.playerYOffset) {
             playerGroup.position.y = CONFIG.playerYOffset;
             gameState.isJumping = false;
