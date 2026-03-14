@@ -8,13 +8,17 @@ export const gameState = {
 
   // Player movement states
   isJumping: false,
-  jumpTimer: 0, // Управляет прогрессом прыжка вместо скорости
-  currentLane: 1, 
+  jumpTimer: 0, 
+  currentLane: 1,
   targetX: CONFIG.lanes[1],
 
   // Timers
   deathTimer: 0,
   spawnTimer: 0,
+
+  // НОВЫЕ СВОЙСТВА: Физика смерти (эффект камня)
+  deathTargetY: 0,
+  deathPushVelocity: 0,
 
   reset() {
     this.current = STATE.PLAYING;
@@ -29,5 +33,8 @@ export const gameState = {
 
     this.deathTimer = 0;
     this.spawnTimer = 0;
+
+    this.deathTargetY = CONFIG.playerYOffset;
+    this.deathPushVelocity = 0;
   }
 };
