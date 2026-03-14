@@ -61,8 +61,17 @@ export function switchModel(modelKey) {
   currentModelKey = modelKey;
 
   if (gltf.animations && gltf.animations.length > 0) {
+    const clip = gltf.animations[0];
+
+    // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ ROOT MOTION: 
+    // Если это анимация прыжка, мы удаляем все треки изменения позиции (Y), 
+    // чтобы анимация шевелила только руками/ногами, но не поднимала модель вверх.
+    if (modelKey === 'jump') {
+      clip.tracks = clip.tracks.filter(track => !track.name.toLowerCase().includes('position'));
+    }
+
     mixer = new THREE.AnimationMixer(gltf.scene);
-    currentAction = mixer.clipAction(gltf.animations[0]);
+    currentAction = mixer.clipAction(clip);
 
     if (modelKey === 'fall' || modelKey === 'jump') {
       currentAction.setLoop(THREE.LoopOnce);
@@ -90,7 +99,7 @@ export function updatePlayer(deltaTime) {
   const lerpSpeed = 10;
   playerGroup.position.x += (gameState.targetX - playerGroup.position.x) * lerpSpeed * deltaTime;
 
-  // НОВАЯ СИСТЕМА ПРЫЖКА (Синусоида)
+  // Точный контроль высоты математикой, теперь анимация не сможет этому помешать
   if (gameState.isJumping) {
     gameState.jumpTimer += deltaTime;
     const progress = gameState.jumpTimer / CONFIG.jumpDuration;
