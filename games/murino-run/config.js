@@ -16,26 +16,15 @@ export const ASSETS = {
 
 export const CONFIG = {
     lanes: [-3, 0, 3],
-    gravity: -0.025,         // Ускорили падение (было -0.015)
-    jumpPower: 0.20,         // Резкий прыжок вверх
+    gravity: -0.015,
+    jumpPower: 0.23,         // <-- УМЕНЬШИЛИ ПРЫЖОК (теперь он прыгает ровно над 1 блоком)
     initialSpeed: 0.3,
     speedMultiplier: 0.0001,
     roadWidth: 12,
     roadLen: 120,
     roadCount: 6,
     playerYOffset: 0,
-    
-    // БАЗОВЫЙ КРУПНЫЙ РОСТ МЕЛСТРОЯ
-    modelScale: 0.2,         
-
-    // РУЧНОЙ МНОЖИТЕЛЬ РАЗМЕРА ДЛЯ КРИВЫХ МОДЕЛЕЙ ИЗ БЛЕНДЕРА
-    animScales: {
-        run: 1.0,
-        jump: 2.5,           // Оставил твои настройки
-        fall: 3.0,
-        dance1: 1.5,
-        dance2: 1.5
-    }
+    modelHeight: 4.5    
 };
 
 export const STATE = {
@@ -45,3 +34,5 @@ export const STATE = {
     PLAYING: 'PLAYING',
     DYING: 'DYING'
 };
+
+
