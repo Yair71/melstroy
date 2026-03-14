@@ -319,25 +319,16 @@ function triggerDeath(obstacle, playerGroup) {
   switchModel('fall');
 
   if (obstacle && !obstacle.userData.isHole) {
-    // ЖЕСТКАЯ ПРОВЕРКА: Только если Мел перепрыгнул почти весь блок (разница не больше 0.3м)
-    if (gameState.isJumping && playerGroup.position.y > obstacle.userData.blockHeight - 0.3) {
-      gameState.deathTargetY = obstacle.userData.blockHeight;
-      gameState.deathPushVelocity = 0; // Не отбрасываем
-      
-      // ТЕЛЕПОРТ НА КРЫШУ: Ставим его прямо НА блок по оси Z, чтобы он не висел в воздухе
-      playerGroup.position.z = obstacle.position.z;
-    } else {
-      // Игрок жестко врезался в стену (даже если летел в воздухе)
-      gameState.deathTargetY = CONFIG.playerYOffset; // Установка пола (он 100% рухнет на землю)
-      
-      // АНТИ-КЛИППИНГ: Ставим игрока ровно перед блоком.
-      playerGroup.position.z = obstacle.position.z + 1.25;
-      
-      // Мощный физический отскок
-      gameState.deathPushVelocity = 15; 
-    }
+    // ВЫРЕЗАЛИ ЛОГИКУ КРЫШ. ВСЕГДА ПАДАЕМ НА ЗЕМЛЮ!
+    gameState.deathTargetY = CONFIG.playerYOffset; 
+    
+    // АНТИ-КЛИППИНГ: Оставляем игрока ровно перед стенкой
+    playerGroup.position.z = obstacle.position.z + 1.25;
+    
+    // Мощный физический отскок (улетает к камере)
+    gameState.deathPushVelocity = 12; 
   } else if (obstacle && obstacle.userData.isHole) {
-    gameState.deathTargetY = -2.0;
+    gameState.deathTargetY = -2.0; // Падает в яму
     gameState.deathPushVelocity = 0;
   } else {
     gameState.deathTargetY = CONFIG.playerYOffset;
