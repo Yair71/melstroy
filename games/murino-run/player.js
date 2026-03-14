@@ -94,27 +94,34 @@ export function updatePlayer(deltaTime) {
   if (gameState.current === STATE.INTRO) {
     playerGroup.position.x = CONFIG.roadWidth / 2 - 1.5;
     playerGroup.position.y = CONFIG.playerYOffset;
-    playerGroup.position.z = 0; // Строго сбрасываем позицию
+    playerGroup.position.z = 0; 
     return;
   }
 
-  // --- НОВАЯ ФИЗИКА СМЕРТИ ---
   if (gameState.current === STATE.DYING) {
-    // 1. Отскок от каменного блока (летит назад к камере)
-    if (gameState.deathPushVelocity > 0) {
+    // 1. Физика отскока от стены
+    if (gameState.deathPushVelocity !== 0) {
       playerGroup.position.z += gameState.deathPushVelocity * deltaTime;
-      gameState.deathPushVelocity -= 20 * deltaTime; // Трение воздуха, замедление отскока
-      if (gameState.deathPushVelocity < 0) gameState.deathPushVelocity = 0;
+      
+      if (gameState.deathPushVelocity > 0) {
+        // Резкое торможение в воздухе после сильного удара
+        gameState.deathPushVelocity -= 35 * deltaTime; 
+        if (gameState.deathPushVelocity < 0) gameState.deathPushVelocity = 0;
+      } else {
+        // Скольжение вперед на крыше
+        gameState.deathPushVelocity += 5 * deltaTime;
+        if (gameState.deathPushVelocity > 0) gameState.deathPushVelocity = 0;
+      }
     }
 
-    // 2. Падение до нужного таргета (пол, яма или крыша блока)
+    // 2. Гравитация трупа
     if (playerGroup.position.y > gameState.deathTargetY) {
       playerGroup.position.y -= 15 * deltaTime;
       if (playerGroup.position.y < gameState.deathTargetY) {
         playerGroup.position.y = gameState.deathTargetY;
       }
-    } else if (playerGroup.position.y < gameState.deathTargetY && gameState.deathTargetY >= 0) {
-      // Если игрок был чуть ниже крыши - моментально "сажаем" его на нее
+    } else if (playerGroup.position.y < gameState.deathTargetY && gameState.deathTargetY > 0) {
+      // Игрок моментально оказывается на крыше, если был чуть ниже
       playerGroup.position.y = gameState.deathTargetY;
     }
     return;
