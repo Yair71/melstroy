@@ -236,9 +236,7 @@ export function updateObstacles(playerGroup, deltaTime) {
     obs.position.z += moveSpeed;
 
     const zDistance = Math.abs(obs.position.z - playerGroup.position.z);
-    
-    // МАТЕМАТИКА АНТИ-КЛИППИНГА: 1.25 - это идеальное касание спины игрока и передней стенки блока
-    const collisionZ = 1.25; 
+    const collisionZ = 1.25;
 
     if (zDistance < collisionZ) {
       const xDistance = Math.abs(obs.position.x - playerGroup.position.x);
@@ -321,22 +319,24 @@ function triggerDeath(obstacle, playerGroup) {
   switchModel('fall');
 
   if (obstacle && !obstacle.userData.isHole) {
-    // ЖЕСТКАЯ ПРОВЕРКА: Только если игрок САМ нажал прыжок и почти долетел
-    if (gameState.isJumping && playerGroup.position.y > obstacle.userData.blockHeight * 0.45) {
+    // ЖЕСТКАЯ ПРОВЕРКА: Только если Мел перепрыгнул почти весь блок (разница не больше 0.3м)
+    if (gameState.isJumping && playerGroup.position.y > obstacle.userData.blockHeight - 0.3) {
       gameState.deathTargetY = obstacle.userData.blockHeight;
-      gameState.deathPushVelocity = -2; // Легкое скольжение на крышу
-    } else {
-      // Игрок врезался лицом в стену (не прыгал или прыгнул слишком поздно)
-      gameState.deathTargetY = CONFIG.playerYOffset;
+      gameState.deathPushVelocity = 0; // Не отбрасываем
       
-      // АНТИ-КЛИППИНГ: Ставим игрока ровно в 1 миллиметре перед блоком. Никакого захода в текстуры!
+      // ТЕЛЕПОРТ НА КРЫШУ: Ставим его прямо НА блок по оси Z, чтобы он не висел в воздухе
+      playerGroup.position.z = obstacle.position.z;
+    } else {
+      // Игрок жестко врезался в стену (даже если летел в воздухе)
+      gameState.deathTargetY = CONFIG.playerYOffset; // Установка пола (он 100% рухнет на землю)
+      
+      // АНТИ-КЛИППИНГ: Ставим игрока ровно перед блоком.
       playerGroup.position.z = obstacle.position.z + 1.25;
       
-      // Мощный физический отскок в сторону камеры
+      // Мощный физический отскок
       gameState.deathPushVelocity = 15; 
     }
   } else if (obstacle && obstacle.userData.isHole) {
-    // Проваливается в черную дыру
     gameState.deathTargetY = -2.0;
     gameState.deathPushVelocity = 0;
   } else {
