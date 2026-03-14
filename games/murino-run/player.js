@@ -40,8 +40,8 @@ export function switchModel(modelKey) {
 
   gltf.scene.updateMatrixWorld(true);
 
-  const box = new THREE.Box3().setFromObject(gltf.scene);
-  const size = box.getSize(new THREE.Vector3());
+  const box    = new THREE.Box3().setFromObject(gltf.scene);
+  const size   = box.getSize(new THREE.Vector3());
   const maxDim = Math.max(size.x, size.y, size.z);
 
   if (maxDim > 0) {
@@ -92,15 +92,15 @@ export function updatePlayer(deltaTime) {
   playerGroup.position.x += (gameState.targetX - playerGroup.position.x) * lerpSpeed * deltaTime;
 
   if (gameState.isJumping) {
-    gameState.velocityY += CONFIG.gravity;
-    playerGroup.position.y += gameState.velocityY;
+    gameState.velocityY     += CONFIG.gravity;
+    playerGroup.position.y  += gameState.velocityY;
 
     if (playerGroup.position.y <= CONFIG.playerYOffset) {
-      playerGroup.position.y = CONFIG.playerYOffset;
-      gameState.isJumping = false;
-      gameState.velocityY = 0;
+      playerGroup.position.y  = CONFIG.playerYOffset;
+      gameState.isJumping     = false;
+      gameState.velocityY     = 0;
 
-      // Landing crack — looks like the character is heavy
+      // Landing crack — character is heavy
       spawnCrater(playerGroup.position.x, playerGroup.position.z);
 
       if (gameState.current === STATE.PLAYING) {
