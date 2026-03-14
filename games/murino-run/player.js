@@ -100,29 +100,18 @@ export function updatePlayer(deltaTime) {
 
   if (gameState.current === STATE.DYING) {
     // 1. Физика отскока от стены
-    if (gameState.deathPushVelocity !== 0) {
+    if (gameState.deathPushVelocity > 0) {
       playerGroup.position.z += gameState.deathPushVelocity * deltaTime;
-      
-      if (gameState.deathPushVelocity > 0) {
-        // Резкое торможение в воздухе после сильного удара
-        gameState.deathPushVelocity -= 35 * deltaTime; 
-        if (gameState.deathPushVelocity < 0) gameState.deathPushVelocity = 0;
-      } else {
-        // Скольжение вперед на крыше
-        gameState.deathPushVelocity += 5 * deltaTime;
-        if (gameState.deathPushVelocity > 0) gameState.deathPushVelocity = 0;
-      }
+      gameState.deathPushVelocity -= 30 * deltaTime; // Быстрое торможение в воздухе
+      if (gameState.deathPushVelocity < 0) gameState.deathPushVelocity = 0;
     }
 
-    // 2. Гравитация трупа
+    // 2. Гравитация трупа (всегда падает камнем вниз до земли)
     if (playerGroup.position.y > gameState.deathTargetY) {
-      playerGroup.position.y -= 15 * deltaTime;
+      playerGroup.position.y -= 14 * deltaTime;
       if (playerGroup.position.y < gameState.deathTargetY) {
         playerGroup.position.y = gameState.deathTargetY;
       }
-    } else if (playerGroup.position.y < gameState.deathTargetY && gameState.deathTargetY > 0) {
-      // Игрок моментально оказывается на крыше, если был чуть ниже
-      playerGroup.position.y = gameState.deathTargetY;
     }
     return;
   }
