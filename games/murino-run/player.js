@@ -1,6 +1,7 @@
 import { CONFIG, STATE } from './config.js';
 import { gameState } from './gameState.js';
 import { loadedAssets } from './assets.js';
+import { spawnCrack } from './obstacles.js'; // <-- ИМПОРТ
 
 export let playerGroup;
 let mixer;
@@ -31,9 +32,8 @@ export function switchModel(modelKey) {
   gltf.scene.scale.set(1, 1, 1);
   gltf.scene.position.set(0, 0, 0);
   
-  // Поворачиваем спиной вперед при беге, но лицом к нам при танце
   if (modelKey.includes('dance')) {
-      gltf.scene.rotation.y = -Math.PI / 2; // Повернут в сторону
+      gltf.scene.rotation.y = -Math.PI / 2; 
   } else {
       gltf.scene.rotation.y = Math.PI; 
   }
@@ -54,7 +54,6 @@ export function switchModel(modelKey) {
     const newBox = new THREE.Box3().setFromObject(gltf.scene);
     gltf.scene.position.y = (0 - newBox.min.y); 
 
-    // Фикс падения и танцев, чтобы ноги/тело были строго на земле
     if (modelKey === 'fall') {
       gltf.scene.position.y += 0.2; 
     }
@@ -81,7 +80,6 @@ export function updatePlayer(deltaTime) {
   if (!playerGroup) return;
   if (mixer) mixer.update(deltaTime);
 
-  // В интро ставим Мела на край дороги
   if (gameState.current === STATE.INTRO) {
       playerGroup.position.x = CONFIG.roadWidth / 2 - 1.5;
       playerGroup.position.y = CONFIG.playerYOffset;
@@ -101,6 +99,9 @@ export function updatePlayer(deltaTime) {
       playerGroup.position.y = CONFIG.playerYOffset;
       gameState.isJumping = false;
       gameState.velocityY = 0;
+      
+      // ВОТ ОНО: СПАВНИМ ТРЕЩИНУ ПРИ ПРИЗЕМЛЕНИИ!
+      spawnCrack(playerGroup.position.x, playerGroup.position.z);
 
       if (gameState.current === STATE.PLAYING) {
         switchModel('run');
