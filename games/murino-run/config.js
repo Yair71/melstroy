@@ -17,9 +17,9 @@ export const ASSETS = {
 export const CONFIG = {
   lanes: [-3, 0, 3],
 
-  // Jump physics
-  gravity: -30,
-  jumpPower: 9.8,
+  // НОВАЯ ФИЗИКА ПРЫЖКА: Точный контроль высоты и времени
+  jumpHeight: 1.4,     // Максимальная высота прыжка (Y)
+  jumpDuration: 0.55,  // За сколько секунд персонаж сделает весь прыжок (вверх и вниз)
 
   // Game speed
   initialSpeed: 0.3,
@@ -35,13 +35,7 @@ export const CONFIG = {
   modelHeight: 4.5,
 
   // Collision tuning
-  smallBlockClearHeight: 1.05,
-
-  // Meteor
-  meteorSize: 2,
-  meteorSpawnYOffset: 28,
-  meteorFallSpeed: 36,
-  meteorImpactY: 1.05
+  smallBlockClearHeight: 1.05
 };
 
 export const STATE = {
@@ -51,5 +45,3 @@ export const STATE = {
   PLAYING: 'PLAYING',
   DYING: 'DYING'
 };
-
-
