@@ -52,9 +52,7 @@ export function switchModel(modelKey) {
     const newBox = new THREE.Box3().setFromObject(gltf.scene);
     gltf.scene.position.y = 0 - newBox.min.y;
 
-    if (modelKey === 'fall') {
-      gltf.scene.position.y += 0.3;
-    }
+    // Я УДАЛИЛ ДУРАЦКИЙ ОТСТУП +0.3, КОТОРЫЙ ПОДНИМАЛ ЕГО В ВОЗДУХ!
   }
 
   playerGroup.add(gltf.scene);
@@ -106,11 +104,14 @@ export function updatePlayer(deltaTime) {
       if (gameState.deathPushVelocity < 0) gameState.deathPushVelocity = 0;
     }
 
-    // 2. Гравитация трупа (всегда падает камнем вниз до земли)
-    if (playerGroup.position.y > gameState.deathTargetY) {
+    // 2. ЖЕСТКАЯ ГРАВИТАЦИЯ НА АСФАЛЬТ
+    // Так как скелет крутится на высоте 1.8м, мы тянем ВСЮ группу на -1.8 вниз!
+    const floorTarget = (gameState.deathTargetY === CONFIG.playerYOffset) ? -1.8 : gameState.deathTargetY;
+
+    if (playerGroup.position.y > floorTarget) {
       playerGroup.position.y -= 14 * deltaTime;
-      if (playerGroup.position.y < gameState.deathTargetY) {
-        playerGroup.position.y = gameState.deathTargetY;
+      if (playerGroup.position.y < floorTarget) {
+        playerGroup.position.y = floorTarget;
       }
     }
     return;
