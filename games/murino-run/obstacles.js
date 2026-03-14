@@ -11,14 +11,14 @@ export function initObstacles(scene) {
   sceneRef = scene;
 }
 
-// КРАСИВЫЙ КРАТЕР ВМЕСТО КАРАКУЛЕЙ
+
 export function spawnCrater(x, z) {
-  // Ровный темный круг (ожог/вмятина) на асфальте
+
   const geo = new THREE.CircleGeometry(1.6, 24);
   const mat = new THREE.MeshBasicMaterial({ color: 0x030303, transparent: true, opacity: 0.85 });
   const crater = new THREE.Mesh(geo, mat);
   crater.rotation.x = -Math.PI / 2;
-  crater.position.set(x, 0.03, z); // Строго над асфальтом
+  crater.position.set(x, 0.03, z); 
   sceneRef.add(crater);
   activeCracks.push(crater);
 }
@@ -27,7 +27,7 @@ export function spawnObstacle(zPos) {
   const laneIndex = Math.floor(Math.random() * 3);
   const xPos = CONFIG.lanes[laneIndex];
   
-  // Редкий спавн "Зерна" (шанс 10%)
+ 
   const isSeed = Math.random() < 0.10;
   let type;
   if (isSeed) type = 3;
@@ -52,11 +52,11 @@ export function spawnObstacle(zPos) {
     mesh.position.set(xPos, 0.01, zPos);
   } else {
     isMeteor = true;
-    // ОГРОМНОЕ ЗЕРНО (2x2)
+ 
     const geo = new THREE.IcosahedronGeometry(1.5, 1);
     const mat = new THREE.MeshStandardMaterial({ color: 0x2b1d14, roughness: 0.9, flatShading: true });
     mesh = new THREE.Mesh(geo, mat);
-    // Спавним высоко в небе, летит прямо в игрока
+  
     mesh.position.set(xPos, 40, zPos - 20); 
   }
 
@@ -90,7 +90,7 @@ export function updateObstacles(playerGroup, deltaTime) {
 
   const moveSpeed = gameState.speed * 60 * deltaTime;
 
-  // ОБНОВЛЕНИЕ КРАТЕРОВ
+
   for (let i = activeCracks.length - 1; i >= 0; i--) {
       const crater = activeCracks[i];
       crater.position.z += moveSpeed;
@@ -102,12 +102,12 @@ export function updateObstacles(playerGroup, deltaTime) {
       }
   }
 
-  // ОБНОВЛЕНИЕ ПРЕПЯТСТВИЙ И ЗЕРЕН
+
   for (let i = activeObstacles.length - 1; i >= 0; i--) {
     const obs = activeObstacles[i];
     obs.position.z += moveSpeed;
 
-    // Падение огромного зерна
+  
     if (obs.userData.isMeteor) {
         if (obs.position.y > 1.5) {
             obs.position.y -= 60 * deltaTime; // Летит как пуля
@@ -126,7 +126,7 @@ export function updateObstacles(playerGroup, deltaTime) {
         if (obs.userData.isHole) {
           if (playerGroup.position.y < 0.5) triggerDeath();
         } else if (obs.userData.isMeteor) {
-          if (playerGroup.position.y < 3.0) triggerDeath(); // Зерно высокое
+          if (playerGroup.position.y < 3.0) triggerDeath(); 
         } else {
           const blockHeight = obs.geometry.parameters.height;
           if (playerGroup.position.y < blockHeight - 0.2) triggerDeath();
@@ -147,7 +147,7 @@ export function updateObstacles(playerGroup, deltaTime) {
     }
   }
 
-  // ОБНОВЛЕНИЕ МОНЕТ С АНИМАЦИЕЙ (Оставлено как просил)
+  
   for (let i = activeCoins.length - 1; i >= 0; i--) {
       const coin = activeCoins[i];
 
