@@ -32,19 +32,32 @@ export function switchModel(modelKey) {
 
     gltf.scene.rotation.y = Math.PI; 
     
-    // 1. ПРИМЕНЯЕМ МАСШТАБ
-    const baseScale = CONFIG.modelScale || 0.2;
-    const customScale = CONFIG.animScales ? (CONFIG.animScales[modelKey] || 1.0) : 1.0;
-    const finalScale = baseScale * customScale;
-    gltf.scene.scale.set(finalScale, finalScale, finalScale);
-    
-    // 2. ИДЕАЛЬНАЯ ПОСТАНОВКА НА АСФАЛЬТ
+    gltf.scene.scale.set(1, 1, 1);
     gltf.scene.position.set(0, 0, 0);
     gltf.scene.updateMatrixWorld(true);
+
     const box = new THREE.Box3().setFromObject(gltf.scene);
-    
-    // Сдвигаем модельку вверх ровно настолько, насколько она провалилась вниз
-    gltf.scene.position.y = (0 - box.min.y);
+    const size = box.getSize(new THREE.Vector3());
+
+    const maxDim = Math.max(size.x, size.y, size.z);
+
+    if (maxDim > 0) {
+        let scaleFactor = CONFIG.modelHeight / maxDim;
+        
+        if (modelKey === 'jump') scaleFactor *= 1.2; 
+        
+        gltf.scene.scale.set(scaleFactor, scaleFactor, scaleFactor);
+        gltf.scene.updateMatrixWorld(true);
+        
+        const newBox = new THREE.Box3().setFromObject(gltf.scene);
+        
+        gltf.scene.position.y = (0 - newBox.min.y);
+
+        // --- ФИКС ПРОВАЛИВАНИЯ ПОД АСФАЛЬТ ПРИ ПАДЕНИИ ---
+        if (modelKey === 'fall') {
+            gltf.scene.position.y += 0.8; // Приподнимаем модельку, чтобы она лежала на дороге
+        }
+    }
 
     playerGroup.add(gltf.scene);
     currentModelKey = modelKey;
@@ -77,7 +90,6 @@ export function updatePlayer(deltaTime) {
         gameState.velocityY += CONFIG.gravity;
         playerGroup.position.y += gameState.velocityY;
 
-        // Жесткое приземление
         if (playerGroup.position.y <= CONFIG.playerYOffset) {
             playerGroup.position.y = CONFIG.playerYOffset;
             gameState.isJumping = false;
@@ -89,3 +101,5 @@ export function updatePlayer(deltaTime) {
         }
     }
 }
+
+
