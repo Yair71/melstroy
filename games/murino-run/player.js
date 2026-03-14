@@ -51,8 +51,6 @@ export function switchModel(modelKey) {
 
     const newBox = new THREE.Box3().setFromObject(gltf.scene);
     gltf.scene.position.y = 0 - newBox.min.y;
-
-    // Я УДАЛИЛ ДУРАЦКИЙ ОТСТУП +0.3, КОТОРЫЙ ПОДНИМАЛ ЕГО В ВОЗДУХ!
   }
 
   playerGroup.add(gltf.scene);
@@ -100,18 +98,26 @@ export function updatePlayer(deltaTime) {
     // 1. Физика отскока от стены
     if (gameState.deathPushVelocity > 0) {
       playerGroup.position.z += gameState.deathPushVelocity * deltaTime;
-      gameState.deathPushVelocity -= 30 * deltaTime; // Быстрое торможение в воздухе
+      gameState.deathPushVelocity -= 30 * deltaTime; 
       if (gameState.deathPushVelocity < 0) gameState.deathPushVelocity = 0;
     }
 
-    // 2. ЖЕСТКАЯ ГРАВИТАЦИЯ НА АСФАЛЬТ
-    // Так как скелет крутится на высоте 1.8м, мы тянем ВСЮ группу на -1.8 вниз!
-    const floorTarget = (gameState.deathTargetY === CONFIG.playerYOffset) ? -1.8 : gameState.deathTargetY;
+    // 2. ДВУХФАЗНОЕ ПАДЕНИЕ (Гравитация + Синхронизация с анимацией)
+    const floorTarget = gameState.deathTargetY; 
+    const crumpleTarget = floorTarget - 1.8; 
 
     if (playerGroup.position.y > floorTarget) {
-      playerGroup.position.y -= 14 * deltaTime;
-      if (playerGroup.position.y < floorTarget) {
+      // ФАЗА 1: Быстро летим вниз (если умерли высоко в прыжке)
+      playerGroup.position.y -= 15 * deltaTime;
+      if (playerGroup.position.y <= floorTarget) {
         playerGroup.position.y = floorTarget;
+      }
+    } else if (playerGroup.position.y > crumpleTarget) {
+      // ФАЗА 2: Медленно "оседаем" под землю синхронно с тем, как складывается 3D-модель.
+      // Скорость 2.6 дает ровно ~0.7 секунд на приземление, что идеально совпадает со временем анимации!
+      playerGroup.position.y -= 2.6 * deltaTime;
+      if (playerGroup.position.y < crumpleTarget) {
+        playerGroup.position.y = crumpleTarget;
       }
     }
     return;
