@@ -8,98 +8,103 @@ let currentAction;
 let currentModelKey = null;
 
 export function initPlayer(scene) {
-    playerGroup = new THREE.Group();
-    playerGroup.position.set(CONFIG.lanes[1], CONFIG.playerYOffset, 0);
-    scene.add(playerGroup);
+  playerGroup = new THREE.Group();
+  playerGroup.position.set(CONFIG.lanes[1], CONFIG.playerYOffset, 0);
+  scene.add(playerGroup);
 
-    const dances = ['dance1', 'dance2'];
-    switchModel(dances[Math.floor(Math.random() * dances.length)]);
-
-    return playerGroup;
+  const dances = ['dance1', 'dance2'];
+  switchModel(dances[Math.floor(Math.random() * dances.length)]);
+  return playerGroup;
 }
 
 export function switchModel(modelKey) {
-    if (currentModelKey === modelKey) return;
+  if (currentModelKey === modelKey) return;
+  if (mixer) mixer.stopAllAction();
 
-    if (mixer) mixer.stopAllAction();
+  while(playerGroup.children.length > 0){
+    playerGroup.remove(playerGroup.children[0]);
+  }
 
-    while(playerGroup.children.length > 0){
-        playerGroup.remove(playerGroup.children[0]);
-    }
+  const gltf = loadedAssets.models[modelKey];
+  if (!gltf) return;
 
-    const gltf = loadedAssets.models[modelKey];
-    if (!gltf) return;
+  gltf.scene.scale.set(1, 1, 1);
+  gltf.scene.position.set(0, 0, 0);
+  
+  // Поворачиваем спиной вперед при беге, но лицом к нам при танце
+  if (modelKey.includes('dance')) {
+      gltf.scene.rotation.y = -Math.PI / 2; // Повернут в сторону
+  } else {
+      gltf.scene.rotation.y = Math.PI; 
+  }
 
-    gltf.scene.rotation.y = Math.PI; 
-    
-    gltf.scene.scale.set(1, 1, 1);
-    gltf.scene.position.set(0, 0, 0);
+  gltf.scene.updateMatrixWorld(true);
+
+  const box = new THREE.Box3().setFromObject(gltf.scene);
+  const size = box.getSize(new THREE.Vector3());
+  const maxDim = Math.max(size.x, size.y, size.z);
+
+  if (maxDim > 0) {
+    let scaleFactor = CONFIG.modelHeight / maxDim;
+    if (modelKey === 'jump') scaleFactor *= 1.2;
+
+    gltf.scene.scale.set(scaleFactor, scaleFactor, scaleFactor);
     gltf.scene.updateMatrixWorld(true);
 
-    const box = new THREE.Box3().setFromObject(gltf.scene);
-    const size = box.getSize(new THREE.Vector3());
+    const newBox = new THREE.Box3().setFromObject(gltf.scene);
+    gltf.scene.position.y = (0 - newBox.min.y); 
 
-    const maxDim = Math.max(size.x, size.y, size.z);
-
-    if (maxDim > 0) {
-        let scaleFactor = CONFIG.modelHeight / maxDim;
-        
-        if (modelKey === 'jump') scaleFactor *= 1.2; 
-        
-        gltf.scene.scale.set(scaleFactor, scaleFactor, scaleFactor);
-        gltf.scene.updateMatrixWorld(true);
-        
-        const newBox = new THREE.Box3().setFromObject(gltf.scene);
-        
-        gltf.scene.position.y = (0 - newBox.min.y);
-
-        // --- ФИКС ПРОВАЛИВАНИЯ ПОД АСФАЛЬТ ПРИ ПАДЕНИИ ---
-        if (modelKey === 'fall') {
-            gltf.scene.position.y += 0.8; // Приподнимаем модельку, чтобы она лежала на дороге
-        }
+    // Фикс падения и танцев, чтобы ноги/тело были строго на земле
+    if (modelKey === 'fall') {
+      gltf.scene.position.y += 0.2; 
     }
+  }
 
-    playerGroup.add(gltf.scene);
-    currentModelKey = modelKey;
+  playerGroup.add(gltf.scene);
+  currentModelKey = modelKey;
 
-    if (gltf.animations && gltf.animations.length > 0) {
-        mixer = new THREE.AnimationMixer(gltf.scene);
-        currentAction = mixer.clipAction(gltf.animations[0]);
+  if (gltf.animations && gltf.animations.length > 0) {
+    mixer = new THREE.AnimationMixer(gltf.scene);
+    currentAction = mixer.clipAction(gltf.animations[0]);
 
-        if (modelKey === 'fall' || modelKey === 'jump') {
-            currentAction.setLoop(THREE.LoopOnce);
-            currentAction.clampWhenFinished = true;
-        } else {
-            currentAction.setLoop(THREE.LoopRepeat);
-        }
-        currentAction.play();
+    if (modelKey === 'fall' || modelKey === 'jump') {
+      currentAction.setLoop(THREE.LoopOnce);
+      currentAction.clampWhenFinished = true;
+    } else {
+      currentAction.setLoop(THREE.LoopRepeat);
     }
+    currentAction.play();
+  }
 }
 
 export function updatePlayer(deltaTime) {
-    if (!playerGroup) return;
+  if (!playerGroup) return;
+  if (mixer) mixer.update(deltaTime);
 
-    if (mixer) mixer.update(deltaTime);
+  // В интро ставим Мела на край дороги
+  if (gameState.current === STATE.INTRO) {
+      playerGroup.position.x = CONFIG.roadWidth / 2 - 1.5;
+      playerGroup.position.y = CONFIG.playerYOffset;
+      return;
+  }
+  
+  if (gameState.current === STATE.DYING) return;
 
-    if (gameState.current === STATE.INTRO || gameState.current === STATE.DYING) return;
+  const lerpSpeed = 10;
+  playerGroup.position.x += (gameState.targetX - playerGroup.position.x) * lerpSpeed * deltaTime;
 
-    const lerpSpeed = 10;
-    playerGroup.position.x += (gameState.targetX - playerGroup.position.x) * lerpSpeed * deltaTime;
+  if (gameState.isJumping) {
+    gameState.velocityY += CONFIG.gravity;
+    playerGroup.position.y += gameState.velocityY;
 
-    if (gameState.isJumping) {
-        gameState.velocityY += CONFIG.gravity;
-        playerGroup.position.y += gameState.velocityY;
+    if (playerGroup.position.y <= CONFIG.playerYOffset) {
+      playerGroup.position.y = CONFIG.playerYOffset;
+      gameState.isJumping = false;
+      gameState.velocityY = 0;
 
-        if (playerGroup.position.y <= CONFIG.playerYOffset) {
-            playerGroup.position.y = CONFIG.playerYOffset;
-            gameState.isJumping = false;
-            gameState.velocityY = 0;
-
-            if (gameState.current === STATE.PLAYING) {
-                switchModel('run');
-            }
-        }
+      if (gameState.current === STATE.PLAYING) {
+        switchModel('run');
+      }
     }
+  }
 }
-
-
