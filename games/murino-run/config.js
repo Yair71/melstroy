@@ -18,8 +18,9 @@ export const CONFIG = {
   lanes: [-3, 0, 3],
 
   // Jump physics
-  gravity: -30,
-  jumpPower: 9.8,
+  // Peak is now around ~1.35m instead of crazy high
+  gravity: -24,
+  jumpPower: 8.1,
 
   // Game speed
   initialSpeed: 0.3,
@@ -35,13 +36,21 @@ export const CONFIG = {
   modelHeight: 4.5,
 
   // Collision tuning
-  smallBlockClearHeight: 1.05,
+  // Small block can now be cleared easier
+  smallBlockClearHeight: 0.95,
 
-  // Meteor
-  meteorSize: 2,
-  meteorSpawnYOffset: 28,
-  meteorFallSpeed: 36,
-  meteorImpactY: 1.05
+  // Visual model offsets
+  normalModelOffsetY: 0,
+  jumpModelOffsetY: 0,
+  // fall.glb was sinking into sidewalk, so lift it more
+  fallModelOffsetY: 0.55,
+
+  // Face video plane
+  faceVideoWidth: 1.05,
+  faceVideoHeight: 1.2,
+  faceVideoOffsetX: 0,
+  faceVideoOffsetY: 3.2,
+  faceVideoOffsetZ: 0.62
 };
 
 export const STATE = {
@@ -51,5 +60,3 @@ export const STATE = {
   PLAYING: 'PLAYING',
   DYING: 'DYING'
 };
-
-
