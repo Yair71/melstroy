@@ -139,7 +139,6 @@ export function spawnObstacle(zPos) {
   const laneIndex = Math.floor(Math.random() * 3);
   const xPos = CONFIG.lanes[laneIndex];
 
-  // Выбираем только между мелкими блоками, крупными и ямами
   const type = Math.random() < 0.7 ? (Math.random() < 0.5 ? 0 : 1) : 2;
 
   let mesh;
@@ -239,15 +238,18 @@ export function updateObstacles(playerGroup, deltaTime) {
     obs.position.z += moveSpeed;
 
     const zDistance = Math.abs(obs.position.z - playerGroup.position.z);
-    const collisionZ = 1.25;
+    
+    // ИСПРАВЛЕНИЕ: Сделали коллизию чуть "уже", чтобы можно было спасаться в последнюю секунду
+    const collisionZ = 1.15; // Было 1.25
 
     if (zDistance < collisionZ) {
       const xDistance = Math.abs(obs.position.x - playerGroup.position.x);
 
-      if (xDistance < 1.05) {
+      // ИСПРАВЛЕНИЕ: Даем игроку проскальзывать по бокам (было 1.05)
+      if (xDistance < 0.95) {
         if (obs.userData.isHole) {
           if (playerGroup.position.y < 0.55) {
-            triggerDeath();
+            triggerDeath(obs);
           }
         } else {
           const requiredHeight =
@@ -256,7 +258,7 @@ export function updateObstacles(playerGroup, deltaTime) {
               : obs.userData.blockHeight - 0.25;
 
           if (playerGroup.position.y < requiredHeight) {
-            triggerDeath();
+            triggerDeath(obs);
           }
         }
       }
@@ -315,9 +317,27 @@ export function updateObstacles(playerGroup, deltaTime) {
   }
 }
 
-function triggerDeath() {
+function triggerDeath(obstacle = null) {
+  if (gameState.current === STATE.DYING) return; // Защита от дублей
+
   gameState.current = STATE.DYING;
   switchModel('fall');
+
+  if (obstacle && !obstacle.userData.isHole) {
+    // Если игрок прыгал и зацепил верх крыши (не долетел) - он приземляется НА блок
+    if (playerGroup.position.y > obstacle.userData.blockHeight - 0.65) {
+      gameState.deathTargetY = obstacle.userData.blockHeight;
+    } else {
+      // Игрок жестко врезался лицом в блок: отскакивает от него как от камня назад (к камере)
+      gameState.deathTargetY = CONFIG.playerYOffset;
+      gameState.deathPushVelocity = 10; // Сила отскока
+    }
+  } else if (obstacle && obstacle.userData.isHole) {
+    // Проваливается в черную дыру
+    gameState.deathTargetY = -2.0; 
+  } else {
+    gameState.deathTargetY = CONFIG.playerYOffset;
+  }
 }
 
 export function resetObstacles() {
