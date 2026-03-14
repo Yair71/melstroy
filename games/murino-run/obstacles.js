@@ -5,35 +5,33 @@ import { switchModel } from './player.js';
 let sceneRef;
 export const activeObstacles = [];
 export const activeCoins = []; 
-export const activeCracks = []; // Массив для трещин/кратеров
+export const activeCracks = []; 
 
 export function initObstacles(scene) {
   sceneRef = scene;
 }
 
-// Создает трещину/кратер на асфальте
-export function spawnCrack(x, z) {
-  const group = new THREE.Group();
-  const mat = new THREE.MeshBasicMaterial({ color: 0x020202 });
-  
-  // Создаем эффект рваной трещины из 3-х пересекающихся плоскостей
-  for(let i=0; i<3; i++) {
-      const geo = new THREE.PlaneGeometry(1.5 + Math.random(), 0.3);
-      const mesh = new THREE.Mesh(geo, mat);
-      mesh.rotation.x = -Math.PI / 2;
-      mesh.rotation.z = Math.random() * Math.PI;
-      group.add(mesh);
-  }
-  
-  group.position.set(x, 0.02, z); // Чуть выше асфальта
-  sceneRef.add(group);
-  activeCracks.push(group);
+// КРАСИВЫЙ КРАТЕР ВМЕСТО КАРАКУЛЕЙ
+export function spawnCrater(x, z) {
+  // Ровный темный круг (ожог/вмятина) на асфальте
+  const geo = new THREE.CircleGeometry(1.6, 24);
+  const mat = new THREE.MeshBasicMaterial({ color: 0x030303, transparent: true, opacity: 0.85 });
+  const crater = new THREE.Mesh(geo, mat);
+  crater.rotation.x = -Math.PI / 2;
+  crater.position.set(x, 0.03, z); // Строго над асфальтом
+  sceneRef.add(crater);
+  activeCracks.push(crater);
 }
 
 export function spawnObstacle(zPos) {
   const laneIndex = Math.floor(Math.random() * 3);
   const xPos = CONFIG.lanes[laneIndex];
-  const type = Math.floor(Math.random() * 4); // Добавили 4-й тип (Метеорит)
+  
+  // Редкий спавн "Зерна" (шанс 10%)
+  const isSeed = Math.random() < 0.10;
+  let type;
+  if (isSeed) type = 3;
+  else type = Math.random() < 0.7 ? (Math.random() < 0.5 ? 0 : 1) : 2;
 
   let mesh;
   let isHole = false;
@@ -54,11 +52,12 @@ export function spawnObstacle(zPos) {
     mesh.position.set(xPos, 0.01, zPos);
   } else {
     isMeteor = true;
-    const geo = new THREE.DodecahedronGeometry(1.2, 0);
-    const mat = new THREE.MeshStandardMaterial({ color: 0xff4400, emissive: 0xaa0000 });
+    // ОГРОМНОЕ ЗЕРНО (2x2)
+    const geo = new THREE.IcosahedronGeometry(1.5, 1);
+    const mat = new THREE.MeshStandardMaterial({ color: 0x2b1d14, roughness: 0.9, flatShading: true });
     mesh = new THREE.Mesh(geo, mat);
-    // Метеорит спавнится высоко в небе, чуть позади своей Z-позиции
-    mesh.position.set(xPos, 30, zPos - 15); 
+    // Спавним высоко в небе, летит прямо в игрока
+    mesh.position.set(xPos, 40, zPos - 20); 
   }
 
   mesh.userData = { isHole, isMeteor, passed: false, landed: false };
@@ -91,31 +90,32 @@ export function updateObstacles(playerGroup, deltaTime) {
 
   const moveSpeed = gameState.speed * 60 * deltaTime;
 
-  // ОБНОВЛЕНИЕ ТРЕЩИН
+  // ОБНОВЛЕНИЕ КРАТЕРОВ
   for (let i = activeCracks.length - 1; i >= 0; i--) {
-      const crack = activeCracks[i];
-      crack.position.z += moveSpeed;
-      if (crack.position.z > 15) {
-          sceneRef.remove(crack);
-          crack.children.forEach(c => c.geometry.dispose());
+      const crater = activeCracks[i];
+      crater.position.z += moveSpeed;
+      if (crater.position.z > 15) {
+          sceneRef.remove(crater);
+          crater.geometry.dispose();
+          crater.material.dispose();
           activeCracks.splice(i, 1);
       }
   }
 
-  // ОБНОВЛЕНИЕ ПРЕПЯТСТВИЙ И МЕТЕОРИТОВ
+  // ОБНОВЛЕНИЕ ПРЕПЯТСТВИЙ И ЗЕРЕН
   for (let i = activeObstacles.length - 1; i >= 0; i--) {
     const obs = activeObstacles[i];
     obs.position.z += moveSpeed;
 
-    // Падение метеорита
+    // Падение огромного зерна
     if (obs.userData.isMeteor) {
-        if (obs.position.y > 1.2) {
-            obs.position.y -= 40 * deltaTime; // Быстро падает
+        if (obs.position.y > 1.5) {
+            obs.position.y -= 60 * deltaTime; // Летит как пуля
             obs.rotation.x += 10 * deltaTime;
         } else if (!obs.userData.landed) {
-            obs.position.y = 1.2;
+            obs.position.y = 1.5; // Ложится на землю
             obs.userData.landed = true;
-            spawnCrack(obs.position.x, obs.position.z); // Оставляет кратер при ударе!
+            spawnCrater(obs.position.x, obs.position.z); // Бабах! Кратер
         }
     }
 
@@ -126,7 +126,7 @@ export function updateObstacles(playerGroup, deltaTime) {
         if (obs.userData.isHole) {
           if (playerGroup.position.y < 0.5) triggerDeath();
         } else if (obs.userData.isMeteor) {
-          if (playerGroup.position.y < 2.0) triggerDeath();
+          if (playerGroup.position.y < 3.0) triggerDeath(); // Зерно высокое
         } else {
           const blockHeight = obs.geometry.parameters.height;
           if (playerGroup.position.y < blockHeight - 0.2) triggerDeath();
@@ -147,12 +147,11 @@ export function updateObstacles(playerGroup, deltaTime) {
     }
   }
 
-  // ОБНОВЛЕНИЕ МОНЕТ С АНИМАЦИЕЙ
+  // ОБНОВЛЕНИЕ МОНЕТ С АНИМАЦИЕЙ (Оставлено как просил)
   for (let i = activeCoins.length - 1; i >= 0; i--) {
       const coin = activeCoins[i];
 
       if (coin.userData.collected) {
-          // Анимация поднятия: летит вверх и уменьшается
           coin.position.y += 10 * deltaTime;
           coin.scale.setScalar(Math.max(0, coin.scale.x - 5 * deltaTime));
           coin.rotation.z += 20 * deltaTime;
@@ -163,7 +162,7 @@ export function updateObstacles(playerGroup, deltaTime) {
               coin.material.dispose();
               activeCoins.splice(i, 1);
           }
-          continue; // Если собрана, пропускаем логику столкновений
+          continue; 
       }
 
       coin.position.z += moveSpeed;
@@ -173,10 +172,9 @@ export function updateObstacles(playerGroup, deltaTime) {
       const xDist = Math.abs(coin.position.x - playerGroup.position.x);
       const yDist = Math.abs(coin.position.y - playerGroup.position.y);
 
-      // Сбор монеты
       if (zDist < 1.5 && xDist < 1.5 && yDist < 2) {
           gameState.coins += 1;
-          coin.userData.collected = true; // Запускает анимацию
+          coin.userData.collected = true; 
       }
 
       if (coin.position.z > 15) {
@@ -215,9 +213,10 @@ export function resetObstacles() {
   }
   activeCoins.length = 0;
 
-  for (let crack of activeCracks) {
-    sceneRef.remove(crack);
-    crack.children.forEach(c => c.geometry.dispose());
+  for (let crater of activeCracks) {
+    sceneRef.remove(crater);
+    crater.geometry.dispose();
+    crater.material.dispose();
   }
   activeCracks.length = 0;
 }
