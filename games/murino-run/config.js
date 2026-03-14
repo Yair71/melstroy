@@ -16,15 +16,32 @@ export const ASSETS = {
 
 export const CONFIG = {
   lanes: [-3, 0, 3],
-  gravity: -0.018,       // Сильная гравитация тянет быстро вниз
-  jumpPower: 0.22,       // Слабый толчок — высота прыжка идеальна для 1 блока
+
+  // Jump physics
+  gravity: -30,
+  jumpPower: 9.8,
+
+  // Game speed
   initialSpeed: 0.3,
   speedMultiplier: 0.0001,
+
+  // World
   roadWidth: 12,
   roadLen: 120,
   roadCount: 6,
+
+  // Player
   playerYOffset: 0,
-  modelHeight: 4.5
+  modelHeight: 4.5,
+
+  // Collision tuning
+  smallBlockClearHeight: 1.05,
+
+  // Meteor
+  meteorSize: 2,
+  meteorSpawnYOffset: 28,
+  meteorFallSpeed: 36,
+  meteorImpactY: 1.05
 };
 
 export const STATE = {
@@ -34,5 +51,3 @@ export const STATE = {
   PLAYING: 'PLAYING',
   DYING: 'DYING'
 };
-
-
