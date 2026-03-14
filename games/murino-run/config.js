@@ -17,7 +17,7 @@ export const ASSETS = {
 export const CONFIG = {
     lanes: [-3, 0, 3],
     gravity: -0.025,         // Ускорили падение (было -0.015)
-    jumpPower: 0.35,         // Резкий прыжок вверх
+    jumpPower: 0.20,         // Резкий прыжок вверх
     initialSpeed: 0.3,
     speedMultiplier: 0.0001,
     roadWidth: 12,
@@ -31,10 +31,10 @@ export const CONFIG = {
     // РУЧНОЙ МНОЖИТЕЛЬ РАЗМЕРА ДЛЯ КРИВЫХ МОДЕЛЕЙ ИЗ БЛЕНДЕРА
     animScales: {
         run: 1.0,
-        jump: 3.0,           // Оставил твои настройки
+        jump: 2.5,           // Оставил твои настройки
         fall: 3.0,
-        dance1: 2.0,
-        dance2: 2.0
+        dance1: 1.5,
+        dance2: 1.5
     }
 };
 
