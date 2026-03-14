@@ -17,7 +17,7 @@ export const ASSETS = {
 export const CONFIG = {
     lanes: [-3, 0, 3],
     gravity: -0.015,
-    jumpPower: 0.29,         // Ровно для перепрыгивания 1 блока
+    jumpPower: 0.25,         // Ровно для перепрыгивания 1 блока
     initialSpeed: 0.3,
     speedMultiplier: 0.0001,
     roadWidth: 12,
@@ -26,7 +26,7 @@ export const CONFIG = {
     playerYOffset: 0,
     
     // --- БАЗОВЫЙ КРУПНЫЙ РОСТ МЕЛСТРОЯ ---
-    modelScale: 0.1,         
+    modelScale: 0.2,         
 
     // --- РУЧНОЙ МНОЖИТЕЛЬ РАЗМЕРА ДЛЯ КРИВЫХ МОДЕЛЕЙ ---
     animScales: {
