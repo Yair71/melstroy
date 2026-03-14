@@ -52,7 +52,6 @@ export function switchModel(modelKey) {
     const newBox = new THREE.Box3().setFromObject(gltf.scene);
     gltf.scene.position.y = 0 - newBox.min.y;
 
-    // Немного приподнимаем модель при падении, чтобы точно не цепляла текстуры
     if (modelKey === 'fall') {
       gltf.scene.position.y += 0.3;
     }
@@ -64,8 +63,6 @@ export function switchModel(modelKey) {
   if (gltf.animations && gltf.animations.length > 0) {
     const clip = gltf.animations[0];
 
-    // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ ROOT MOTION:
-    // Отрезаем треки позиции и для прыжка, и для падения.
     if (modelKey === 'jump' || modelKey === 'fall') {
       clip.tracks = clip.tracks.filter(track => !track.name.toLowerCase().includes('position'));
     }
@@ -84,6 +81,12 @@ export function switchModel(modelKey) {
   }
 }
 
+export function setPlayerVisibility(isVisible) {
+  if (playerGroup) {
+    playerGroup.visible = isVisible;
+  }
+}
+
 export function updatePlayer(deltaTime) {
   if (!playerGroup) return;
   if (mixer) mixer.update(deltaTime);
@@ -91,42 +94,53 @@ export function updatePlayer(deltaTime) {
   if (gameState.current === STATE.INTRO) {
     playerGroup.position.x = CONFIG.roadWidth / 2 - 1.5;
     playerGroup.position.y = CONFIG.playerYOffset;
+    playerGroup.position.z = 0; // Строго сбрасываем позицию
     return;
   }
 
-  // Если персонаж умирает, добавляем физику падения тела на землю, чтобы он не зависал в воздухе
+  // --- НОВАЯ ФИЗИКА СМЕРТИ ---
   if (gameState.current === STATE.DYING) {
-    if (playerGroup.position.y > CONFIG.playerYOffset) {
-      playerGroup.position.y -= 12 * deltaTime; // Тело падает вниз
-      if (playerGroup.position.y < CONFIG.playerYOffset) {
-        playerGroup.position.y = CONFIG.playerYOffset;
+    // 1. Отскок от каменного блока (летит назад к камере)
+    if (gameState.deathPushVelocity > 0) {
+      playerGroup.position.z += gameState.deathPushVelocity * deltaTime;
+      gameState.deathPushVelocity -= 20 * deltaTime; // Трение воздуха, замедление отскока
+      if (gameState.deathPushVelocity < 0) gameState.deathPushVelocity = 0;
+    }
+
+    // 2. Падение до нужного таргета (пол, яма или крыша блока)
+    if (playerGroup.position.y > gameState.deathTargetY) {
+      playerGroup.position.y -= 15 * deltaTime;
+      if (playerGroup.position.y < gameState.deathTargetY) {
+        playerGroup.position.y = gameState.deathTargetY;
       }
+    } else if (playerGroup.position.y < gameState.deathTargetY && gameState.deathTargetY >= 0) {
+      // Если игрок был чуть ниже крыши - моментально "сажаем" его на нее
+      playerGroup.position.y = gameState.deathTargetY;
     }
     return;
   }
 
+  // Во время игры Z всегда строго 0
+  playerGroup.position.z = 0;
+
   const lerpSpeed = 10;
   playerGroup.position.x += (gameState.targetX - playerGroup.position.x) * lerpSpeed * deltaTime;
 
-  // Точный контроль высоты математикой для прыжка
   if (gameState.isJumping) {
     gameState.jumpTimer += deltaTime;
     const progress = gameState.jumpTimer / CONFIG.jumpDuration;
 
     if (progress >= 1.0) {
-      // Игрок приземлился
       playerGroup.position.y = CONFIG.playerYOffset;
       gameState.isJumping = false;
       gameState.jumpTimer = 0;
 
-      // Оставляем трещину при приземлении
       spawnCrater(playerGroup.position.x, playerGroup.position.z, 1.0, false);
 
       if (gameState.current === STATE.PLAYING) {
         switchModel('run');
       }
     } else {
-      // Идеальная дуга на точно заданную высоту Y
       playerGroup.position.y = CONFIG.playerYOffset + Math.sin(progress * Math.PI) * CONFIG.jumpHeight;
     }
   } else {
