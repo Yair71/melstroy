@@ -11,8 +11,8 @@ export function initObstacles(scene) {
   sceneRef = scene;
 }
 
-// ─── CRACK PATTERN on landing ───────────────────────────────────────────────
-// Creates jagged crack lines radiating outward like the character is heavy
+
+
 export function spawnCrater(x, z) {
   const crackGroup = new THREE.Group();
   crackGroup.position.set(x, 0.04, z);
@@ -24,10 +24,10 @@ export function spawnCrater(x, z) {
     const baseAngle = (r / numRays) * Math.PI * 2;
     const angle = baseAngle + (Math.random() - 0.5) * 0.4;
 
-    // Each ray has 3–4 segments that zigzag
+ 
     const segments = 3 + Math.floor(Math.random() * 2);
     let cx = 0, cz = 0;
-    const maxLen = 1.0 + Math.random() * 0.8; // ray total length
+    const maxLen = 1.0 + Math.random() * 0.8; 
 
     for (let s = 0; s < segments; s++) {
       const frac = (s + 1) / segments;
@@ -38,7 +38,7 @@ export function spawnCrater(x, z) {
       points.push(cx, 0, cz);
       points.push(nx, 0, nz);
 
-      // Occasionally spawn a short branch off the ray
+ 
       if (s === 1 && Math.random() > 0.5) {
         const branchAngle = angle + (Math.random() - 0.5) * 0.9;
         const branchLen = maxLen * 0.35;
@@ -65,7 +65,7 @@ export function spawnCrater(x, z) {
   lines.rotation.x = -Math.PI / 2;
   crackGroup.add(lines);
 
-  // Dark center burn mark (small, subtle)
+
   const burnGeo = new THREE.CircleGeometry(0.22, 12);
   const burnMat = new THREE.MeshBasicMaterial({ color: 0x050505, transparent: true, opacity: 0.9 });
   const burn = new THREE.Mesh(burnGeo, burnMat);
@@ -76,19 +76,19 @@ export function spawnCrater(x, z) {
   activeCracks.push(crackGroup);
 }
 
-// ─── METEOR IMPACT CRATER (bigger, with shockwave ring) ─────────────────────
+
 function spawnMeteorCrater(x, z) {
   const group = new THREE.Group();
   group.position.set(x, 0.05, z);
 
-  // Dark scorched ground disc
+ 
   const discGeo = new THREE.CircleGeometry(2.2, 32);
   const discMat = new THREE.MeshBasicMaterial({ color: 0x080808, transparent: true, opacity: 0.92 });
   const disc = new THREE.Mesh(discGeo, discMat);
   disc.rotation.x = -Math.PI / 2;
   group.add(disc);
 
-  // Radiating cracks (more dramatic than player cracks)
+  
   const numRays = 14;
   const points = [];
   for (let r = 0; r < numRays; r++) {
@@ -120,7 +120,7 @@ function spawnMeteorCrater(x, z) {
   sceneRef.add(group);
   activeCracks.push(group);
 
-  // Shockwave ring — expands outward then fades
+ 
   spawnShockwave(x, z);
 }
 
@@ -133,14 +133,14 @@ function spawnShockwave(x, z) {
   ring.position.set(x, 0.06, z);
   ring.userData = { isShockwave: true, age: 0 };
   sceneRef.add(ring);
-  activeCracks.push(ring); // reuse array so it gets moved with world
+  activeCracks.push(ring); 
 }
 
 export function spawnObstacle(zPos) {
   const laneIndex = Math.floor(Math.random() * 3);
   const xPos = CONFIG.lanes[laneIndex];
 
-  // 10% chance meteor
+  
   const isSeed = Math.random() < 0.10;
   let type;
   if (isSeed) type = 3;
@@ -166,13 +166,11 @@ export function spawnObstacle(zPos) {
     mesh.position.set(xPos, 0.01, zPos);
 
   } else {
-    // ─── METEOR ────────────────────────────────────────────────────────────
+  
     isMeteor = true;
 
-    // Larger icosahedron — visually 2×2 footprint
+  
     const geo = new THREE.IcosahedronGeometry(2.0, 2);
-
-    // Dark rocky material with flat shading for faceted look
     const mat = new THREE.MeshStandardMaterial({
       color: 0x1a0f0a,
       roughness: 1.0,
@@ -181,14 +179,14 @@ export function spawnObstacle(zPos) {
     });
     mesh = new THREE.Mesh(geo, mat);
 
-    // Start FAR above — will fall into view dramatically
+  
     mesh.position.set(xPos, 120, zPos - 30);
 
-    // Give it a random spin axis for organic tumbling
+  
     mesh.userData.spinX = (Math.random() - 0.5) * 8;
     mesh.userData.spinZ = (Math.random() - 0.5) * 4;
 
-    // Attach a glowing orange point-light so it lights up the ground as it falls
+  
     const meteorLight = new THREE.PointLight(0xff4400, 3, 20);
     mesh.add(meteorLight);
   }
@@ -223,14 +221,14 @@ export function updateObstacles(playerGroup, deltaTime) {
 
   const moveSpeed = gameState.speed * 60 * deltaTime;
 
-  // ─── CRACKS / SHOCKWAVES ──────────────────────────────────────────────────
+
   for (let i = activeCracks.length - 1; i >= 0; i--) {
     const obj = activeCracks[i];
 
     if (obj.userData.isShockwave) {
       obj.userData.age += deltaTime;
       const t = obj.userData.age;
-      const scale = 1 + t * 9;          // expands fast
+      const scale = 1 + t * 9;         
       obj.scale.set(scale, scale, scale);
       obj.material.opacity = Math.max(0, 0.85 - t * 2.5);
       if (obj.material.opacity <= 0) {
@@ -247,7 +245,7 @@ export function updateObstacles(playerGroup, deltaTime) {
       sceneRef.remove(obj);
       if (obj.geometry) obj.geometry.dispose();
       if (obj.material) obj.material.dispose();
-      // for groups, dispose children
+
       obj.traverse && obj.traverse(child => {
         if (child.geometry) child.geometry.dispose();
         if (child.material) child.material.dispose();
@@ -256,42 +254,34 @@ export function updateObstacles(playerGroup, deltaTime) {
     }
   }
 
-  // ─── OBSTACLES & METEOR ───────────────────────────────────────────────────
   for (let i = activeObstacles.length - 1; i >= 0; i--) {
     const obs = activeObstacles[i];
     obs.position.z += moveSpeed;
 
     if (obs.userData.isMeteor) {
       if (!obs.userData.landed) {
-        // Accelerating fall (simulate gravity) — starts slow, ends very fast
         if (!obs.userData.fallVelocity) obs.userData.fallVelocity = 5;
         obs.userData.fallVelocity += 80 * deltaTime; // acceleration
 
         obs.position.y -= obs.userData.fallVelocity * deltaTime;
 
-        // Tumble while falling
         obs.rotation.x += (obs.userData.spinX || 5) * deltaTime;
         obs.rotation.z += (obs.userData.spinZ || 2) * deltaTime;
 
-        // Impact! land at y = 2.0 (radius of meteor)
         if (obs.position.y <= 2.0) {
           obs.position.y = 2.0;
           obs.userData.landed = true;
 
-          // Remove the glow light on landing
           obs.children.forEach(child => {
             if (child.isLight) obs.remove(child);
           });
 
-          // Spawn dramatic impact crater + shockwave
           spawnMeteorCrater(obs.position.x, obs.position.z);
 
-          // Camera shake simulation: briefly shift the obstacle violently (visual punch)
           obs.userData.shakeTimer = 0.18;
           obs.userData.shakeOriginX = obs.position.x;
         }
       } else {
-        // Landed — do a short settle shake
         if (obs.userData.shakeTimer > 0) {
           obs.userData.shakeTimer -= deltaTime;
           obs.position.x = obs.userData.shakeOriginX + (Math.random() - 0.5) * 0.3;
@@ -301,7 +291,6 @@ export function updateObstacles(playerGroup, deltaTime) {
       }
     }
 
-    // ─── Collision ─────────────────────────────────────────────────────────
     const zDistance = Math.abs(obs.position.z - playerGroup.position.z);
     if (zDistance < 1.5) {
       const xDistance = Math.abs(obs.position.x - playerGroup.position.x);
@@ -309,7 +298,6 @@ export function updateObstacles(playerGroup, deltaTime) {
         if (obs.userData.isHole) {
           if (playerGroup.position.y < 0.5) triggerDeath();
         } else if (obs.userData.isMeteor) {
-          // Meteor radius is 2.0, player must jump OVER it (y > 2.2 to clear)
           if (playerGroup.position.y < 2.2) triggerDeath();
         } else {
           const blockHeight = obs.geometry.parameters.height;
@@ -331,7 +319,6 @@ export function updateObstacles(playerGroup, deltaTime) {
     }
   }
 
-  // ─── COINS ────────────────────────────────────────────────────────────────
   for (let i = activeCoins.length - 1; i >= 0; i--) {
     const coin = activeCoins[i];
 
@@ -368,7 +355,6 @@ export function updateObstacles(playerGroup, deltaTime) {
     }
   }
 
-  // ─── SPAWN TIMER ──────────────────────────────────────────────────────────
   gameState.spawnTimer -= deltaTime;
   if (gameState.spawnTimer <= 0) {
     spawnObstacle(-80 - Math.random() * 40);
