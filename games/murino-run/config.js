@@ -16,10 +16,8 @@ export const ASSETS = {
 
 export const CONFIG = {
   lanes: [-3, 0, 3],
-  // Peak height = jumpPower² / (2 * |gravity|) = 0.18² / 0.028 ≈ 1.16 units (feet)
-  // Collision threshold on small block is 1.1 so player JUST clears it
-  gravity: -0.028,
-  jumpPower: 0.185,
+  gravity: -0.018,       // Сильная гравитация тянет быстро вниз
+  jumpPower: 0.22,       // Слабый толчок — высота прыжка идеальна для 1 блока
   initialSpeed: 0.3,
   speedMultiplier: 0.0001,
   roadWidth: 12,
@@ -36,3 +34,5 @@ export const STATE = {
   PLAYING: 'PLAYING',
   DYING: 'DYING'
 };
+
+
