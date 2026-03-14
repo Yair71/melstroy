@@ -32,14 +32,15 @@ export function switchModel(modelKey) {
 
     gltf.scene.rotation.y = Math.PI; 
     
-    // --- ПРИМЕНЯЕМ ИНДИВИДУАЛЬНЫЙ РАЗМЕР ИЗ КОНФИГА ---
-    const customScale = CONFIG.animScales[modelKey] || 1.0;
-    const finalScale = CONFIG.baseScale * customScale;
+    // --- ЖЕЛЕЗОБЕТОННЫЙ РАЗМЕР ИЗ КОНФИГА (Без умных вычислений) ---
+    const baseScale = CONFIG.modelScale || 0.08;
+    const customScale = CONFIG.animScales ? (CONFIG.animScales[modelKey] || 1.0) : 1.0;
+    const finalScale = baseScale * customScale;
     
     gltf.scene.scale.set(finalScale, finalScale, finalScale);
     
     // Применяем отступ от асфальта
-    const yOffset = CONFIG.animOffsets[modelKey] || 0;
+    const yOffset = CONFIG.animOffsets ? (CONFIG.animOffsets[modelKey] || 0) : 0;
     gltf.scene.position.set(0, yOffset, 0);
 
     playerGroup.add(gltf.scene);
