@@ -16,8 +16,8 @@ export const ASSETS = {
 
 export const CONFIG = {
   lanes: [-3, 0, 3],
-  gravity: -0.007,
-  jumpPower: 0.14,       // Прыжок стал ниже (едва перепрыгивает один блок)
+  gravity: -0.018,       // Сильная гравитация тянет быстро вниз
+  jumpPower: 0.22,       // Слабый толчок — высота прыжка идеальна для 1 блока
   initialSpeed: 0.3,
   speedMultiplier: 0.0001,
   roadWidth: 12,
