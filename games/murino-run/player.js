@@ -1,7 +1,7 @@
 import { CONFIG, STATE } from './config.js';
 import { gameState } from './gameState.js';
 import { loadedAssets } from './assets.js';
-import { spawnCrack } from './obstacles.js'; // <-- ИМПОРТ
+import { spawnCrater } from './obstacles.js'; // <-- ИМПОРТИРУЕМ КРАТЕР
 
 export let playerGroup;
 let mixer;
@@ -82,7 +82,7 @@ export function updatePlayer(deltaTime) {
 
   if (gameState.current === STATE.INTRO) {
       playerGroup.position.x = CONFIG.roadWidth / 2 - 1.5;
-      playerGroup.position.y = CONFIG.playerYOffset;
+      playerGroup.position.y = CONFIG.playerYOffset; // Жестко стоит на земле
       return;
   }
   
@@ -91,21 +91,25 @@ export function updatePlayer(deltaTime) {
   const lerpSpeed = 10;
   playerGroup.position.x += (gameState.targetX - playerGroup.position.x) * lerpSpeed * deltaTime;
 
+  // ЛОГИКА ПРЫЖКА С ЖЕСТКОЙ ЗАЩИТОЙ ОТ ПРОВАЛИВАНИЯ
   if (gameState.isJumping) {
     gameState.velocityY += CONFIG.gravity;
     playerGroup.position.y += gameState.velocityY;
 
     if (playerGroup.position.y <= CONFIG.playerYOffset) {
-      playerGroup.position.y = CONFIG.playerYOffset;
+      playerGroup.position.y = CONFIG.playerYOffset; // Намертво блокируем падение под текстуры
       gameState.isJumping = false;
       gameState.velocityY = 0;
       
-      // ВОТ ОНО: СПАВНИМ ТРЕЩИНУ ПРИ ПРИЗЕМЛЕНИИ!
-      spawnCrack(playerGroup.position.x, playerGroup.position.z);
+      // СПАВНИМ КРАСИВЫЙ КРАТЕР
+      spawnCrater(playerGroup.position.x, playerGroup.position.z);
 
       if (gameState.current === STATE.PLAYING) {
         switchModel('run');
       }
     }
+  } else {
+    // Если не прыгаем, гарантированно держим на земле
+    playerGroup.position.y = CONFIG.playerYOffset;
   }
 }
