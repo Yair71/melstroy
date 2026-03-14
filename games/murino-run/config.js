@@ -18,8 +18,8 @@ export const CONFIG = {
   lanes: [-3, 0, 3],
 
   // Jump physics
-  gravity: -40,
-  jumpPower: 4,
+  gravity: -30,
+  jumpPower: 9.8,
 
   // Game speed
   initialSpeed: 0.3,
@@ -51,3 +51,5 @@ export const STATE = {
   PLAYING: 'PLAYING',
   DYING: 'DYING'
 };
+
+
