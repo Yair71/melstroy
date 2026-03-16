@@ -1,39 +1,52 @@
 // games/stream-thief/config.js
 
-export const CONFIG = {
-    canvasWidth: 800,
-    canvasHeight: 600,
-    
-    // Hand movement speeds (progress per frame)
-    handExtendSpeed: 0.8, 
-    handRetractSpeed: 2.5, // Retracts faster than extending
-    
-    // Loot list: from cheapest to most expensive
-    loot: [
-        { id: "coins", name: "Мелочь (Coins)", score: 50, requiredProgress: 100 },
-        { id: "energy_drink", name: "Энергетик (Energy Drink)", score: 150, requiredProgress: 120 },
-        { id: "watch", name: "Часы (Rolex)", score: 500, requiredProgress: 150 },
-        { id: "phone", name: "Телефон (Phone)", score: 1000, requiredProgress: 180 },
-        { id: "laptop", name: "Ноутбук (MacBook)", score: 5000, requiredProgress: 250 },
-        { id: "crypto_wallet", name: "Криптокошелек (Ledger)", score: 20000, requiredProgress: 350 }
-    ],
-    
-    // Streamer AI timings (in frames, assuming ~60fps)
-    streamer: {
-        sleepMin: 120, // Min time sleeping
-        sleepMax: 300, // Max time sleeping
-        warningTime: 40, // How long he tosses and turns before opening eyes
-        awakeMin: 60,
-        awakeMax: 120
+export const ASSETS = {
+    models: {
+        hand: './assets/hand.glb',       // Моделька руки
+        streamer: './assets/mel.glb',    // Моделька Мела (с анимациями сна и пробуждения)
+        room: './assets/room.glb',       // Стол и фон
+        loot: './assets/items.glb'       // Все предметы в одном файле или по отдельности
     },
+    textures: {
+        // Текстуры, если нужны отдельно
+    },
+    video: './assets/meme_caught.webm'   // Мемный видос на проигрыш
+};
+
+export const CONFIG = {
+    // Настройки Руки (Вора)
+    handExtendSpeed: 5.0,   // Скорость, с которой рука тянется к столу
+    handRetractSpeed: 15.0, // Скорость возврата (очень быстрая, чтобы успеть спрятать)
+    handBaseZ: 10,          // Стартовая позиция руки (спрятана за камерой)
     
-    // WebM Meme Events (Instant wake up)
-    events: {
-        chancePerFrame: 0.0015, // Low chance per frame to trigger instant event
-        types: [
-            { id: "DONATE", videoUrl: "assets/webm/donate.webm" },
-            { id: "PHONE_RING", videoUrl: "assets/webm/phone.webm" },
-            { id: "CAT_JUMP", videoUrl: "assets/webm/cat.webm" }
-        ]
-    }
+    // Настройки Стримера
+    streamer: {
+        sleepMin: 2.0,      // Минимальное время глубокого сна (в секундах)
+        sleepMax: 5.0,      // Максимальное время сна
+        warningTime: 1.0,   // Сколько секунд ворочается (дает шанс убрать руку)
+        awakeTime: 2.0      // Сколько секунд пялится на стол
+    },
+
+    // Лут на столе (zPos - как далеко тянуться)
+    lootItems: [
+        { id: 'coins', score: 50, zPos: 5 },
+        { id: 'drink', score: 150, zPos: 3 },
+        { id: 'phone', score: 500, zPos: 0 },
+        { id: 'laptop', score: 2000, zPos: -3 }
+    ]
+};
+
+export const STATE = {
+    LOADING: 'LOADING',
+    INTRO: 'INTRO',
+    PLAYING: 'PLAYING',
+    CAUGHT: 'CAUGHT',       // Замена DYING из murino-run
+    WIN: 'WIN'              // Если украл всё
+};
+
+// Фазы стримера
+export const STREAMER_STATE = {
+    SLEEPING: 'SLEEPING',
+    WARNING: 'WARNING',
+    AWAKE: 'AWAKE'
 };
