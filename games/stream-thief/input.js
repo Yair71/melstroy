@@ -1,6 +1,6 @@
 // games/stream-thief/input.js
 import { STATE } from './config.js';
-import { gameState } from './gameState.js';
+import { gameState, THIEF_PHASE } from './gameState.js';
 
 let inputListenersBound = false;
 
@@ -8,14 +8,24 @@ export function initInput() {
     if (inputListenersBound) return;
 
     const handleDown = (e) => {
-        // Prevent default scrolling on mobile, but only for our game keys/touches
         if (e.code === 'Space' || e.type === 'touchstart') {
             if (e.code === 'Space') e.preventDefault();
 
             if (gameState.current === STATE.INTRO) {
                 gameState.current = STATE.PLAYING;
             } else if (gameState.current === STATE.PLAYING) {
-                gameState.isHolding = true;
+                
+                // Логика фаз клешни
+                if (gameState.thiefPhase === THIEF_PHASE.AIM_X) {
+                    gameState.thiefPhase = THIEF_PHASE.AIM_Y; // Фиксируем X, начинаем Y
+                } 
+                else if (gameState.thiefPhase === THIEF_PHASE.AIM_Y) {
+                    gameState.thiefPhase = THIEF_PHASE.STEAL_Z; // Фиксируем Y, переходим к стелсу
+                    gameState.isHolding = true; // Сразу начинаем тянуть
+                }
+                else if (gameState.thiefPhase === THIEF_PHASE.STEAL_Z) {
+                    gameState.isHolding = true; // Зажимаем для кражи (Murder стайл)
+                }
             }
         }
     };
@@ -23,15 +33,16 @@ export function initInput() {
     const handleUp = (e) => {
         if (e.code === 'Space' || e.type === 'touchend' || e.type === 'touchcancel') {
             if (e.code === 'Space') e.preventDefault();
-            gameState.isHolding = false;
+            
+            if (gameState.thiefPhase === THIEF_PHASE.STEAL_Z) {
+                gameState.isHolding = false; // Отпустили - рука прячется
+            }
         }
     };
 
-    // Keyboard
     window.addEventListener('keydown', handleDown, { passive: false });
     window.addEventListener('keyup', handleUp);
     
-    // Touch (bind to the game container to avoid breaking the lobby UI)
     const gameMount = document.getElementById('gameMount') || document.body;
     gameMount.addEventListener('touchstart', handleDown, { passive: false });
     gameMount.addEventListener('touchend', handleUp);
