@@ -15,16 +15,18 @@ export function initInput() {
                 gameState.current = STATE.PLAYING;
             } else if (gameState.current === STATE.PLAYING) {
                 
-                // Логика фаз клешни
+                // 1. Останавливаем X
                 if (gameState.thiefPhase === THIEF_PHASE.AIM_X) {
-                    gameState.thiefPhase = THIEF_PHASE.AIM_Y; // Фиксируем X, начинаем Y
+                    gameState.thiefPhase = THIEF_PHASE.AIM_Y; 
                 } 
+                // 2. Останавливаем Y (рука замирает)
                 else if (gameState.thiefPhase === THIEF_PHASE.AIM_Y) {
-                    gameState.thiefPhase = THIEF_PHASE.STEAL_Z; // Фиксируем Y, переходим к стелсу
-                    gameState.isHolding = true; // Сразу начинаем тянуть
+                    gameState.thiefPhase = THIEF_PHASE.READY_Z; 
                 }
-                else if (gameState.thiefPhase === THIEF_PHASE.STEAL_Z) {
-                    gameState.isHolding = true; // Зажимаем для кражи (Murder стайл)
+                // 3. Зажимаем для стелса по Z
+                else if (gameState.thiefPhase === THIEF_PHASE.READY_Z || gameState.thiefPhase === THIEF_PHASE.STEAL_Z) {
+                    gameState.thiefPhase = THIEF_PHASE.STEAL_Z;
+                    gameState.isHolding = true; 
                 }
             }
         }
@@ -34,8 +36,10 @@ export function initInput() {
         if (e.code === 'Space' || e.type === 'touchend' || e.type === 'touchcancel') {
             if (e.code === 'Space') e.preventDefault();
             
+            // Если отпустили во время кражи -> срочно прячем руку
             if (gameState.thiefPhase === THIEF_PHASE.STEAL_Z) {
-                gameState.isHolding = false; // Отпустили - рука прячется
+                gameState.isHolding = false; 
+                gameState.thiefPhase = THIEF_PHASE.RETURNING; // Переключаем на возврат
             }
         }
     };
