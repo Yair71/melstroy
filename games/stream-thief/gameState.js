@@ -4,8 +4,9 @@ import { STATE, STREAMER_STATE, CONFIG } from './config.js';
 export const THIEF_PHASE = {
     AIM_X: 'AIM_X',
     AIM_Y: 'AIM_Y',
+    READY_Z: 'READY_Z',    // НОВОЕ: Рука зафиксирована и ждет зажатия пробела
     STEAL_Z: 'STEAL_Z',
-    RETURNING: 'RETURNING' // Когда успешно украл и рука сама едет назад
+    RETURNING: 'RETURNING' 
 };
 
 export const gameState = {
@@ -13,20 +14,16 @@ export const gameState = {
     score: 0,
     coins: 0,
     
-    // Состояние игрока (Руки)
     thiefPhase: THIEF_PHASE.AIM_X,
     isHolding: false,        
     
-    // Координаты руки
     handX: 0,
-    handY: 2,
+    handY: 4,
     handZ: CONFIG.handBaseZ, 
     
-    // Направления для авто-движения прицела
     aimDirX: 1, 
     aimDirY: 1,
     
-    // Состояние стримера (Мела)
     streamerState: STREAMER_STATE.SLEEPING,
     streamerTimer: 0,        
     
@@ -39,7 +36,7 @@ export const gameState = {
         this.isHolding = false;
         
         this.handX = 0;
-        this.handY = 4; // Начинаем повыше
+        this.handY = 4; 
         this.handZ = CONFIG.handBaseZ;
         
         this.aimDirX = 1;
