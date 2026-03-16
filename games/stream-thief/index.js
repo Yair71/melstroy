@@ -1,6 +1,8 @@
 // games/stream-thief/index.js
 import { initInput } from './input.js';
 import { initThief, updateThief } from './thief.js';
+import { initWorld } from './world.js'; // Подключили мир
+import { initLoot } from './loot.js';   // Подключили лут
 import { gameState } from './gameState.js';
 import { STATE } from './config.js';
 
@@ -12,39 +14,36 @@ export function createGame(root, api) {
     window.mellApi = api;
 
     function init3D() {
-        // Если root имеет нулевую высоту (бывает при загрузке), ставим дефолт
         const width = root.clientWidth || 800;
         const height = root.clientHeight || 400;
 
         scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x222233); // Сделал фон синеватым для теста
+        scene.background = new THREE.Color(0x0a0a0f); // Очень темная комната
 
         clock = new THREE.Clock();
 
-        // Отодвигаем камеру дальше (Z = 15), чтобы видеть руку
         camera = new THREE.PerspectiveCamera(60, width / height, 0.1, 100);
-        camera.position.set(0, 5, 15); 
-        camera.lookAt(0, 0, 0);
+        camera.position.set(0, 7, 12); // Камера чуть выше, чтобы видеть весь стол
+        camera.lookAt(0, 3, -3); // Смотрим в центр стола
 
-        // Свет
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+        // Освещение комнаты
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
         scene.add(ambientLight);
         
-        const monitorLight = new THREE.PointLight(0x00FF41, 1, 20); 
-        monitorLight.position.set(0, 3, -2);
-        scene.add(monitorLight);
+        // Инициализация модулей
+        initWorld(scene); // Строим комнату
+        initLoot(scene);  // Спавним лут
+        initThief(scene); // Создаем руку
+        initInput();      // Включаем управление
 
-        // Рендерер
         renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(width, height);
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        // Включаем тени
+        renderer.shadowMap.enabled = true;
         root.appendChild(renderer.domElement);
 
         window.addEventListener('resize', onResize);
-
-        // Инициализация
-        initInput();
-        initThief(scene);
 
         gameState.reset();
         gameState.current = STATE.PLAYING; 
@@ -58,7 +57,6 @@ export function createGame(root, api) {
 
         const deltaTime = clock.getDelta();
 
-        // Обновляем логику
         updateThief(deltaTime);
 
         if (renderer && scene && camera) {
