@@ -7,17 +7,19 @@ export const GAMES = [
       ru: "Беги от Фога, собирай кэш. Не оглядывайся.",
       en: "Run from Fog, collect cash. Don't look back."
     },
-    // Updated path to our new modular structure
-    modulePath: "../games/murino-run/index.js", 
+    modulePath: "../games/murino-run/index.js",
     enabled: true
   },
   {
-    id: "game2",
-    tag: "Arcade",
-    titleKey: { ru: "Game #2", en: "Game #2" },
-    descKey: { ru: "Скоро подключим.", en: "Coming soon." },
-    modulePath: null,
-    enabled: false
+    id: "streamthief", // Поменяли ID для красоты
+    tag: "Стелс",
+    titleKey: { ru: "Стрим-Вор", en: "Stream Thief" },
+    descKey: { 
+        ru: "Тяни руку к луту, пока Мел спит. Не спались!", 
+        en: "Steal the loot while Mel is sleeping. Don't get caught!" 
+    },
+    modulePath: "../games/stream-thief/index.js", // Путь к нашей новой игре
+    enabled: true // Включили кнопку "Играть"
   },
   {
     id: "game3",
