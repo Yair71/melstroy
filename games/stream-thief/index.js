@@ -9,43 +9,43 @@ export function createGame(root, api) {
     let animationId;
     let isRunning = false;
 
-    // Сохраняем API лобби для выдачи коинов и ачивок
     window.mellApi = api;
 
     function init3D() {
+        // Если root имеет нулевую высоту (бывает при загрузке), ставим дефолт
+        const width = root.clientWidth || 800;
+        const height = root.clientHeight || 400;
+
         scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x111111); // Темная комната стримера
+        scene.background = new THREE.Color(0x222233); // Сделал фон синеватым для теста
 
         clock = new THREE.Clock();
 
-        // Камера статично смотрит на стол Мела
-        camera = new THREE.PerspectiveCamera(60, root.clientWidth / root.clientHeight, 0.1, 100);
-        camera.position.set(0, 6, 10);
-        camera.lookAt(0, 0, -2);
+        // Отодвигаем камеру дальше (Z = 15), чтобы видеть руку
+        camera = new THREE.PerspectiveCamera(60, width / height, 0.1, 100);
+        camera.position.set(0, 5, 15); 
+        camera.lookAt(0, 0, 0);
 
         // Свет
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
         scene.add(ambientLight);
         
-        const monitorLight = new THREE.PointLight(0x00FF41, 1, 20); // Свечение от монитора Мела
-        monitorLight.position.set(0, 5, -5);
+        const monitorLight = new THREE.PointLight(0x00FF41, 1, 20); 
+        monitorLight.position.set(0, 3, -2);
         scene.add(monitorLight);
 
         // Рендерер
         renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(root.clientWidth, root.clientHeight);
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // Оптимизация для мобилок
+        renderer.setSize(width, height);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         root.appendChild(renderer.domElement);
 
         window.addEventListener('resize', onResize);
 
-        // Инициализация наших модулей
+        // Инициализация
         initInput();
         initThief(scene);
-        // initStreamer(scene); // Подключим позже
-        // initLoot(scene);     // Подключим позже
 
-        // Пока нет UI, запускаем сразу
         gameState.reset();
         gameState.current = STATE.PLAYING; 
 
@@ -60,7 +60,6 @@ export function createGame(root, api) {
 
         // Обновляем логику
         updateThief(deltaTime);
-        // updateStreamer(deltaTime);
 
         if (renderer && scene && camera) {
             renderer.render(scene, camera);
@@ -86,7 +85,6 @@ export function createGame(root, api) {
             window.removeEventListener('resize', onResize);
             if (root) root.innerHTML = '';
             
-            // Жесткая очистка памяти (болячка многих WebGL игр)
             if (renderer) {
                 renderer.dispose();
                 renderer.forceContextLoss();
