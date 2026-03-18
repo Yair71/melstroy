@@ -1,21 +1,23 @@
 // games/stream-thief/streamer.js
-import { CONFIG, STREAMER_STATE } from './config.js';
-import { gameState } from './gameState.js';
+import { CONFIG } from './config.js';
 import { loadedAssets } from './assets.js';
 
 export let streamerGroup;
 let mixer;
 let currentModelKey = null;
+let cycleTimer = 0;
+
+// Список твоих моделек
+const sittingModels = ['sit2', 'sit3', 'sitwait', 'sleepsit'];
 
 export function initStreamer(scene) {
   streamerGroup = new THREE.Group();
   
-  // Ставим Мела ЗА стол (стол кончается на z: -5.5).
-  // Высота сиденья стула - 1.8.
-  streamerGroup.position.set(0, CONFIG.streamerYOffset, -6.5); 
+  // Ставим Мела между камерой (z:8) и столом (z:-3).
+  streamerGroup.position.set(0, CONFIG.streamerY, CONFIG.streamerZ); 
   scene.add(streamerGroup);
 
-  switchModel('sleepsit'); // Стартовая анимация
+  switchModel('sleepsit'); 
   return streamerGroup;
 }
 
@@ -23,7 +25,6 @@ export function switchModel(modelKey) {
   if (currentModelKey === modelKey) return;
   if (mixer) mixer.stopAllAction();
 
-  // Удаляем старую модель
   while (streamerGroup.children.length > 0) {
     streamerGroup.remove(streamerGroup.children[0]);
   }
@@ -34,11 +35,11 @@ export function switchModel(modelKey) {
   gltf.scene.scale.set(1, 1, 1);
   gltf.scene.position.set(0, 0, 0);
   
-  // Поворачиваем Мела лицом к камере (и столу)
-  gltf.scene.rotation.y = 0; 
+  // ПОВОРАЧИВАЕМ СПИНОЙ К КАМЕРЕ (лицом к мониторам)
+  gltf.scene.rotation.y = Math.PI; 
   gltf.scene.updateMatrixWorld(true);
 
-  // Идеальная подгонка размера из murino-run
+  // Идеальная подгонка размера как в murino-run
   const box = new THREE.Box3().setFromObject(gltf.scene);
   const size = box.getSize(new THREE.Vector3());
   const maxDim = Math.max(size.x, size.y, size.z);
@@ -49,14 +50,12 @@ export function switchModel(modelKey) {
     gltf.scene.updateMatrixWorld(true);
 
     const newBox = new THREE.Box3().setFromObject(gltf.scene);
-    // Выравниваем нижнюю точку модельки (попу/ноги) ровно по сиденью
     gltf.scene.position.y = 0 - newBox.min.y;
   }
 
   streamerGroup.add(gltf.scene);
   currentModelKey = modelKey;
 
-  // Запускаем встроенную анимацию
   if (gltf.animations && gltf.animations.length > 0) {
     mixer = new THREE.AnimationMixer(gltf.scene);
     const action = mixer.clipAction(gltf.animations[0]);
@@ -68,13 +67,11 @@ export function switchModel(modelKey) {
 export function updateStreamer(deltaTime) {
   if (mixer) mixer.update(deltaTime);
 
-  // Меняем модель в зависимости от фазы стримера
-  if (gameState.streamerState === STREAMER_STATE.SLEEPING) {
-    switchModel('sleepsit');
-  } else if (gameState.streamerState === STREAMER_STATE.WARNING) {
-    switchModel('sitwait');
-  } else if (gameState.streamerState === STREAMER_STATE.AWAKE) {
-    // Рандомизируем, сидит он обычно (sit2) или иначе (sit3)
-    switchModel(Math.random() > 0.5 ? 'sit2' : 'sit3');
+  // Просто рандомно меняем модельки каждые 3-6 секунд
+  cycleTimer -= deltaTime;
+  if (cycleTimer <= 0) {
+    const randomModel = sittingModels[Math.floor(Math.random() * sittingModels.length)];
+    switchModel(randomModel);
+    cycleTimer = 3.0 + Math.random() * 3.0; 
   }
 }
