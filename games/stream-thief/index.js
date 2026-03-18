@@ -1,120 +1,94 @@
 // games/stream-thief/index.js
 import { initInput } from './input.js';
 import { initThief, updateThief } from './thief.js';
-import { initWorld } from './world.js'; 
-import { initLoot } from './loot.js';   
-import { initStreamer, updateStreamer } from './streamer.js'; 
-import { loadAssets } from './assets.js'; 
-import { initUI, showReadyToStart, updateUI, showError } from './ui.js'; // Подключаем UI
+import { initWorld } from './world.js'; // Подключили мир
+import { initLoot } from './loot.js';   // Подключили лут
 import { gameState } from './gameState.js';
 import { STATE } from './config.js';
 
 export function createGame(root, api) {
-  let scene, renderer, camera, clock;
-  let animationId;
-  let isRunning = false;
+    let scene, renderer, camera, clock;
+    let animationId;
+    let isRunning = false;
 
-  window.mellApi = api;
+    window.mellApi = api;
 
-  async function init3D() {
-    const width = root.clientWidth || window.innerWidth;
-    const height = root.clientHeight || window.innerHeight;
+    function init3D() {
+        const width = root.clientWidth || 800;
+        const height = root.clientHeight || 400;
 
-    scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x0a0a0f); 
-    clock = new THREE.Clock();
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x0a0a0f); // Очень темная комната
 
-    camera = new THREE.PerspectiveCamera(60, width / height, 0.1, 100);
-    camera.position.set(0, 7, 12); 
-    camera.lookAt(0, 3, -3); 
+        clock = new THREE.Clock();
 
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
-    scene.add(ambientLight);
+        camera = new THREE.PerspectiveCamera(60, width / height, 0.1, 100);
+        camera.position.set(0, 7, 12); // Камера чуть выше, чтобы видеть весь стол
+        camera.lookAt(0, 3, -3); // Смотрим в центр стола
 
-    renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setSize(width, height);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.shadowMap.enabled = true;
-    root.appendChild(renderer.domElement);
-    
-    // Запускаем загрузчик
-    const assetsLoaded = await loadAssets();
-    if (!assetsLoaded) {
-      showError('ОШИБКА ЗАГРУЗКИ МОДЕЛЕЙ! ПРОВЕРЬ ПУТИ В CONFIG.JS');
-      return;
+        // Освещение комнаты
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+        scene.add(ambientLight);
+        
+        // Инициализация модулей
+        initWorld(scene); // Строим комнату
+        initLoot(scene);  // Спавним лут
+        initThief(scene); // Создаем руку
+        initInput();      // Включаем управление
+
+        renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(width, height);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        // Включаем тени
+        renderer.shadowMap.enabled = true;
+        root.appendChild(renderer.domElement);
+
+        window.addEventListener('resize', onResize);
+
+        gameState.reset();
+        gameState.current = STATE.PLAYING; 
+
+        animate();
     }
 
-    initWorld(scene); 
-    initLoot(scene);  
-    initThief(scene); 
-    initStreamer(scene); 
-    initInput();      
+    function animate() {
+        if (!isRunning) return;
+        animationId = requestAnimationFrame(animate);
 
-    window.addEventListener('resize', onResize);
+        const deltaTime = clock.getDelta();
 
-    // Модели загружены! Убираем Loading, показываем Intro
-    showReadyToStart();
+        updateThief(deltaTime);
 
-    animate();
-  }
-
-  function startMatch() {
-    gameState.reset();
-    gameState.current = STATE.PLAYING;
-  }
-
-  function restartGame() {
-    gameState.reset();
-    initLoot(scene); // Пересоздаем лут
-    gameState.current = STATE.INTRO;
-  }
-
-  function animate() {
-    if (!isRunning) return;
-    animationId = requestAnimationFrame(animate);
-
-    const deltaTime = clock.getDelta();
-
-    if (gameState.current === STATE.PLAYING || gameState.current === STATE.CAUGHT) {
-      updateThief(deltaTime);
-      updateStreamer(deltaTime); 
+        if (renderer && scene && camera) {
+            renderer.render(scene, camera);
+        }
     }
-    
-    updateUI(); // Обновляем очки на экране
 
-    if (renderer && scene && camera) {
-      renderer.render(scene, camera);
+    function onResize() {
+        if (!camera || !renderer || !root) return;
+        camera.aspect = root.clientWidth / root.clientHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(root.clientWidth, root.clientHeight);
     }
-  }
 
-  function onResize() {
-    if (!camera || !renderer || !root) return;
-    camera.aspect = root.clientWidth / root.clientHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(root.clientWidth, root.clientHeight);
-  }
-
-  return {
-    start: () => {
-      if (isRunning) return;
-      root.innerHTML = ''; // Чистим контейнер
-      isRunning = true;
-      
-      // Сначала инициализируем UI (чтобы сразу показать загрузку)
-      initUI(root, startMatch, restartGame);
-      
-      // Затем грузим тяжелое 3D
-      init3D(); 
-    },
-    stop: () => {
-      isRunning = false;
-      if (animationId) cancelAnimationFrame(animationId);
-      window.removeEventListener('resize', onResize);
-      if (root) root.innerHTML = '';
-      if (renderer) {
-        renderer.dispose();
-        renderer.forceContextLoss();
-      }
-    }
-  };
+    return {
+        start: () => {
+            if (isRunning) return;
+            isRunning = true;
+            init3D();
+        },
+        stop: () => {
+            isRunning = false;
+            if (animationId) cancelAnimationFrame(animationId);
+            window.removeEventListener('resize', onResize);
+            if (root) root.innerHTML = '';
+            
+            if (renderer) {
+                renderer.dispose();
+                renderer.forceContextLoss();
+            }
+        }
+    };
 }
+
+
