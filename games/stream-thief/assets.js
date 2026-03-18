@@ -23,7 +23,6 @@ export async function loadAssets() {
     for (const key of modelKeys) {
       const gltf = await loadGLTF(ASSETS.models[key]);
       
-      // Включаем тени для всех мешей
       gltf.scene.traverse((child) => {
         if (child.isMesh) {
           child.castShadow = true;
@@ -34,7 +33,7 @@ export async function loadAssets() {
     }
     return true;
   } catch (error) {
-    console.error("Ошибка загрузки ассетов:", error);
+    console.error("Ошибка загрузки. Проверь пути к файлам!", error);
     return false;
   }
 }
