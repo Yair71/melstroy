@@ -3,8 +3,9 @@ import { initInput } from './input.js';
 import { initThief, updateThief } from './thief.js';
 import { initWorld } from './world.js'; 
 import { initLoot } from './loot.js';   
-import { initStreamer, updateStreamer } from './streamer.js'; // Подключили Мела
-import { loadAssets } from './assets.js'; // Подключили загрузчик
+import { initStreamer, updateStreamer } from './streamer.js'; 
+import { loadAssets } from './assets.js'; 
+import { initUI, showReadyToStart, updateUI, showError } from './ui.js'; // Подключаем UI
 import { gameState } from './gameState.js';
 import { STATE } from './config.js';
 
@@ -36,26 +37,36 @@ export function createGame(root, api) {
     renderer.shadowMap.enabled = true;
     root.appendChild(renderer.domElement);
     
-    // ЖДЕМ ЗАГРУЗКИ МОДЕЛЕЙ (как в murino-run)
+    // Запускаем загрузчик
     const assetsLoaded = await loadAssets();
     if (!assetsLoaded) {
-      root.innerHTML = '<h2 style="color:red; text-align:center;">Failed to load assets!</h2>';
+      showError('ОШИБКА ЗАГРУЗКИ МОДЕЛЕЙ! ПРОВЕРЬ ПУТИ В CONFIG.JS');
       return;
     }
 
-    // Инициализация модулей после загрузки
     initWorld(scene); 
     initLoot(scene);  
     initThief(scene); 
-    initStreamer(scene); // Спавним Мела!
+    initStreamer(scene); 
     initInput();      
 
     window.addEventListener('resize', onResize);
 
-    gameState.reset();
-    gameState.current = STATE.PLAYING;
+    // Модели загружены! Убираем Loading, показываем Intro
+    showReadyToStart();
 
     animate();
+  }
+
+  function startMatch() {
+    gameState.reset();
+    gameState.current = STATE.PLAYING;
+  }
+
+  function restartGame() {
+    gameState.reset();
+    initLoot(scene); // Пересоздаем лут
+    gameState.current = STATE.INTRO;
   }
 
   function animate() {
@@ -64,8 +75,12 @@ export function createGame(root, api) {
 
     const deltaTime = clock.getDelta();
 
-    updateThief(deltaTime);
-    updateStreamer(deltaTime); // Анимируем Мела
+    if (gameState.current === STATE.PLAYING || gameState.current === STATE.CAUGHT) {
+      updateThief(deltaTime);
+      updateStreamer(deltaTime); 
+    }
+    
+    updateUI(); // Обновляем очки на экране
 
     if (renderer && scene && camera) {
       renderer.render(scene, camera);
@@ -82,8 +97,14 @@ export function createGame(root, api) {
   return {
     start: () => {
       if (isRunning) return;
+      root.innerHTML = ''; // Чистим контейнер
       isRunning = true;
-      init3D(); // Запускаем асинхронную функцию
+      
+      // Сначала инициализируем UI (чтобы сразу показать загрузку)
+      initUI(root, startMatch, restartGame);
+      
+      // Затем грузим тяжелое 3D
+      init3D(); 
     },
     stop: () => {
       isRunning = false;
