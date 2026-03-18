@@ -35,3 +35,4 @@ export function initLoot(scene) {
         activeLoot.push(itemMesh);
     });
 }
+
