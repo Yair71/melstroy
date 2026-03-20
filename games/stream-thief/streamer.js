@@ -12,7 +12,7 @@ const sittingModels = ['sit2', 'sit3', 'sitwait', 'sleepsit'];
 export function initStreamer(scene) {
   streamerGroup = new THREE.Group();
   
-  // Ставим Мела на высоту сиденья стула
+  // Мел сидит ровно на высоте сиденья
   streamerGroup.position.set(0, CONFIG.seatHeight, CONFIG.streamerZ); 
   scene.add(streamerGroup);
 
@@ -31,15 +31,13 @@ export function switchModel(modelKey) {
   const gltf = loadedAssets.models[modelKey];
   if (!gltf) return;
 
-  // Сброс позиции перед расчетами
   gltf.scene.scale.set(1, 1, 1);
   gltf.scene.position.set(0, 0, 0);
   
-  // Поворачиваем спиной к камере (чтобы смотрел на мониторы/стол)
+  // Спиной к нам, лицом к столу
   gltf.scene.rotation.y = Math.PI; 
   gltf.scene.updateMatrixWorld(true);
 
-  // 1. Подгоняем масштаб (как в murino-run)
   const box = new THREE.Box3().setFromObject(gltf.scene);
   const size = box.getSize(new THREE.Vector3());
   const maxDim = Math.max(size.x, size.y, size.z);
@@ -49,15 +47,9 @@ export function switchModel(modelKey) {
     gltf.scene.scale.set(scaleFactor, scaleFactor, scaleFactor);
     gltf.scene.updateMatrixWorld(true);
 
-    // 2. Идеальное центрирование (чтобы не прыгали)
+    // ПОДГОНЯЕМ ТОЛЬКО ВЫСОТУ (Y). X и Z не трогаем, чтобы не прыгал!
     const newBox = new THREE.Box3().setFromObject(gltf.scene);
-    const center = newBox.getCenter(new THREE.Vector3());
-    
-    // Смещаем модельку так, чтобы ее центр по X и Z был ровно в нуле,
-    // а нижняя точка (попа) сидела ровно на Y = 0 группы (то есть на сиденье)
-    gltf.scene.position.x -= center.x;
-    gltf.scene.position.z -= center.z;
-    gltf.scene.position.y += (0 - newBox.min.y);
+    gltf.scene.position.y = 0 - newBox.min.y;
   }
 
   streamerGroup.add(gltf.scene);
@@ -74,7 +66,6 @@ export function switchModel(modelKey) {
 export function updateStreamer(deltaTime) {
   if (mixer) mixer.update(deltaTime);
 
-  // Каждые 3-6 секунд рандомно меняем позу, чтобы Мел был живым
   cycleTimer -= deltaTime;
   if (cycleTimer <= 0) {
     const randomModel = sittingModels[Math.floor(Math.random() * sittingModels.length)];
