@@ -11,25 +11,23 @@ export const ASSETS = {
     sleepsit: './assets/sleepsit.glb'
   },
   textures: {},
-  video: './assets/meme_caught.webm' // Оставил видео на случай скримера
+  video: './assets/meme_caught.webm'
 };
 
 export const CONFIG = {
-  // Настройки масштабов
-  roomScale: 5.0,        
+  // Масштабы (Вернули к нормальным значениям)
+  roomScale: 1.0,        // Больше не раздуваем комнату!
   lootScale: 0.5,        
-  handScale: 0.5,        // СДЕЛАЛИ МЕНЬШЕ, чтобы не съедала камеру
+  handScale: 0.8,        // Нормальный размер руки
   
-  streamerHeight: 4.5,   
-  seatHeight: 1.5,       
-  streamerZ: -1.0,       
+  streamerHeight: 4.0,   // Чуть уменьшили Мела, чтобы влезал
+  seatHeight: 1.2,       // Высота сиденья от пола
+  streamerZ: -1.0,       // Позиция стула и Мела
 
-  // Настройки Руки (Сдвинули вправо и вниз, как в CS:GO)
-  handExtendSpeed: 8.0,
-  handRetractSpeed: 20.0,
-  handBaseX: 2.0,        // Отступ вправо
-  handBaseY: 2.5,        // Опустили ниже (камера на высоте 6)
-  handBaseZ: 6.0,        // Чуть дальше от камеры (камера на Z: 8)
+  // Рука (камера на Z: 6, рука на Z: 4 - прямо перед нами)
+  handBaseX: 1.5,        
+  handBaseY: 2.0,        
+  handBaseZ: 4.0,        
 };
 
 export const STATE = {
