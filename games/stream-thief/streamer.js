@@ -7,14 +7,13 @@ let mixer;
 let currentModelKey = null;
 let cycleTimer = 0;
 
-// Список твоих моделек
 const sittingModels = ['sit2', 'sit3', 'sitwait', 'sleepsit'];
 
 export function initStreamer(scene) {
   streamerGroup = new THREE.Group();
   
-  // Ставим Мела между камерой (z:8) и столом (z:-3).
-  streamerGroup.position.set(0, CONFIG.streamerY, CONFIG.streamerZ); 
+  // Ставим Мела на высоту сиденья стула
+  streamerGroup.position.set(0, CONFIG.seatHeight, CONFIG.streamerZ); 
   scene.add(streamerGroup);
 
   switchModel('sleepsit'); 
@@ -32,14 +31,15 @@ export function switchModel(modelKey) {
   const gltf = loadedAssets.models[modelKey];
   if (!gltf) return;
 
+  // Сброс позиции перед расчетами
   gltf.scene.scale.set(1, 1, 1);
   gltf.scene.position.set(0, 0, 0);
   
-  // ПОВОРАЧИВАЕМ СПИНОЙ К КАМЕРЕ (лицом к мониторам)
+  // Поворачиваем спиной к камере (чтобы смотрел на мониторы/стол)
   gltf.scene.rotation.y = Math.PI; 
   gltf.scene.updateMatrixWorld(true);
 
-  // Идеальная подгонка размера как в murino-run
+  // 1. Подгоняем масштаб (как в murino-run)
   const box = new THREE.Box3().setFromObject(gltf.scene);
   const size = box.getSize(new THREE.Vector3());
   const maxDim = Math.max(size.x, size.y, size.z);
@@ -49,8 +49,15 @@ export function switchModel(modelKey) {
     gltf.scene.scale.set(scaleFactor, scaleFactor, scaleFactor);
     gltf.scene.updateMatrixWorld(true);
 
+    // 2. Идеальное центрирование (чтобы не прыгали)
     const newBox = new THREE.Box3().setFromObject(gltf.scene);
-    gltf.scene.position.y = 0 - newBox.min.y;
+    const center = newBox.getCenter(new THREE.Vector3());
+    
+    // Смещаем модельку так, чтобы ее центр по X и Z был ровно в нуле,
+    // а нижняя точка (попа) сидела ровно на Y = 0 группы (то есть на сиденье)
+    gltf.scene.position.x -= center.x;
+    gltf.scene.position.z -= center.z;
+    gltf.scene.position.y += (0 - newBox.min.y);
   }
 
   streamerGroup.add(gltf.scene);
@@ -67,7 +74,7 @@ export function switchModel(modelKey) {
 export function updateStreamer(deltaTime) {
   if (mixer) mixer.update(deltaTime);
 
-  // Просто рандомно меняем модельки каждые 3-6 секунд
+  // Каждые 3-6 секунд рандомно меняем позу, чтобы Мел был живым
   cycleTimer -= deltaTime;
   if (cycleTimer <= 0) {
     const randomModel = sittingModels[Math.floor(Math.random() * sittingModels.length)];
