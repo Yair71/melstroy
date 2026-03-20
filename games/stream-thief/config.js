@@ -9,40 +9,48 @@ export const ASSETS = {
         sleepsit: './assets/sleepsit.glb'
     }
 };
-
+ 
 export const CONFIG = {
-    // Уменьшаем комнату (было 5.0, ставим 1.0 или даже меньше, если она все еще огромная)
-    roomScale: 1.0, 
-    seatHeight: 1.0,  // Опустили стул
-    streamerZ: -2.5,  // Отодвинули Мела чуть дальше за стол
-    
-    // Радикально уменьшаем руку
-    handScale: 0.3,   // Было 2.0, теперь она будет нормального размера
+    // Room
+    roomScale: 1.0,
+ 
+    // Chairs (procedural)
+    chairCount: 4,
+    chairSpacing: 2.5,
+    chairSeatHeight: 0.9,
+    chairZ: -3.0,
+ 
+    // Hand
+    handScale: 0.3,
     handStartX: 0,
-    handStartY: 2.5,  // Рука стартует на уровне груди/глаз
-    handStartZ: 5.0,  // Отодвигаем руку от камеры вперед
-    
-    // Скорости движения руки
-    speedX: 8.0,
-    speedY: 5.0,
-    speedZ: 15.0,
-    returnSpeed: 20.0,
-    
-    // Лимиты движения
+      handStartY: 2.5,
+    handStartZ: 6.0,
+ 
+    // Hand speeds
+    speedX: 4.0,
+    speedY: 3.0,
+    speedZ: 6.0,
+    returnSpeed: 8.0,
+ 
+    // Hand movement limits
     limitX: 3.0,
-    limitYMin: 1.0,
-    limitYMax: 4.0
+     limitYMin: 0.5,
+    limitYMax: 3.5,
+    limitZMin: -2.0,
+ 
+    // Items
+    itemsScale: 0.2
 };
-
+ 
 export const STATE = {
     LOADING: 'LOADING',
+    READY: 'READY',
     PLAYING: 'PLAYING'
 };
-
+ 
 export const PHASE = {
     AIM_X: 'AIM_X',
     AIM_Y: 'AIM_Y',
-    WAIT_Z: 'WAIT_Z',
-    MOVE_Z: 'MOVE_Z',
+     MOVE_Z: 'MOVE_Z',
     RETURN: 'RETURN'
 };
