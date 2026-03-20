@@ -9,16 +9,23 @@ export function initThief(scene) {
   
   const handGltf = loadedAssets.models['hand'];
   if (handGltf) {
-    // Подгоняем размер руки, если она слишком большая/маленькая
-    handGltf.scene.scale.set(1.5, 1.5, 1.5);
+    // Увеличиваем/уменьшаем руку, если нужно
+    handGltf.scene.scale.set(CONFIG.handScale, CONFIG.handScale, CONFIG.handScale);
+    
+    // Центрируем модельку руки внутри группы (на всякий случай)
+    const box = new THREE.Box3().setFromObject(handGltf.scene);
+    const center = box.getCenter(new THREE.Vector3());
+    handGltf.scene.position.set(-center.x, -center.y, -center.z);
+
     handGroup.add(handGltf.scene);
   }
 
-  // Стартовая позиция за камерой
-  handGroup.position.set(0, 4, CONFIG.handBaseZ);
+  // Стартовая позиция. Z=6.5 - это ПЕРЕД камерой (камера на Z=8)
+  // Теперь ты точно должен ее увидеть!
+  handGroup.position.set(0, CONFIG.handBaseY, CONFIG.handBaseZ);
   scene.add(handGroup);
 }
 
 export function updateThief(deltaTime) {
-    // Логику движения руки добавим позже, пока пусть просто висит в кадре
+  // Пока рука просто висит, логику движения подключим позже
 }
