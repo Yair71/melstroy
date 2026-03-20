@@ -11,24 +11,25 @@ export const ASSETS = {
     sleepsit: './assets/sleepsit.glb'
   },
   textures: {},
-  video: './assets/meme_caught.webm'
+  video: './assets/meme_caught.webm' // Оставил видео на случай скримера
 };
 
 export const CONFIG = {
-  // Настройки масштабов твоих моделек
-  roomScale: 5.0,        // Увеличиваем комнату
-  lootScale: 0.5,        // Уменьшаем лут
-  handScale: 2.0,        // Размер руки
+  // Настройки масштабов
+  roomScale: 5.0,        
+  lootScale: 0.5,        
+  handScale: 0.5,        // СДЕЛАЛИ МЕНЬШЕ, чтобы не съедала камеру
   
-  streamerHeight: 4.5,   // Высота самого Мела
-  seatHeight: 1.5,       // Высота сиденья стула от пола
-  streamerZ: -1.0,       // Позиция стула и Мела (чуть отодвинул к столу)
+  streamerHeight: 4.5,   
+  seatHeight: 1.5,       
+  streamerZ: -1.0,       
 
-  // Настройки Руки
+  // Настройки Руки (Сдвинули вправо и вниз, как в CS:GO)
   handExtendSpeed: 8.0,
   handRetractSpeed: 20.0,
-  handBaseZ: 6.5,        // Рука стартует прям ПЕРЕД камерой (камера на Z:8)
-  handBaseY: 3.5,        // Высота руки в кадре
+  handBaseX: 2.0,        // Отступ вправо
+  handBaseY: 2.5,        // Опустили ниже (камера на высоте 6)
+  handBaseZ: 6.0,        // Чуть дальше от камеры (камера на Z: 8)
 };
 
 export const STATE = {
@@ -36,4 +37,10 @@ export const STATE = {
   INTRO: 'INTRO',
   PLAYING: 'PLAYING',
   CAUGHT: 'CAUGHT'
+};
+
+export const STREAMER_STATE = {
+  SLEEPING: 'SLEEPING',
+  WARNING: 'WARNING',
+  AWAKE: 'AWAKE'
 };
