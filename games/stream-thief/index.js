@@ -24,8 +24,8 @@ export function createGame(root, api) {
     
     // Камера
     camera = new THREE.PerspectiveCamera(60, width / height, 0.1, 100);
-    camera.position.set(0, 6, 8); 
-    camera.lookAt(0, 3, -3);      
+  camera.position.set(0, 5, 6); // Z: 6 (ближе), Y: 5 (высота глаз)
+camera.lookAt(0, 2.5, -4);    // Смотрим на стол
 
     renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(width, height);
