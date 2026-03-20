@@ -12,8 +12,8 @@ const sittingModels = ['sit2', 'sit3', 'sitwait', 'sleepsit'];
 export function initStreamer(scene) {
   streamerGroup = new THREE.Group();
   
-  // Мел сидит ровно на высоте сиденья
-  streamerGroup.position.set(0, CONFIG.seatHeight, CONFIG.streamerZ); 
+  // Ставим Мела на кресло
+  streamerGroup.position.set(0, CONFIG.seatHeight + CONFIG.streamerY, CONFIG.streamerZ); 
   scene.add(streamerGroup);
 
   switchModel('sleepsit'); 
@@ -31,26 +31,12 @@ export function switchModel(modelKey) {
   const gltf = loadedAssets.models[modelKey];
   if (!gltf) return;
 
-  gltf.scene.scale.set(1, 1, 1);
+  // ЖЕСТКИЙ МАСШТАБ. БОЛЬШЕ НИКАКОЙ АВТО-ПОДГОНКИ!
+  gltf.scene.scale.set(CONFIG.streamerScale, CONFIG.streamerScale, CONFIG.streamerScale);
   gltf.scene.position.set(0, 0, 0);
   
   // Спиной к нам, лицом к столу
   gltf.scene.rotation.y = Math.PI; 
-  gltf.scene.updateMatrixWorld(true);
-
-  const box = new THREE.Box3().setFromObject(gltf.scene);
-  const size = box.getSize(new THREE.Vector3());
-  const maxDim = Math.max(size.x, size.y, size.z);
-
-  if (maxDim > 0) {
-    const scaleFactor = CONFIG.streamerHeight / maxDim;
-    gltf.scene.scale.set(scaleFactor, scaleFactor, scaleFactor);
-    gltf.scene.updateMatrixWorld(true);
-
-    // ПОДГОНЯЕМ ТОЛЬКО ВЫСОТУ (Y). X и Z не трогаем, чтобы не прыгал!
-    const newBox = new THREE.Box3().setFromObject(gltf.scene);
-    gltf.scene.position.y = 0 - newBox.min.y;
-  }
 
   streamerGroup.add(gltf.scene);
   currentModelKey = modelKey;
