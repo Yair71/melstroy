@@ -4,7 +4,8 @@ import { initWorld } from './world.js';
 import { initStreamer, updateStreamer } from './streamer.js';
 import { initThief, updateThief } from './thief.js';
 import { initLoot } from './loot.js';
-import { initUI, showReadyToStart, updateUI, showError } from './ui.js'; // ПОДКЛЮЧИЛИ UI
+import { initUI, showReadyToStart, updateUI, showError } from './ui.js'; 
+import { initInput } from './input.js'; // ОБЯЗАТЕЛЬНО ИНИЦИАЛИЗИРУЕМ ВВОД
 import { gameState } from './gameState.js';
 import { STATE } from './config.js';
 
@@ -22,34 +23,30 @@ export function createGame(root, api) {
     const width = root.clientWidth || window.innerWidth;
     const height = root.clientHeight || window.innerHeight;
     
-    // Камера
     camera = new THREE.PerspectiveCamera(60, width / height, 0.1, 100);
-  camera.position.set(0, 5, 6); // Z: 6 (ближе), Y: 5 (высота глаз)
-camera.lookAt(0, 2.5, -4);    // Смотрим на стол
+    // КАМЕРА ОТОДВИНУТА НАЗАД (Z: 7) И ВВЕРХ (Y: 4)
+    camera.position.set(0, 4, 7); 
+    camera.lookAt(0, 2.5, -4); // Смотрит на стол      
 
     renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     root.appendChild(renderer.domElement);
 
-    // ЖДЕМ ЗАГРУЗКИ (На экране висит надпись "ЗАГРУЗКА ЛУТА...")
     const assetsLoaded = await loadAssets();
     if (!assetsLoaded) {
       showError("ОШИБКА ЗАГРУЗКИ МОДЕЛЕЙ!");
       return;
     }
 
-    // Спавним объекты только после загрузки
     initWorld(scene);
     initStreamer(scene);
     initThief(scene);
     initLoot(scene);
+    initInput(); // ЗАПУСКАЕМ СЛУШАТЕЛЬ ПРОБЕЛА/ТАПА
 
     window.addEventListener('resize', onResize);
-
-    // Убираем загрузку, показываем кнопку старта
     showReadyToStart();
-
     animate();
   }
 
@@ -69,11 +66,11 @@ camera.lookAt(0, 2.5, -4);    // Смотрим на стол
 
     const deltaTime = clock.getDelta();
     
-    // Обновляем 3D мир
-    updateStreamer(deltaTime); 
-    updateThief(deltaTime);
+    if (gameState.current === STATE.PLAYING) {
+      updateStreamer(deltaTime); 
+      updateThief(deltaTime); // ОБНОВЛЯЕМ РУКУ ТОЛЬКО В ИГРЕ
+    }
 
-    // Обновляем счет и интерфейс
     updateUI();
 
     if (renderer && scene && camera) {
@@ -93,11 +90,7 @@ camera.lookAt(0, 2.5, -4);    // Смотрим на стол
       if (isRunning) return;
       isRunning = true;
       root.innerHTML = '';
-      
-      // Сначала инициализируем UI (вешаем слои поверх Canvas)
       initUI(root, startMatch, restartMatch);
-      
-      // Потом запускаем 3D-движок
       init3D();
     },
     stop: () => {
