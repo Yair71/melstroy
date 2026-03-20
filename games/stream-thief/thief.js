@@ -3,6 +3,7 @@ import { loadedAssets } from './assets.js';
 import { CONFIG } from './config.js';
 
 export let handGroup;
+let time = 0;
 
 export function initThief(scene) {
   handGroup = new THREE.Group();
@@ -11,22 +12,24 @@ export function initThief(scene) {
   if (handGltf) {
     handGltf.scene.scale.set(CONFIG.handScale, CONFIG.handScale, CONFIG.handScale);
     
-    // Центрируем модельку руки внутри группы
-    const box = new THREE.Box3().setFromObject(handGltf.scene);
-    const center = box.getCenter(new THREE.Vector3());
-    handGltf.scene.position.set(-center.x, -center.y, -center.z);
-
-    // Поворачиваем руку так, чтобы она тянулась ОТ камеры к столу
+    // Просто поворачиваем от нас, без смещений центра
     handGltf.scene.rotation.y = Math.PI; 
-
     handGroup.add(handGltf.scene);
   }
 
-  // Ставим руку справа-снизу от камеры
+  // Ставим справа снизу перед камерой
   handGroup.position.set(CONFIG.handBaseX, CONFIG.handBaseY, CONFIG.handBaseZ);
   scene.add(handGroup);
 }
 
 export function updateThief(deltaTime) {
-  // Логику движения руки добавим, как только убедимся, что визуал идеальный
+  if (!handGroup) return;
+  time += deltaTime;
+
+  // ОЖИВЛЯЕМ РУКУ: плавное покачивание (эффект дыхания)
+  const bobbingY = Math.sin(time * 2) * 0.1;
+  const bobbingX = Math.cos(time * 1.5) * 0.05;
+
+  handGroup.position.y = CONFIG.handBaseY + bobbingY;
+  handGroup.position.x = CONFIG.handBaseX + bobbingX;
 }
