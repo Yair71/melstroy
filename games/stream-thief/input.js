@@ -1,39 +1,71 @@
 import { STATE, PHASE } from './config.js';
 import { gameState } from './gameState.js';
-
+ 
+let cleanupFns = [];
+ 
 export function initInput() {
-    const handleDown = (e) => {
+     const onDown = (e) => {
+        if (e.type === 'keydown' && e.code !== 'Space') return;
         if (e.code === 'Space') e.preventDefault();
-        
+           if (gameState.current === STATE.READY) {
+            gameState.reset();
+            return;
+        }
+ 
         if (gameState.current !== STATE.PLAYING) return;
-
+ 
         switch (gameState.phase) {
             case PHASE.AIM_X:
-                gameState.phase = PHASE.AIM_Y; // Стоп X, начинаем Y
+                 // Stop X, start Y oscillation
+                gameState.phase = PHASE.AIM_Y;
                 break;
-            case PHASE.AIM_Y:
-                gameState.phase = PHASE.WAIT_Z; // Стоп Y, ждем зажатия
+            case PHASE.AIM_Y: 
+            // Stop Y, start holding to reach Z
+                gameState.isHolding = true;
+                gameState.phase = PHASE.MOVE_Z;
                 break;
-            case PHASE.WAIT_Z:
-            case PHASE.RETURN:
-                gameState.phase = PHASE.MOVE_Z; // Зажали - летим к столу
+            case PHASE.MOVE_Z:
+                // Already holding, ignore extra presses
+                break;
+                 case PHASE.RETURN:
+                 // Can press again to start reaching while returning
+                gameState.isHolding = true;
+                gameState.phase = PHASE.MOVE_Z;
                 break;
         }
     };
-
-    const handleUp = (e) => {
-        if (e.code === 'Space' || e.type === 'touchend' || e.type === 'touchcancel') {
-            if (gameState.phase === PHASE.MOVE_Z) {
-                gameState.phase = PHASE.RETURN; // Отпустили - возвращаемся
-            }
+     const onUp = (e) => {
+        if (e.type === 'keyup' && e.code !== 'Space') return;
+ 
+        if (gameState.phase === PHASE.MOVE_Z) {
+            gameState.isHolding = false;
+            gameState.phase = PHASE.RETURN;
         }
     };
-
-    window.addEventListener('keydown', (e) => { if (e.code === 'Space') handleDown(e); }, { passive: false });
-    window.addEventListener('keyup', handleUp);
-
-    const gameMount = document.getElementById('gameMount') || document.body;
-    gameMount.addEventListener('touchstart', handleDown, { passive: false });
-    gameMount.addEventListener('touchend', handleUp);
-    gameMount.addEventListener('touchcancel', handleUp);
+  // Keyboard
+    window.addEventListener('keydown', onDown, { passive: false });
+    window.addEventListener('keyup', onUp);
+ 
+    // Touch
+    window.addEventListener('touchstart', onDown, { passive: false });
+    window.addEventListener('touchend', onUp);
+    window.addEventListener('touchcancel', onUp);
+ 
+    // Mouse (for desktop click-hold)
+    window.addEventListener('mousedown', onDown);
+    window.addEventListener('mouseup', onUp);
+ 
+    cleanupFns = [
+        () => window.removeEventListener('keydown', onDown),
+        () => window.removeEventListener('keyup', onUp),
+        () => window.removeEventListener('touchstart', onDown),
+        () => window.removeEventListener('touchend', onUp),
+        () => window.removeEventListener('touchcancel', onUp),
+        () => window.removeEventListener('mousedown', onDown),
+        () => window.removeEventListener('mouseup', onUp)
+    ];
+}
+ export function cleanupInput() {
+    for (const fn of cleanupFns) fn();
+    cleanupFns = [];
 }
