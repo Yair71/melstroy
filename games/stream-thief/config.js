@@ -11,16 +11,16 @@ export const ASSETS = {
 };
 
 export const CONFIG = {
-    // Настройки комнаты и позиций
-    roomScale: 5.0,
-    seatHeight: 1.5,
-    streamerZ: -2.0,
+    // Уменьшаем комнату (было 5.0, ставим 1.0 или даже меньше, если она все еще огромная)
+    roomScale: 1.0, 
+    seatHeight: 1.0,  // Опустили стул
+    streamerZ: -2.5,  // Отодвинули Мела чуть дальше за стол
     
-    // Настройки Руки
-    handScale: 2.0,
+    // Радикально уменьшаем руку
+    handScale: 0.3,   // Было 2.0, теперь она будет нормального размера
     handStartX: 0,
-    handStartY: 4,
-    handStartZ: 8, // Стартует перед камерой
+    handStartY: 2.5,  // Рука стартует на уровне груди/глаз
+    handStartZ: 5.0,  // Отодвигаем руку от камеры вперед
     
     // Скорости движения руки
     speedX: 8.0,
@@ -28,10 +28,10 @@ export const CONFIG = {
     speedZ: 15.0,
     returnSpeed: 20.0,
     
-    // Лимиты движения (чтобы рука не улетала за экран при выборе)
-    limitX: 4.0,
-    limitYMin: 2.0,
-    limitYMax: 6.0
+    // Лимиты движения
+    limitX: 3.0,
+    limitYMin: 1.0,
+    limitYMax: 4.0
 };
 
 export const STATE = {
