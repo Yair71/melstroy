@@ -35,4 +35,4 @@ export async function loadAssets() {
         return false;
     }
 }
-}
+
