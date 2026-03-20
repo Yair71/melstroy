@@ -1,21 +1,21 @@
 import { ASSETS } from './config.js';
- 
+
 export const loadedAssets = {
     models: {}
 };
- 
+
 export async function loadAssets() {
     if (typeof THREE === 'undefined') {
          console.error('THREE.js is not loaded!');
         return false;
     }
- 
+
     const gltfLoader = new THREE.GLTFLoader();
- 
+
     const loadGLTF = (path) => new Promise((resolve, reject) => {
         gltfLoader.load(path, resolve, undefined, reject);
     });
- 
+
     try {
         const modelKeys = Object.keys(ASSETS.models);
         for (const key of modelKeys) {
@@ -35,4 +35,3 @@ export async function loadAssets() {
         return false;
     }
 }
-
