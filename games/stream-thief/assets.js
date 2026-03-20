@@ -1,38 +1,38 @@
 import { ASSETS } from './config.js';
-
+ 
 export const loadedAssets = {
     models: {}
 };
-
+ 
 export async function loadAssets() {
     if (typeof THREE === 'undefined') {
-        console.error("THREE.js is not loaded!");
+         console.error('THREE.js is not loaded!');
         return false;
     }
-
+ 
     const gltfLoader = new THREE.GLTFLoader();
-
+ 
     const loadGLTF = (path) => new Promise((resolve, reject) => {
         gltfLoader.load(path, resolve, undefined, reject);
     });
-
+ 
     try {
         const modelKeys = Object.keys(ASSETS.models);
         for (const key of modelKeys) {
             const gltf = await loadGLTF(ASSETS.models[key]);
-            
-            gltf.scene.traverse((child) => {
+             gltf.scene.traverse((child) => {
                 if (child.isMesh) {
                     child.castShadow = true;
                     child.receiveShadow = true;
                 }
             });
-            
-            loadedAssets.models[key] = gltf;
+                 loadedAssets.models[key] = gltf;
         }
+        console.log('All stream-thief assets loaded!', Object.keys(loadedAssets.models));
         return true;
     } catch (error) {
-        console.error("Asset loading error:", error);
+         console.error('Asset loading error:', error);
         return false;
     }
+}
 }
