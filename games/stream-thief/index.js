@@ -1,14 +1,4 @@
-import { loadAssets } from './assets.js';
-import { initWorld } from './world.js';
-import { initStreamer, updateStreamer } from './streamer.js';
-import { initThief, updateThief } from './thief.js';
-import { initInput } from './input.js';
-import { gameState } from './gameState.js';
-import { STATE } from './config.js';
-
-export function createGame(root, api) {
-    let scene, renderer, camera, clock, animationId;
-    let isRunning = false;
+// ... (начало файла без изменений)
 
     async function init3D() {
         scene = new THREE.Scene();
@@ -18,55 +8,21 @@ export function createGame(root, api) {
         const height = window.innerHeight;
         
         camera = new THREE.PerspectiveCamera(60, width / height, 0.1, 100);
-        camera.position.set(0, 6, 10);
-        camera.lookAt(0, 3, -3);
+        
+        // ПОЗИЦИЯ КАМЕРЫ: 
+        // x: 0 (центр)
+        // y: 4.5 (высота роста человека, чтобы быть НАД столом)
+        // z: 7 (стоим перед столом)
+        camera.position.set(0, 4.5, 7); 
+        
+        // КАМЕРА СМОТРИТ НА:
+        // x: 0 (центр)
+        // y: 1.5 (уровень стола)
+        // z: -2 (вглубь комнаты на Мелстроя)
+        camera.lookAt(0, 1.5, -2);
 
         renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(width, height);
         root.appendChild(renderer.domElement);
 
-        const assetsLoaded = await loadAssets();
-        if (!assetsLoaded) {
-            root.innerHTML = '<h2 style="color:red; text-align:center;">Ошибка загрузки моделей</h2>';
-            return;
-        }
-
-        initWorld(scene);
-        initStreamer(scene);
-        initThief(scene);
-        initInput();
-        
-        gameState.reset();
-
-        animate();
-    }
-
-    function animate() {
-        if (!isRunning) return;
-        animationId = requestAnimationFrame(animate);
-
-        const deltaTime = clock.getDelta();
-        
-        if (gameState.current === STATE.PLAYING) {
-            updateStreamer(deltaTime);
-            updateThief(deltaTime);
-        }
-
-        renderer.render(scene, camera);
-    }
-
-    return {
-        start: () => {
-            if (isRunning) return;
-            isRunning = true;
-            root.innerHTML = '';
-            init3D();
-        },
-        stop: () => {
-            isRunning = false;
-            if (animationId) cancelAnimationFrame(animationId);
-            if (root) root.innerHTML = '';
-            if (renderer) renderer.dispose();
-        }
-    };
-}
+// ... (дальше загрузка ассетов и остальной код без изменений)
