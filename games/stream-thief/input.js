@@ -8,7 +8,6 @@ import { gameState } from './gameState.js';
 let cleanupFns = [];
 
 export function initInput() {
-    // In debug fly-camera mode, we skip hand input so WASD doesn't conflict
     if (DEBUG) {
         console.log('🎮 Input: DEBUG mode — hand input disabled, use fly camera (WASD + mouse)');
         return;
@@ -30,14 +29,8 @@ export function initInput() {
         handlePress();
     };
 
-    const onTouchEnd = (e) => {
+    const onTouchEnd = () => {
         handleRelease();
-    };
-
-    const onClick = () => {
-        handlePress();
-        // For click, we simulate hold then release after a frame
-        // User needs to use touch or space for real hold
     };
 
     window.addEventListener('keydown', onKeyDown, { passive: false });
@@ -62,16 +55,13 @@ function handlePress() {
 
     switch (gameState.phase) {
         case PHASE.AIM_X:
-            // Lock X, start Y oscillation
             gameState.phase = PHASE.AIM_Y;
             break;
         case PHASE.AIM_Y:
-            // Lock Y, start reaching forward on Z
             gameState.isHolding = true;
             gameState.phase = PHASE.MOVE_Z;
             break;
         case PHASE.RETURN:
-            // If they press during return, restart forward
             gameState.isHolding = true;
             gameState.phase = PHASE.MOVE_Z;
             break;
