@@ -1,102 +1,142 @@
 import { loadedAssets } from './assets.js';
 import { CONFIG } from './config.js';
- export let tableTopY = 1.5;
-export let tableCenterX = 0;
-export let tableCenterZ = -1.5;
-export const chairs = [];
- 
+import { gameState } from './gameState.js';
+
+// Loot items scattered in the world
+export const lootItems = [];
+
 export function initWorld(scene) {
-    scene.background = new THREE.Color(0x0a0a10);
-    
-    // Lighting
-    const ambient = new THREE.AmbientLight(0xffffff, 0.6);
+    scene.background = new THREE.Color(0x0a0a14);
+
+    // Lighting - match the cozy but slightly dark room feel
+    const ambient = new THREE.AmbientLight(0xffffff, 0.8);
     scene.add(ambient);
- 
-    const dirLight = new THREE.DirectionalLight(0xffeedd, 0.9);
+
+    // Main directional light (from window/ceiling area)
+    const dirLight = new THREE.DirectionalLight(0xffeedd, 1.0);
     dirLight.position.set(2, 8, 4);
     dirLight.castShadow = true;
+    dirLight.shadow.mapSize.width = 1024;
+    dirLight.shadow.mapSize.height = 1024;
     scene.add(dirLight);
-  // Dim point light above table for atmosphere
-    const pointLight = new THREE.PointLight(0xffaa44, 0.5, 15);
-    pointLight.position.set(0, 4, -1.5);
-    scene.add(pointLight);
- 
-    // 1. Room model
+
+    // Monitor glow (bluish light from the computer screen area)
+    const monitorLight = new THREE.PointLight(0x4488ff, 0.6, 8);
+    monitorLight.position.set(1.5, 2.5, -3.0);
+    scene.add(monitorLight);
+
+    // Warm room light (overhead or lamp)
+    const roomLight = new THREE.PointLight(0xffaa44, 0.4, 12);
+    roomLight.position.set(0, 4, -1);
+    scene.add(roomLight);
+
+    // 1. Load room.glb - this IS the entire room (bed, desk, shelves, curtains, etc.)
     const roomGltf = loadedAssets.models['room'];
-    if (roomGltf) { 
-     const room = roomGltf.scene;
+    if (roomGltf) {
+        const room = roomGltf.scene;
         room.scale.setScalar(CONFIG.roomScale);
-        room.position.set(0, 0, -2);
- 
-        // Find table inside the room model
+        room.position.set(
+            CONFIG.roomPosition.x,
+            CONFIG.roomPosition.y,
+            CONFIG.roomPosition.z
+        );
+
+        // Enable shadows on room meshes
         room.traverse((child) => {
-            if (child.isMesh && child.name.toLowerCase().includes('table')) {
-                child.updateWorldMatrix(true, false);
-                const box = new THREE.Box3().setFromObject(child);
-                tableTopY = box.max.y;
-                tableCenterX = box.getCenter(new THREE.Vector3()).x;
-                tableCenterZ = box.getCenter(new THREE.Vector3()).z; 
-              console.log('Table found! Top Y:', tableTopY, 'Center Z:', tableCenterZ);
+            if (child.isMesh) {
+                child.castShadow = true;
+                child.receiveShadow = true;
             }
-        }); 
-    
+        });
+
         scene.add(room);
     }
-   // 2. Items (loot) on the table
-    const itemsGltf = loadedAssets.models['items'];
-    if (itemsGltf) { 
-      const items = itemsGltf.scene;
-        items.scale.setScalar(CONFIG.itemsScale);
-        items.position.set(tableCenterX, tableTopY, tableCenterZ);
-        scene.add(items);
-    } 
- // 3. Procedural chairs around the table
-    createChairs(scene);
+
+    // 2. Scatter loot (items.glb clones) around the room
+    spawnLoot(scene);
 }
- 
-function createChairs(scene) {
-    const chairMat = new THREE.MeshStandardMaterial({ color: 0x3a2a1a, roughness: 0.8 });
-    const seatH = CONFIG.chairSeatHeight;
-    const count = CONFIG.chairCount;
-    const spacing = CONFIG.chairSpacing;
- 
-    // Spread chairs evenly along X, all at same Z behind table
-    const totalWidth = (count - 1) * spacing;
-    const startX = -totalWidth / 2;
- 
-    for (let i = 0; i < count; i++) {
-        const chairGroup = new THREE.Group();
-        const x = startX + i * spacing;
- 
-        // Seat
-        const seatGeo = new THREE.BoxGeometry(0.8, 0.1, 0.8);
-        const seat = new THREE.Mesh(seatGeo, chairMat);
-        seat.position.y = seatH;
-        chairGroup.add(seat);
- 
-        // 4 Legs
-        const legGeo = new THREE.CylinderGeometry(0.04, 0.04, seatH);
-        const offsets = [
-            [-0.3, -0.3], [0.3, -0.3],
-            [-0.3, 0.3], [0.3, 0.3]
-        ];
-        for (const [lx, lz] of offsets) {
-            const leg = new THREE.Mesh(legGeo, chairMat);
-            leg.position.set(lx, seatH / 2, lz);
-            chairGroup.add(leg);
-        }
- 
-        // Backrest
-        const backGeo = new THREE.BoxGeometry(0.8, 0.8, 0.08);
-        const back = new THREE.Mesh(backGeo, chairMat);
-        back.position.set(0, seatH + 0.45, 0.36);
-        chairGroup.add(back);
- 
-        chairGroup.position.set(x, 0, CONFIG.chairZ);
-        // Face the chairs toward the camera (toward +Z)
-        chairGroup.rotation.y = Math.PI;
- 
-        scene.add(chairGroup);
-        chairs.push(chairGroup);
+
+function spawnLoot(scene) {
+    const itemsGltf = loadedAssets.models['items'];
+    if (!itemsGltf) return;
+
+    for (let i = 0; i < CONFIG.lootPositions.length; i++) {
+        const pos = CONFIG.lootPositions[i];
+
+        // Clone the items model for each loot position
+        const lootClone = itemsGltf.scene.clone(true);
+        lootClone.scale.setScalar(CONFIG.itemsScale);
+
+        // Center the clone
+        lootClone.updateMatrixWorld(true);
+        const box = new THREE.Box3().setFromObject(lootClone);
+        const center = box.getCenter(new THREE.Vector3());
+        lootClone.position.set(
+            pos.x - center.x * CONFIG.itemsScale,
+            pos.y,
+            pos.z - center.z * CONFIG.itemsScale
+        );
+
+        // Random rotation for variety
+        lootClone.rotation.y = Math.random() * Math.PI * 2;
+
+        // Enable shadows
+        lootClone.traverse((child) => {
+            if (child.isMesh) {
+                child.castShadow = true;
+                child.receiveShadow = true;
+            }
+        });
+
+        // Mark as collectible
+        lootClone.userData = {
+            index: i,
+            collected: false,
+            originalY: pos.y,
+            bobTimer: Math.random() * Math.PI * 2 // Random phase for floating animation
+        };
+
+        scene.add(lootClone);
+        lootItems.push(lootClone);
     }
-} 
+}
+
+export function updateLoot(deltaTime) {
+    // Gentle floating/bobbing animation for uncollected loot
+    for (const loot of lootItems) {
+        if (loot.userData.collected) continue;
+
+        loot.userData.bobTimer += deltaTime * 2;
+        loot.position.y = loot.userData.originalY + Math.sin(loot.userData.bobTimer) * 0.05;
+        loot.rotation.y += deltaTime * 0.5; // Slow spin
+    }
+}
+
+export function collectLoot(lootItem, scene) {
+    if (!lootItem || lootItem.userData.collected) return;
+
+    lootItem.userData.collected = true;
+    gameState.lootCollected++;
+
+    // Animate: shrink and fly up, then remove
+    const startScale = lootItem.scale.x;
+    let timer = 0;
+    const duration = 0.5;
+
+    function animateCollect() {
+        timer += 0.016;
+        const t = Math.min(timer / duration, 1);
+
+        lootItem.position.y += 0.1;
+        const s = startScale * (1 - t);
+        lootItem.scale.setScalar(s);
+        lootItem.rotation.y += 0.3;
+
+        if (t < 1) {
+            requestAnimationFrame(animateCollect);
+        } else {
+            scene.remove(lootItem);
+        }
+    }
+    animateCollect();
+}
