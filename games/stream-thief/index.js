@@ -12,7 +12,16 @@ export function createGame(root, api) {
     let scene, renderer, clock, camera;
     let animationId;
     let isRunning = false;
-    let orbitControls = null;
+
+    // ====== FLY CAMERA (WASD + Mouse) ======
+    const fly = {
+        yaw: 0,
+        pitch: 0,
+        keys: {},
+        isLocked: false,
+        speed: 8,
+        handlers: []
+    };
 
     window.mellApi = api;
 
@@ -22,17 +31,7 @@ export function createGame(root, api) {
         const w = window.innerWidth;
         const h = window.innerHeight;
 
-        camera = new THREE.PerspectiveCamera(60, w / h, 0.1, 200);
-        camera.position.set(
-            CONFIG.cameraPosition.x,
-            CONFIG.cameraPosition.y,
-            CONFIG.cameraPosition.z
-        );
-        camera.lookAt(
-            CONFIG.cameraLookAt.x,
-            CONFIG.cameraLookAt.y,
-            CONFIG.cameraLookAt.z
-        );
+        camera = new THREE.PerspectiveCamera(60, w / h, 0.1, 500);
 
         renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(w, h);
@@ -41,75 +40,145 @@ export function createGame(root, api) {
         root.appendChild(renderer.domElement);
         window.addEventListener('resize', onResize);
 
-        // Load assets
         const ok = await loadAssets();
         if (!ok) {
             root.innerHTML = '<h2 style="color:red;text-align:center;padding-top:50px;">Failed to load assets</h2>';
             return;
         }
 
-        // Build scene
         initWorld(scene);
         initThief(scene);
         initStreamer(scene);
         initInput();
 
-        // === DEBUG MODE: OrbitControls + auto-position camera ===
+        // === CAMERA SETUP ===
         if (CONFIG.debug) {
-            // Try to use OrbitControls if available
-            if (typeof THREE.OrbitControls !== 'undefined') {
-                orbitControls = new THREE.OrbitControls(camera, renderer.domElement);
-                orbitControls.enableDamping = true;
-                orbitControls.dampingFactor = 0.05;
-                console.log('OrbitControls enabled! Drag to rotate, scroll to zoom.');
-            } else {
-                console.log('OrbitControls not available. Add OrbitControls script to use debug camera.');
-            }
-
-            // Auto-position camera based on room bounds
             if (roomBounds) {
                 const { center, size } = roomBounds;
                 const maxDim = Math.max(size.x, size.y, size.z);
-                // Position camera to see the whole room
+                // Start above and in front of the room, looking at center
                 camera.position.set(
                     center.x,
-                    center.y + maxDim * 0.5,
-                    center.z + maxDim * 1.0
+                    center.y + maxDim * 0.4,
+                    center.z + maxDim * 0.8
                 );
-                camera.lookAt(center.x, center.y, center.z);
-
-                if (orbitControls) {
-                    orbitControls.target.copy(center);
-                    orbitControls.update();
-                }
-
-                console.log('=== AUTO CAMERA POSITION ===');
-                console.log(`  camera.position: (${camera.position.x.toFixed(2)}, ${camera.position.y.toFixed(2)}, ${camera.position.z.toFixed(2)})`);
-                console.log(`  lookAt: (${center.x.toFixed(2)}, ${center.y.toFixed(2)}, ${center.z.toFixed(2)})`);
+                // Calculate initial yaw/pitch to look at center
+                const dx = center.x - camera.position.x;
+                const dy = center.y - camera.position.y;
+                const dz = center.z - camera.position.z;
+                fly.yaw = Math.atan2(dx, dz);
+                fly.pitch = Math.atan2(dy, Math.sqrt(dx * dx + dz * dz));
+            } else {
+                camera.position.set(0, 5, 10);
+                fly.yaw = 0;
+                fly.pitch = -0.3;
             }
+            setupFlyCamera(renderer.domElement);
 
-            // Log camera position every 3 seconds so you can find the right angle
+            // Log camera every 2 seconds
             setInterval(() => {
                 const p = camera.position;
-                const t = orbitControls ? orbitControls.target : new THREE.Vector3();
+                const dir = new THREE.Vector3();
+                camera.getWorldDirection(dir);
+                const lookAt = p.clone().add(dir.multiplyScalar(10));
                 console.log(
-                    `📷 Camera: pos(${p.x.toFixed(2)}, ${p.y.toFixed(2)}, ${p.z.toFixed(2)}) ` +
-                    `target(${t.x.toFixed(2)}, ${t.y.toFixed(2)}, ${t.z.toFixed(2)})`
+                    `📷 pos(${p.x.toFixed(2)}, ${p.y.toFixed(2)}, ${p.z.toFixed(2)}) ` +
+                    `lookAt(${lookAt.x.toFixed(2)}, ${lookAt.y.toFixed(2)}, ${lookAt.z.toFixed(2)}) ` +
+                    `yaw=${(fly.yaw * 180 / Math.PI).toFixed(1)}° pitch=${(fly.pitch * 180 / Math.PI).toFixed(1)}°`
                 );
-            }, 3000);
+            }, 2000);
+        } else {
+            camera.position.set(CONFIG.cameraPosition.x, CONFIG.cameraPosition.y, CONFIG.cameraPosition.z);
+            camera.lookAt(CONFIG.cameraLookAt.x, CONFIG.cameraLookAt.y, CONFIG.cameraLookAt.z);
         }
 
         showReady();
         animate();
     }
 
+    function setupFlyCamera(canvas) {
+        // Pointer lock on click
+        const onClick = () => {
+            if (!fly.isLocked) {
+                canvas.requestPointerLock();
+            }
+        };
+        canvas.addEventListener('click', onClick);
+
+        const onLockChange = () => {
+            fly.isLocked = (document.pointerLockElement === canvas);
+        };
+        document.addEventListener('pointerlockchange', onLockChange);
+
+        // Mouse look
+        const onMouseMove = (e) => {
+            if (!fly.isLocked) return;
+            fly.yaw -= e.movementX * 0.002;
+            fly.pitch -= e.movementY * 0.002;
+            fly.pitch = Math.max(-Math.PI / 2 + 0.01, Math.min(Math.PI / 2 - 0.01, fly.pitch));
+        };
+        document.addEventListener('mousemove', onMouseMove);
+
+        // WASD + QE + Shift for speed
+        const onKeyDown = (e) => {
+            fly.keys[e.code] = true;
+            if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') fly.speed = 20;
+        };
+        const onKeyUp = (e) => {
+            fly.keys[e.code] = false;
+            if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') fly.speed = 8;
+        };
+        window.addEventListener('keydown', onKeyDown);
+        window.addEventListener('keyup', onKeyUp);
+
+        // Scroll to change speed
+        const onWheel = (e) => {
+            fly.speed = Math.max(1, Math.min(50, fly.speed + (e.deltaY > 0 ? -1 : 1)));
+        };
+        canvas.addEventListener('wheel', onWheel, { passive: true });
+
+        fly.handlers = [
+            () => canvas.removeEventListener('click', onClick),
+            () => document.removeEventListener('pointerlockchange', onLockChange),
+            () => document.removeEventListener('mousemove', onMouseMove),
+            () => window.removeEventListener('keydown', onKeyDown),
+            () => window.removeEventListener('keyup', onKeyUp),
+            () => canvas.removeEventListener('wheel', onWheel),
+        ];
+    }
+
+    function updateFlyCamera(dt) {
+        // Direction vectors
+        const forward = new THREE.Vector3(
+            Math.sin(fly.yaw) * Math.cos(fly.pitch),
+            Math.sin(fly.pitch),
+            Math.cos(fly.yaw) * Math.cos(fly.pitch)
+        );
+        const right = new THREE.Vector3(Math.sin(fly.yaw - Math.PI / 2), 0, Math.cos(fly.yaw - Math.PI / 2));
+        const up = new THREE.Vector3(0, 1, 0);
+
+        const moveSpeed = fly.speed * dt;
+
+        if (fly.keys['KeyW']) camera.position.addScaledVector(forward, moveSpeed);
+        if (fly.keys['KeyS']) camera.position.addScaledVector(forward, -moveSpeed);
+        if (fly.keys['KeyA']) camera.position.addScaledVector(right, -moveSpeed);
+        if (fly.keys['KeyD']) camera.position.addScaledVector(right, moveSpeed);
+        if (fly.keys['KeyE'] || fly.keys['Space']) camera.position.addScaledVector(up, moveSpeed);
+        if (fly.keys['KeyQ'] || fly.keys['ControlLeft']) camera.position.addScaledVector(up, -moveSpeed);
+
+        // Apply rotation
+        const euler = new THREE.Euler(fly.pitch, fly.yaw, 0, 'YXZ');
+        camera.quaternion.setFromEuler(euler);
+    }
+
     function animate() {
         if (!isRunning) return;
         animationId = requestAnimationFrame(animate);
-
         const dt = clock.getDelta();
 
-        if (orbitControls) orbitControls.update();
+        if (CONFIG.debug) {
+            updateFlyCamera(dt);
+        }
 
         if (gameState.current === STATE.PLAYING) {
             updateThief(dt);
@@ -142,6 +211,7 @@ export function createGame(root, api) {
             isRunning = false;
             if (animationId) cancelAnimationFrame(animationId);
             window.removeEventListener('resize', onResize);
+            for (const fn of fly.handlers) fn();
             cleanupInput();
             destroyUI();
             if (root) root.innerHTML = '';
