@@ -1,7 +1,7 @@
 // ============================================================
 // thief.js — The hand: aims X, aims Y, reaches Z, returns
 // ============================================================
-import { CONFIG, PHASE } from './config.js';
+import { CONFIG, PHASE, DEBUG } from './config.js';
 import { loadedAssets } from './assets.js';
 import { gameState } from './gameState.js';
 import { lootItems, collectLoot } from './world.js';
@@ -19,15 +19,26 @@ export function initThief(scene) {
         handScene.scale.setScalar(CONFIG.handScale);
 
         // Center the hand model inside the group
+        handScene.updateMatrixWorld(true);
         const box = new THREE.Box3().setFromObject(handScene);
         const center = box.getCenter(new THREE.Vector3());
+        const size = box.getSize(new THREE.Vector3());
         handScene.position.set(-center.x, -center.y, -center.z);
 
         handGroup.add(handScene);
+
+        if (DEBUG) {
+            console.log(`%c🤚 Hand model size at scale ${CONFIG.handScale}: (${(size.x).toFixed(2)}, ${(size.y).toFixed(2)}, ${(size.z).toFixed(2)})`, 'color: #f80;');
+        }
     }
 
+    // Place hand at exact starting coordinates
     handGroup.position.set(gameState.handX, gameState.handY, gameState.handZ);
     scene.add(handGroup);
+
+    if (DEBUG) {
+        console.log(`%c🤚 Hand spawned at (${gameState.handX}, ${gameState.handY}, ${gameState.handZ})`, 'color: #f80; font-weight: bold;');
+    }
 }
 
 export function updateThief(deltaTime) {
@@ -37,12 +48,12 @@ export function updateThief(deltaTime) {
         // Phase 1: Hand oscillates left-right on X
         case PHASE.AIM_X:
             gameState.handX += CONFIG.speedX * gameState.dirX * deltaTime;
-            if (gameState.handX > CONFIG.limitX) {
-                gameState.handX = CONFIG.limitX;
+            if (gameState.handX > CONFIG.limitXMax) {
+                gameState.handX = CONFIG.limitXMax;
                 gameState.dirX = -1;
             }
-            if (gameState.handX < -CONFIG.limitX) {
-                gameState.handX = -CONFIG.limitX;
+            if (gameState.handX < CONFIG.limitXMin) {
+                gameState.handX = CONFIG.limitXMin;
                 gameState.dirX = 1;
             }
             break;
@@ -86,7 +97,6 @@ export function updateThief(deltaTime) {
             break;
     }
 
-    // Apply position
     handGroup.position.set(gameState.handX, gameState.handY, gameState.handZ);
 }
 
