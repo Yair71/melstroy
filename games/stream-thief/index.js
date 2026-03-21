@@ -21,7 +21,7 @@ export function createGame(root, api) {
         const h = window.innerHeight;
  
         camera = new THREE.PerspectiveCamera(60, w / h, 0.1, 100);
-        camera.position.set(0, 4.5, 7);
+       camera.position.set(0, 5.5, 10);
         camera.lookAt(0, 1.5, -2);
  
         renderer = new THREE.WebGLRenderer({ antialias: true }); 
