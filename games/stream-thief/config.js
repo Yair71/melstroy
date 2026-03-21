@@ -23,7 +23,7 @@ export const CONFIG = {
     // Hand
     handScale: 0.3,
     handStartX: 0,
-      handStartY: 2.5,
+       handStartY: 0.5,
     handStartZ: 6.0,
  
     // Hand speeds
