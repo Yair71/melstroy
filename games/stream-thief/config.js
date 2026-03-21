@@ -18,39 +18,52 @@ export const ASSETS = {
 export const DEBUG = true;
 
 export const CONFIG = {
-    // Hand (thief arm)
+    // ===== HAND (thief arm) =====
+    // Spawn exactly at your saved coordinates
     handScale: 0.3,
-    handStartX:  1.8,
-    handStartY: -0.5,
-    handStartZ:  5.0,
+    handStartX: -4.25,
+    handStartY:  8.07,
+    handStartZ: -25.31,
 
+    // Movement speeds
     speedX: 4.0,
     speedY: 3.0,
     speedZ: 6.0,
     returnSpeed: 8.0,
 
-    limitX:    4.0,
-    limitYMin: -0.5,
-    limitYMax:  3.5,
-    limitZMin: -3.0,
+    // Movement limits (room-space coordinates)
+    limitXMin: -10.0,
+    limitXMax:   2.0,
+    limitYMin:   4.0,
+    limitYMax:  12.0,
+    limitZMin: -42.0,   // how far forward (toward table)
 
-    // Streamer (Mel) — will be adjusted after you find the chair
-    streamerPosition: { x: 0, y: 0, z: 0 },
-    streamerRotationY: Math.PI,
+    // ===== STREAMER (Mel) — near the table =====
+    streamerPosition: { x: -4.0, y: 0, z: -32.0 },
+    streamerRotationY: 0,
 
-    // Items scale
-    itemsScale: 0.15,
+    // ===== ITEMS (loot on table) =====
+    itemsScale: 0.8,   // MUCH bigger (was 0.15)
 
     // Grab radius
-    grabRadius: 1.5,
+    grabRadius: 2.5,
 
-    // Camera (non-debug)
-    cameraPosition: { x: 0, y: 5, z: 10 },
-    cameraLookAt:   { x: 0, y: 2, z: 0 },
+    // ===== CAMERA (non-debug gameplay) =====
+    // Behind the hand, higher, looking toward table
+    cameraPosition: { x: -4.25, y: 12.0, z: -20.0 },
+    cameraLookAt:   { x: -4.25, y: 6.0,  z: -35.0 },
 
-    // Fly camera (debug)
+    // ===== CHAIR =====
+    chairSeatHeight: 2.5,
+    chairScale: 1.8,
+
+    // ===== FLY CAMERA (debug) =====
     flySpeed:     8,
-    flySpeedFast: 20
+    flySpeedFast: 20,
+
+    // ===== FLOOR =====
+    floorY: 0,
+    floorSize: 100
 };
 
 export const STATE = {
