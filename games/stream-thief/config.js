@@ -11,20 +11,14 @@ export const ASSETS = {
 };
 
 export const CONFIG = {
-    // === DEBUG MODE ===
-    // true = OrbitControls + AxesHelper + logs room bounds to console
-    // Once you find good camera angle, set to false and paste the values below
     debug: true,
 
-    // Room
     roomScale: 1.0,
     roomPosition: { x: 0, y: 0, z: 0 },
 
-    // Streamer position (auto-detected from room if chair/armature found)
     streamerPosition: { x: 0, y: 0, z: 0 },
     streamerRotationY: Math.PI,
 
-    // Hand
     handScale: 0.3,
     handStartX: 1.8,
     handStartY: -0.5,
@@ -40,7 +34,6 @@ export const CONFIG = {
     limitYMax: 3.5,
     limitZMin: -3.0,
 
-    // Loot positions (placeholders - update after debug)
     lootPositions: [
         { x: -2.5, y: 1.2, z: -1.0 },
         { x: -1.8, y: 1.2, z: -0.5 },
@@ -58,7 +51,6 @@ export const CONFIG = {
 
     itemsScale: 0.15,
 
-    // Camera defaults (overridden in debug mode by OrbitControls)
     cameraPosition: { x: 0, y: 5, z: 10 },
     cameraLookAt: { x: 0, y: 2, z: 0 }
 };
