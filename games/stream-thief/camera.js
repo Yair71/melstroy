@@ -8,7 +8,7 @@ let camera;
 // Fly-cam state
 const fly = {
     yaw: 0,
-    pitch: -0.3,
+    pitch: -0.2,
     keys: {},
     isLocked: false,
     speed: CONFIG.flySpeed,
@@ -28,9 +28,14 @@ export function initCamera(scene, rendererDom) {
     );
 
     if (DEBUG) {
-        camera.position.set(0, 5, 10);
-        fly.yaw = 0;
-        fly.pitch = -0.3;
+        // Start near hand but higher and further back so you can see everything
+        camera.position.set(
+            CONFIG.handStartX,
+            CONFIG.handStartY + 5,    // higher
+            CONFIG.handStartZ + 10    // further back
+        );
+        fly.yaw = Math.PI;    // face forward (toward -Z)
+        fly.pitch = -0.2;
         setupFlyCam(rendererDom);
         createCoordOverlay(rendererDom.parentElement);
     } else {
@@ -51,7 +56,6 @@ export function initCamera(scene, rendererDom) {
 }
 
 function setupFlyCam(canvas) {
-    // Click to lock pointer
     const onClick = () => {
         if (!fly.isLocked) canvas.requestPointerLock();
     };
@@ -62,7 +66,6 @@ function setupFlyCam(canvas) {
     };
     document.addEventListener('pointerlockchange', onLockChange);
 
-    // Mouse look
     const onMouseMove = (e) => {
         if (!fly.isLocked) return;
         fly.yaw   -= e.movementX * 0.002;
@@ -71,13 +74,11 @@ function setupFlyCam(canvas) {
     };
     document.addEventListener('mousemove', onMouseMove);
 
-    // WASD + QE + Space/Ctrl
     const onKeyDown = (e) => {
         fly.keys[e.code] = true;
         if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
             fly.speed = CONFIG.flySpeedFast;
         }
-        // K = dump current coordinates
         if (e.code === 'KeyK') {
             dumpCoordinates();
         }
@@ -91,7 +92,6 @@ function setupFlyCam(canvas) {
     window.addEventListener('keydown', onKeyDown);
     window.addEventListener('keyup', onKeyUp);
 
-    // Scroll = change speed
     const onWheel = (e) => {
         fly.speed = Math.max(1, Math.min(50, fly.speed + (e.deltaY > 0 ? -1 : 1)));
     };
@@ -172,7 +172,6 @@ function dumpCoordinates() {
 export function updateCamera(deltaTime) {
     if (!camera || !DEBUG) return;
 
-    // Direction vectors
     const forward = new THREE.Vector3(
         Math.sin(fly.yaw) * Math.cos(fly.pitch),
         Math.sin(fly.pitch),
@@ -194,11 +193,9 @@ export function updateCamera(deltaTime) {
     if (fly.keys['KeyE'] || fly.keys['Space']) camera.position.addScaledVector(up, ms);
     if (fly.keys['KeyQ'] || fly.keys['ControlLeft']) camera.position.addScaledVector(up, -ms);
 
-    // Apply rotation
     const euler = new THREE.Euler(fly.pitch, fly.yaw, 0, 'YXZ');
     camera.quaternion.setFromEuler(euler);
 
-    // Update overlay
     if (coordOverlay) {
         coordOverlay.innerHTML = buildOverlayHTML();
     }
