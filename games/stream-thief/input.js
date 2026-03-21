@@ -1,60 +1,63 @@
 import { STATE, PHASE } from './config.js';
 import { gameState } from './gameState.js';
- 
+
 let cleanupFns = [];
- 
+
 export function initInput() {
-     const onDown = (e) => {
+    const onDown = (e) => {
         if (e.type === 'keydown' && e.code !== 'Space') return;
         if (e.code === 'Space') e.preventDefault();
-           if (gameState.current === STATE.READY) {
+
+        if (gameState.current === STATE.READY) {
             gameState.reset();
             return;
         }
- 
+
         if (gameState.current !== STATE.PLAYING) return;
- 
+
         switch (gameState.phase) {
             case PHASE.AIM_X:
-                 // Stop X, start Y oscillation
+                // Lock X, start Y oscillation
                 gameState.phase = PHASE.AIM_Y;
                 break;
-            case PHASE.AIM_Y: 
-            // Stop Y, start holding to reach Z
+            case PHASE.AIM_Y:
+                // Lock Y, start reaching into room
                 gameState.isHolding = true;
                 gameState.phase = PHASE.MOVE_Z;
                 break;
             case PHASE.MOVE_Z:
-                // Already holding, ignore extra presses
+                // Already holding
                 break;
-                 case PHASE.RETURN:
-                 // Can press again to start reaching while returning
+            case PHASE.RETURN:
+                // Can press again to start reaching while returning
                 gameState.isHolding = true;
                 gameState.phase = PHASE.MOVE_Z;
                 break;
         }
     };
-     const onUp = (e) => {
+
+    const onUp = (e) => {
         if (e.type === 'keyup' && e.code !== 'Space') return;
- 
+
         if (gameState.phase === PHASE.MOVE_Z) {
             gameState.isHolding = false;
             gameState.phase = PHASE.RETURN;
         }
     };
-  // Keyboard
+
+    // Keyboard
     window.addEventListener('keydown', onDown, { passive: false });
     window.addEventListener('keyup', onUp);
- 
+
     // Touch
     window.addEventListener('touchstart', onDown, { passive: false });
     window.addEventListener('touchend', onUp);
     window.addEventListener('touchcancel', onUp);
- 
-    // Mouse (for desktop click-hold)
+
+    // Mouse
     window.addEventListener('mousedown', onDown);
     window.addEventListener('mouseup', onUp);
- 
+
     cleanupFns = [
         () => window.removeEventListener('keydown', onDown),
         () => window.removeEventListener('keyup', onUp),
@@ -65,7 +68,8 @@ export function initInput() {
         () => window.removeEventListener('mouseup', onUp)
     ];
 }
- export function cleanupInput() {
+
+export function cleanupInput() {
     for (const fn of cleanupFns) fn();
     cleanupFns = [];
 }
