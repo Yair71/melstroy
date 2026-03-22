@@ -1,5 +1,5 @@
 // ============================================================
-// config.js — All game constants in one place
+// config.js — All game constants
 // ============================================================
 
 export const ASSETS = {
@@ -14,56 +14,57 @@ export const ASSETS = {
     }
 };
 
-// Set to true to enable fly camera + coordinate debug
 export const DEBUG = true;
 
 export const CONFIG = {
-    // ===== HAND (thief arm) =====
-    // Spawn exactly at your saved coordinates
+    // ===== HAND =====
     handScale: 0.3,
     handStartX: -4.25,
     handStartY:  8.07,
     handStartZ: -25.31,
 
-    // Movement speeds
     speedX: 4.0,
     speedY: 3.0,
     speedZ: 6.0,
     returnSpeed: 8.0,
 
-    // Movement limits (room-space coordinates)
     limitXMin: -10.0,
     limitXMax:   2.0,
     limitYMin:   4.0,
     limitYMax:  12.0,
-    limitZMin: -42.0,   // how far forward (toward table)
+    limitZMin: -42.0,
 
-    // ===== STREAMER (Mel) — near the table =====
-    streamerPosition: { x: -4.0, y: 0, z: -32.0 },
-    streamerRotationY: 0,
+    // ===== CAMERA (exact from your screenshot) =====
+    cameraStartX: -4.79,
+    cameraStartY: 12.18,
+    cameraStartZ: -34.58,
+    cameraYaw: 179.2,    // degrees
+    cameraPitch: 0.0,
 
-    // ===== ITEMS (loot on table) =====
-    itemsScale: 0.8,   // MUCH bigger (was 0.15)
+    // Non-debug gameplay camera
+    cameraPosition: { x: -4.79, y: 12.18, z: -34.58 },
+    cameraLookAt:   { x: -4.79, y: 8.0,   z: -44.0 },
 
-    // Grab radius
+    // ===== STREAMER (Mel) =====
+    // Same approach as murino-run: modelHeight controls final size
+    modelHeight: 4.5,    // Same as murino-run!
+    streamerPosition: { x: -4.0, y: 0, z: -38.0 },
+
+    // ===== ITEMS =====
+    itemsScale: 0.8,
     grabRadius: 2.5,
 
-    // ===== CAMERA (non-debug gameplay) =====
-    // Behind the hand, higher, looking toward table
-    cameraPosition: { x: -4.25, y: 12.0, z: -20.0 },
-    cameraLookAt:   { x: -4.25, y: 6.0,  z: -35.0 },
-
     // ===== CHAIR =====
-    chairSeatHeight: 2.5,
-    chairScale: 1.8,
+    chairSeatHeight: 2.2,
+    chairScale: 2.0,
 
-    // ===== FLY CAMERA (debug) =====
+    // ===== FLY CAMERA =====
     flySpeed:     8,
     flySpeedFast: 20,
 
     // ===== FLOOR =====
     floorY: 0,
-    floorSize: 100
+    floorSize: 200
 };
 
 export const STATE = {
