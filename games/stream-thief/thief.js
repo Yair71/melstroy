@@ -1,8 +1,9 @@
 // ============================================================
 // thief.js — The hand: aims X, aims Y, reaches Z, returns
+// FIXED: uses cloneModel() for the hand
 // ============================================================
-import { CONFIG, PHASE, DEBUG } from './config.js';
-import { loadedAssets } from './assets.js';
+import { CONFIG, PHASE } from './config.js';
+import { cloneModel } from './assets.js';
 import { gameState } from './gameState.js';
 import { lootItems, collectLoot } from './world.js';
 
@@ -13,39 +14,30 @@ export function initThief(scene) {
     sceneRef = scene;
     handGroup = new THREE.Group();
 
-    const gltf = loadedAssets.models['hand'];
-    if (gltf) {
-        const handScene = gltf.scene;
+    // CLONE the hand model (not gltf.scene directly!)
+    const cloned = cloneModel('hand');
+    if (cloned) {
+        const handScene = cloned.scene;
         handScene.scale.setScalar(CONFIG.handScale);
 
         // Center the hand model inside the group
         handScene.updateMatrixWorld(true);
         const box = new THREE.Box3().setFromObject(handScene);
         const center = box.getCenter(new THREE.Vector3());
-        const size = box.getSize(new THREE.Vector3());
         handScene.position.set(-center.x, -center.y, -center.z);
 
         handGroup.add(handScene);
-
-        if (DEBUG) {
-            console.log(`%c🤚 Hand model size at scale ${CONFIG.handScale}: (${(size.x).toFixed(2)}, ${(size.y).toFixed(2)}, ${(size.z).toFixed(2)})`, 'color: #f80;');
-        }
     }
 
-    // Place hand at exact starting coordinates
+    // Place hand at starting coordinates
     handGroup.position.set(gameState.handX, gameState.handY, gameState.handZ);
     scene.add(handGroup);
-
-    if (DEBUG) {
-        console.log(`%c🤚 Hand spawned at (${gameState.handX}, ${gameState.handY}, ${gameState.handZ})`, 'color: #f80; font-weight: bold;');
-    }
 }
 
 export function updateThief(deltaTime) {
     if (!handGroup) return;
 
     switch (gameState.phase) {
-        // Phase 1: Hand oscillates left-right on X
         case PHASE.AIM_X:
             gameState.handX += CONFIG.speedX * gameState.dirX * deltaTime;
             if (gameState.handX > CONFIG.limitXMax) {
@@ -58,7 +50,6 @@ export function updateThief(deltaTime) {
             }
             break;
 
-        // Phase 2: Hand oscillates up-down on Y (X is locked)
         case PHASE.AIM_Y:
             gameState.handY += CONFIG.speedY * gameState.dirY * deltaTime;
             if (gameState.handY > CONFIG.limitYMax) {
@@ -71,7 +62,6 @@ export function updateThief(deltaTime) {
             }
             break;
 
-        // Phase 3: Hand reaches forward on Z while user holds
         case PHASE.MOVE_Z:
             if (gameState.isHolding) {
                 gameState.handZ -= CONFIG.speedZ * deltaTime;
@@ -82,7 +72,6 @@ export function updateThief(deltaTime) {
             }
             break;
 
-        // Phase 4: Hand returns to start, then cycle restarts
         case PHASE.RETURN:
             gameState.handX += (CONFIG.handStartX - gameState.handX) * CONFIG.returnSpeed * deltaTime;
             gameState.handY += (CONFIG.handStartY - gameState.handY) * CONFIG.returnSpeed * deltaTime;
