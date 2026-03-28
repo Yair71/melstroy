@@ -244,30 +244,43 @@ function handleCatch(item, isObesity) {
 
 function handleMiss(item, isObesity, playerX) {
     if (isObesity) {
-        // Only count miss if item was reachable
-        const distFromPlayer = Math.abs(item.x - playerX);
-        const reachable = gameState.worldWidth * 0.5;
+        // ===== OBESITY: only GREEN (healthy) food on floor = lose heart =====
+        // Red junk food on floor = fine, you don't need it
+        if (!item.isJunk) {
+            // Healthy food wasted! That's bad in obesity mode
+            const distFromPlayer = Math.abs(item.x - playerX);
+            const reachable = gameState.worldWidth * 0.5;
 
-        if (distFromPlayer < reachable) {
-            gameState.missed++;
+            if (distFromPlayer < reachable) {
+                gameState.missed++;
+                gameState.combo = 0;
+                gameState.shakeTimer = 0.15;
+                gameState.shakeIntensity = Math.min(CONFIG.maxShakeIntensity, 4);
+
+                if (gameState.missed >= CONFIG.obesityMissLimit) {
+                    triggerGameOver();
+                }
+            }
+        }
+        // Junk on floor in obesity = no penalty
+    } else {
+        // ===== FIT: only RED (junk) food on floor = lose heart =====
+        // Green healthy food on floor = small score penalty, no heart
+        if (item.isJunk) {
+            // Junk food reached the floor — you failed to dodge (it got past you)
+            gameState.strikes++;
             gameState.combo = 0;
             gameState.shakeTimer = 0.15;
             gameState.shakeIntensity = Math.min(CONFIG.maxShakeIntensity, 4);
 
-            if (gameState.missed >= CONFIG.obesityMissLimit) {
+            if (gameState.strikes >= CONFIG.fitStrikesMax) {
                 triggerGameOver();
             }
-        }
-    } else {
-        // ===== FIT MODE: junk falling to floor = GOOD (dodged!) =====
-        // ===== Healthy food falling to floor = small score penalty, NO hearts lost =====
-        if (!item.isJunk) {
-            // Missed healthy food — small penalty
+        } else {
+            // Healthy food missed — small score penalty only
             gameState.score = Math.max(0, gameState.score - 3);
             gameState.combo = 0;
         }
-        // Junk missed = nothing happens. This is correct behavior.
-        // Hearts (strikes) ONLY change when you CATCH junk.
     }
 }
 
