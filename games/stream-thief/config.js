@@ -36,9 +36,10 @@ export const CONFIG = {
     limitYMax:  12.0,
     limitZMin: -42.0,
 
-    // ===== CAMERA (fixed gameplay camera — your coords) =====
+    // ===== CAMERA (exact from your fly camera screenshot) =====
     cameraPosition: { x: -4.79, y: 12.18, z: -34.58 },
-    cameraLookAt:   { x: -4.79, y: 8.0,   z: -44.0 },
+    cameraYaw: 179.2,      // degrees — looking in +Z direction
+    cameraPitch: 0.0,      // degrees
 
     // ===== STREAMER (Mel) =====
     modelHeight: 4.5,
