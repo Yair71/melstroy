@@ -1,5 +1,5 @@
 // ============================================================
-// gameState.js — Runtime state
+// gameState.js — Runtime state (v3) — dynamic lanes + zoom
 // ============================================================
 import { STATE, MODE, CONFIG } from './config.js';
 
@@ -10,6 +10,11 @@ export const gameState = {
     // Player
     playerX: 0,
     playerScale: 1.0,
+
+    // Dynamic world
+    currentLanes: CONFIG.baseLanes,
+    worldWidth: CONFIG.canvasWidth,    // logical play area width (grows)
+    cameraZoom: 1.0,                   // <1 = zoomed out to see more
 
     // Score
     score: 0,
@@ -31,7 +36,7 @@ export const gameState = {
     // Input
     moveLeft: false,
     moveRight: false,
-    touchActive: false,   // ← changed from touchX: whether user is actively dragging
+    touchActive: false,
     touchX: null,
 
     // Items in play
@@ -49,6 +54,9 @@ export const gameState = {
         this.mode = mode;
         this.playerX = CONFIG.canvasWidth / 2;
         this.playerScale = 1.0;
+        this.currentLanes = CONFIG.baseLanes;
+        this.worldWidth = CONFIG.canvasWidth;
+        this.cameraZoom = 1.0;
         this.score = 0;
         this.combo = 0;
         this.maxCombo = 0;
@@ -64,8 +72,17 @@ export const gameState = {
         this.touchX = null;
         this.items = [];
         this.particles = [];
-        // CRITICAL: reset shake on new game!
         this.shakeTimer = 0;
         this.shakeIntensity = 0;
     }
 };
+
+// Helper: get current weight in kg
+export function getWeightKg() {
+    return Math.floor(CONFIG.baseWeight + (gameState.playerScale - 1) * CONFIG.kgPerScale);
+}
+
+// Helper: get weight gained above base
+export function getWeightGainKg() {
+    return Math.max(0, Math.floor((gameState.playerScale - 1) * CONFIG.kgPerScale));
+}
