@@ -61,7 +61,7 @@ export function updateGame(dt) {
     gameState.score += dt * 2;
 }
 
-// ===== DYNAMIC LANE EXPANSION =====
+// ===== DYNAMIC LANE EXPANSION (smooth, no jitter) =====
 function updateDynamicLanes() {
     const playerPixelW = CONFIG.playerWidth * gameState.playerScale;
     const currentFieldW = gameState.worldWidth;
@@ -77,8 +77,17 @@ function updateDynamicLanes() {
         const laneW = CONFIG.canvasWidth / CONFIG.baseLanes;
         gameState.worldWidth = gameState.currentLanes * laneW;
 
-        // Zoom out to fit
-        gameState.cameraZoom = CONFIG.canvasWidth / gameState.worldWidth;
+        // Set TARGET zoom — will be interpolated smoothly below
+        gameState._targetZoom = CONFIG.canvasWidth / gameState.worldWidth;
+    }
+
+    // Smooth zoom interpolation (no sudden jumps)
+    if (gameState._targetZoom === undefined) gameState._targetZoom = 1.0;
+    const zoomDiff = gameState._targetZoom - gameState.cameraZoom;
+    if (Math.abs(zoomDiff) > 0.001) {
+        gameState.cameraZoom += zoomDiff * 0.05; // smooth lerp
+    } else {
+        gameState.cameraZoom = gameState._targetZoom;
     }
 
     // Cap player scale so they never exceed maxPlayerScaleRatio of current field
@@ -146,7 +155,6 @@ function updateItems(dt) {
     const playerY = CONFIG.playerY;
     const scale = gameState.playerScale;
     const playerHalfW = (CONFIG.playerWidth * scale) / 2;
-    const playerHalfH = (CONFIG.playerHeight * scale) / 2;
     const isObesity = gameState.mode === MODE.OBESITY;
 
     for (let i = gameState.items.length - 1; i >= 0; i--) {
@@ -154,23 +162,30 @@ function updateItems(dt) {
 
         item.y += item.speed * dt;
 
-        // ===== COLLISION — TIGHTER than before =====
-        // Only catch if item center is clearly inside the player body
+        // ===== COLLISION — VERY TIGHT =====
+        // Item must be horizontally inside body AND vertically at player's feet
+        // playerY is the CENTER of the player body
         const dx = Math.abs(item.x - playerX);
-        const dy = Math.abs(item.y - playerY);
 
-        // Catch zone: item must be within the player body + small margin
-        const catchX = playerHalfW * 0.85 + CONFIG.itemSize * 0.2;
-        const catchY = playerHalfH * 0.7 + CONFIG.itemSize * 0.2;
+        // Horizontal: item must overlap with body width (no extra margin)
+        const catchX = playerHalfW * 0.7;
 
-        if (dx < catchX && dy < catchY) {
+        // Vertical: item must be in a narrow band near the top of the player
+        // Player center is at playerY, top edge is at playerY - halfH
+        const playerTopY = playerY - (CONFIG.playerHeight * scale) / 2;
+        const itemBottomEdge = item.y + CONFIG.itemSize * 0.3;
+
+        // Catch only when item's bottom is between player's top and center
+        const verticalHit = itemBottomEdge >= playerTopY && item.y <= playerY + 10;
+
+        if (dx < catchX && verticalHit) {
             handleCatch(item, isObesity);
             gameState.items.splice(i, 1);
             continue;
         }
 
-        // Missed: fell below screen
-        if (item.y > CONFIG.canvasHeight + CONFIG.itemSize) {
+        // Missed: fell below player (past the catch zone)
+        if (item.y > playerY + 30) {
             handleMiss(item, isObesity, playerX);
             gameState.items.splice(i, 1);
         }
