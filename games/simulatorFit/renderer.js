@@ -270,15 +270,32 @@ function drawGame(ctx, time) {
 function drawItem(ctx, item, time) {
     const bob = Math.sin(time * 4 + item.phase) * 3;
     const rot = Math.sin(time * 2 + item.phase) * 0.1;
+    const zoom = gameState.cameraZoom;
 
     ctx.save();
     ctx.translate(item.x, item.y + bob);
     ctx.rotate(rot);
 
-    ctx.shadowColor = item.isJunk ? '#FF003C' : '#00FF41';
-    ctx.shadowBlur = 10;
+    // Scale up glow when zoomed out so it stays visible
+    const glowSize = Math.max(12, 12 / zoom);
+    const borderColor = item.isJunk ? '#FF003C' : '#00FF41';
 
-    ctx.font = `${CONFIG.itemSize}px serif`;
+    // Colored circle background (always visible)
+    ctx.beginPath();
+    ctx.arc(0, 0, CONFIG.itemSize * 0.55, 0, Math.PI * 2);
+    ctx.fillStyle = item.isJunk ? 'rgba(255,0,60,0.2)' : 'rgba(0,255,65,0.2)';
+    ctx.fill();
+    ctx.strokeStyle = borderColor;
+    ctx.lineWidth = Math.max(2, 2 / zoom);
+    ctx.stroke();
+
+    // Glow
+    ctx.shadowColor = borderColor;
+    ctx.shadowBlur = glowSize;
+
+    // Emoji (scale up slightly when zoomed out)
+    const fontSize = Math.max(CONFIG.itemSize, CONFIG.itemSize / zoom * 0.7);
+    ctx.font = `${fontSize}px serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(item.emoji, 0, 0);
@@ -312,14 +329,22 @@ function drawPlayer(ctx, time) {
     ctx.fillStyle = bodyColor;
     roundRect(ctx, -w / 2, -h / 2, w, h, w * 0.3, true, false);
 
-    // ===== FACE IMAGE =====
+    // ===== FACE IMAGE — fills the whole body =====
     const faceImg = getCurrentFaceImage();
     if (faceImg) {
-        // Draw face image centered on the body, sized to fit
-        const faceSize = Math.min(w * 0.75, h * 0.65);
-        const faceX = -faceSize / 2;
-        const faceY = -h * 0.35;
-        ctx.drawImage(faceImg, faceX, faceY, faceSize, faceSize);
+        // Draw face covering the full body (it IS the head/body)
+        const imgAspect = faceImg.naturalWidth / (faceImg.naturalHeight || 1);
+        let faceW, faceH;
+        if (imgAspect > 1) {
+            // Wide image: fit to body width
+            faceW = w * 0.9;
+            faceH = faceW / imgAspect;
+        } else {
+            // Tall image: fit to body height
+            faceH = h * 0.85;
+            faceW = faceH * imgAspect;
+        }
+        ctx.drawImage(faceImg, -faceW / 2, -faceH / 2, faceW, faceH);
     } else {
         // Fallback: emoji eyes + mouth
         const eyeSpacing = w * 0.2;
