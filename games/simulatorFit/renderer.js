@@ -276,28 +276,23 @@ function drawItem(ctx, item, time) {
     ctx.translate(item.x, item.y + bob);
     ctx.rotate(rot);
 
-    // Scale up glow when zoomed out so it stays visible
-    const glowSize = Math.max(12, 12 / zoom);
-    const borderColor = item.isJunk ? '#FF003C' : '#00FF41';
+    // Neon glow aura (no circle, just light around the emoji)
+    const glowColor = item.isJunk ? '#FF003C' : '#00FF41';
+    const glowSize = Math.max(15, 18 / zoom);
 
-    // Colored circle background (always visible)
-    ctx.beginPath();
-    ctx.arc(0, 0, CONFIG.itemSize * 0.55, 0, Math.PI * 2);
-    ctx.fillStyle = item.isJunk ? 'rgba(255,0,60,0.2)' : 'rgba(0,255,65,0.2)';
-    ctx.fill();
-    ctx.strokeStyle = borderColor;
-    ctx.lineWidth = Math.max(2, 2 / zoom);
-    ctx.stroke();
-
-    // Glow
-    ctx.shadowColor = borderColor;
+    // Double glow for stronger neon effect
+    ctx.shadowColor = glowColor;
     ctx.shadowBlur = glowSize;
 
-    // Emoji (scale up slightly when zoomed out)
-    const fontSize = Math.max(CONFIG.itemSize, CONFIG.itemSize / zoom * 0.7);
+    // Emoji
+    const fontSize = Math.max(CONFIG.itemSize, CONFIG.itemSize / zoom * 0.8);
     ctx.font = `${fontSize}px serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
+    ctx.fillText(item.emoji, 0, 0);
+
+    // Second pass for stronger glow
+    ctx.shadowBlur = glowSize * 1.5;
     ctx.fillText(item.emoji, 0, 0);
 
     ctx.shadowBlur = 0;
