@@ -1,5 +1,9 @@
 // ============================================================
-// assets.js — Load all GLB models (murino-run style)
+// assets.js — Load all GLB models
+// CRITICAL: We store the raw gltf. Every module that uses a model
+// MUST call clone(true) on gltf.scene before adding to the scene.
+// gltf.scene is a singleton — adding it twice removes it from
+// the first parent. This was the main invisibility bug.
 // ============================================================
 import { ASSETS } from './config.js';
 
@@ -43,4 +47,43 @@ export async function loadAssets() {
         console.error('Error loading assets. Check file paths in config.js!', error);
         return false;
     }
+}
+
+// ============================================================
+// HELPER: Clone a model safely. Always use this instead of
+// accessing gltf.scene directly!
+// ============================================================
+export function cloneModel(modelKey) {
+    const gltf = loadedAssets.models[modelKey];
+    if (!gltf) {
+        console.warn(`cloneModel: "${modelKey}" not found in loadedAssets!`);
+        return null;
+    }
+
+    const cloned = gltf.scene.clone(true);
+
+    // Clone materials so each instance is independent
+    cloned.traverse((child) => {
+        if (child.isMesh) {
+            if (child.material) {
+                child.material = child.material.clone();
+            }
+            child.castShadow = true;
+            child.receiveShadow = true;
+        }
+        // Clone SkinnedMesh bones binding
+        if (child.isSkinnedMesh && child.skeleton) {
+            // Re-bind skeleton to the cloned bones
+            const clonedBones = [];
+            child.skeleton.bones.forEach((bone) => {
+                const clonedBone = cloned.getObjectByName(bone.name);
+                if (clonedBone) clonedBones.push(clonedBone);
+                else clonedBones.push(bone);
+            });
+            child.skeleton = new THREE.Skeleton(clonedBones);
+            child.bind(child.skeleton);
+        }
+    });
+
+    return { scene: cloned, animations: gltf.animations };
 }
