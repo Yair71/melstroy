@@ -1,18 +1,12 @@
 // ============================================================
 // input.js — Space / Tap input for hand phases
-// In DEBUG mode, hand input is disabled (WASD controls camera)
 // ============================================================
-import { STATE, PHASE, DEBUG } from './config.js';
+import { STATE, PHASE } from './config.js';
 import { gameState } from './gameState.js';
 
 let cleanupFns = [];
 
 export function initInput() {
-    if (DEBUG) {
-        console.log('🎮 Input: DEBUG mode — hand input disabled, use fly camera (WASD + mouse)');
-        return;
-    }
-
     const onKeyDown = (e) => {
         if (e.code !== 'Space') return;
         e.preventDefault();
