@@ -7,7 +7,7 @@ export const gameState = {
     current: STATE.LOADING,
     phase:   PHASE.AIM_X,
 
-    // Hand position — starts at the exact coordinates you found
+    // Hand position
     handX: CONFIG.handStartX,
     handY: CONFIG.handStartY,
     handZ: CONFIG.handStartZ,
