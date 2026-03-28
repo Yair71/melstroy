@@ -21,13 +21,16 @@ export const GAMES = [
     modulePath: "../games/stream-thief/index.js", // Путь к нашей новой игре
     enabled: true // Включили кнопку "Играть"
   },
-  {
-    id: "game3",
-    tag: "Click",
-    titleKey: { ru: "Game #3", en: "Game #3" },
-    descKey: { ru: "Скоро подключим.", en: "Coming soon." },
-    modulePath: null,
-    enabled: false
+{
+    id: "fatorfit",
+    tag: "Аркада",
+    titleKey: { ru: "Жир или Фит", en: "Fat or Fit" },
+    descKey: { 
+        ru: "Выбери путь: жри всё подряд или ешь только здоровое. Бесконечный челлендж!", 
+        en: "Choose your path: eat everything or stay healthy. Endless food challenge!" 
+    },
+    modulePath: "../games/fat-or-fit/index.js",
+    enabled: true
   },
   {
     id: "game4",
