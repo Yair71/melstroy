@@ -1,4 +1,6 @@
-
+// ============================================================
+// index.js — Fat or Fit v3: main entry
+// ============================================================
 import { CONFIG, STATE, MODE } from './config.js';
 import { gameState } from './gameState.js';
 import { initInput, cleanupInput } from './input.js';
@@ -13,7 +15,6 @@ export function createGame(root, api) {
 
     window.mellApi = api;
 
-    // ===== Coordinate helper (same as input.js) =====
     function canvasCoord(clientX, clientY) {
         const rect = canvas.getBoundingClientRect();
         const canvasAspect = canvas.width / canvas.height;
@@ -74,11 +75,7 @@ export function createGame(root, api) {
         const dt = Math.min((timestamp - lastTime) / 1000, 0.05);
         lastTime = timestamp;
 
-        // ===== CRITICAL: updateGame runs EVERY frame =====
-        // logic.js handles state gating internally, but shake
-        // timer always decays regardless of state
         updateGame(dt);
-
         drawFrame(ctx, timestamp / 1000);
     }
 
@@ -99,7 +96,6 @@ export function createGame(root, api) {
     function processClick(cx, cy) {
         if (gameState.current === STATE.MENU) {
             const bounds = getMenuCardBounds();
-
             for (const mode of [MODE.OBESITY, MODE.FIT]) {
                 const b = bounds[mode];
                 if (b && cx >= b.x && cx <= b.x + b.w && cy >= b.y && cy <= b.y + b.h) {
@@ -108,7 +104,6 @@ export function createGame(root, api) {
                 }
             }
         }
-
         if (gameState.current === STATE.GAMEOVER) {
             startGame(gameState.mode);
         }
@@ -119,7 +114,6 @@ export function createGame(root, api) {
             if (gameState.current === STATE.PLAYING || gameState.current === STATE.GAMEOVER) {
                 saveScore();
                 gameState.current = STATE.MENU;
-                // Clear shake on menu exit
                 gameState.shakeTimer = 0;
                 gameState.shakeIntensity = 0;
             }
@@ -137,7 +131,7 @@ export function createGame(root, api) {
     }
 
     function startGame(mode) {
-        gameState.reset(mode);   // reset() clears shake, items, everything
+        gameState.reset(mode);
     }
 
     function saveScore() {
@@ -156,10 +150,8 @@ export function createGame(root, api) {
             if (isRunning) return;
             const backBtn = root.querySelector('#btnBack');
             const fsBtn = root.querySelector('#btnFullscreen');
-
             isRunning = true;
             init();
-
             if (backBtn) root.appendChild(backBtn);
             if (fsBtn) root.appendChild(fsBtn);
         },
