@@ -64,9 +64,9 @@ export function updateThief(deltaTime) {
 
         case PHASE.MOVE_Z:
             if (gameState.isHolding) {
-                gameState.handZ -= CONFIG.speedZ * deltaTime;
-                if (gameState.handZ < CONFIG.limitZMin) {
-                    gameState.handZ = CONFIG.limitZMin;
+                gameState.handZ += CONFIG.speedZ * deltaTime;
+                if (gameState.handZ > CONFIG.limitZMax) {
+                    gameState.handZ = CONFIG.limitZMax;
                 }
                 checkLootGrab();
             }
