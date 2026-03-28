@@ -1,9 +1,8 @@
 // ============================================================
 // index.js — Main game entry, wires all modules together
-// Architecture mirrors murino-run for consistency
 // ============================================================
 import { loadAssets } from './assets.js';
-import { DEBUG, STATE } from './config.js';
+import { STATE } from './config.js';
 import { gameState } from './gameState.js';
 import { initCamera, updateCamera, resizeCamera, cleanupCamera } from './camera.js';
 import { initWorld, updateLoot } from './world.js';
@@ -31,7 +30,7 @@ export function createGame(root, api) {
 
         window.addEventListener('resize', onResize);
 
-        // Load all assets (loading screen is visible)
+        // Load all assets
         const ok = await loadAssets();
         if (!ok) {
             root.innerHTML = '<h2 style="color:red; text-align:center; padding-top:50px;">Failed to load assets. Check console.</h2>';
@@ -39,7 +38,7 @@ export function createGame(root, api) {
         }
 
         // Init all modules
-        camera = initCamera(scene, renderer.domElement);
+        camera = initCamera(scene);
         initWorld(scene);
         initThief(scene);
         initStreamer(scene);
@@ -58,22 +57,16 @@ export function createGame(root, api) {
 
         const dt = clock.getDelta();
 
-        // Always update camera (fly mode in debug)
         updateCamera(dt);
 
-        // Game logic — only when playing
         if (gameState.current === STATE.PLAYING) {
             updateThief(dt);
             updateLoot(dt);
         }
 
-        // Streamer always animates (swapping sitting models)
         updateStreamer(dt);
-
-        // UI overlay
         updateUI();
 
-        // Render
         if (renderer && scene && camera) {
             renderer.render(scene, camera);
         }
@@ -91,9 +84,8 @@ export function createGame(root, api) {
             if (isRunning) return;
             root.innerHTML = '';
             isRunning = true;
-
-            initUI(root);  // Show loading screen first
-            init3D();      // Then load 3D
+            initUI(root);
+            init3D();
         },
         stop() {
             isRunning = false;
