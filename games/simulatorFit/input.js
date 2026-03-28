@@ -1,12 +1,7 @@
 // ============================================================
-// input.js — Keyboard + touch/mouse input (FIXED)
-//
-// BUG FIX: mousemove was constantly setting touchX even without
-// clicking, which locked the player to the mouse cursor position
-// and overrode keyboard input. Now mouse only works on drag.
-//
-// BUG FIX: coordinate scaling was wrong with object-fit:contain.
-// Now we compute the actual rendered area inside the canvas element.
+// input.js — Keyboard + touch/mouse input
+// Mouse only works on click-drag, not passive hover.
+// Proper coordinate scaling for object-fit:contain.
 // ============================================================
 import { gameState } from './gameState.js';
 import { CONFIG } from './config.js';
@@ -15,7 +10,6 @@ let cleanupFns = [];
 
 export function initInput(canvas) {
 
-    // ===== Coordinate helper: handles object-fit:contain scaling =====
     function canvasCoord(clientX, clientY) {
         const rect = canvas.getBoundingClientRect();
         const canvasAspect = canvas.width / canvas.height;
@@ -24,13 +18,11 @@ export function initInput(canvas) {
         let renderW, renderH, offsetX, offsetY;
 
         if (elemAspect > canvasAspect) {
-            // Pillarboxed (black bars on sides)
             renderH = rect.height;
             renderW = rect.height * canvasAspect;
             offsetX = (rect.width - renderW) / 2;
             offsetY = 0;
         } else {
-            // Letterboxed (black bars top/bottom)
             renderW = rect.width;
             renderH = rect.width / canvasAspect;
             offsetX = 0;
@@ -43,7 +35,6 @@ export function initInput(canvas) {
         return { x, y };
     }
 
-    // ===== KEYBOARD =====
     const onKeyDown = (e) => {
         if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
             e.preventDefault();
@@ -60,9 +51,7 @@ export function initInput(canvas) {
         if (e.code === 'ArrowRight' || e.code === 'KeyD') gameState.moveRight = false;
     };
 
-    // ===== TOUCH =====
     const onTouchStart = (e) => {
-        // Don't prevent default on menu/gameover screens — let click handler work
         if (gameState.current === 'PLAYING') {
             e.preventDefault();
         }
@@ -85,11 +74,9 @@ export function initInput(canvas) {
         gameState.touchX = null;
     };
 
-    // ===== MOUSE (click-drag only, NOT passive hover) =====
     let mouseDown = false;
 
     const onMouseDown = (e) => {
-        // Only track for game movement, not menu clicks
         if (gameState.current === 'PLAYING') {
             mouseDown = true;
             const pos = canvasCoord(e.clientX, e.clientY);
@@ -99,7 +86,7 @@ export function initInput(canvas) {
     };
 
     const onMouseMove = (e) => {
-        if (!mouseDown) return; // ← KEY FIX: only track when button is held
+        if (!mouseDown) return;
         const pos = canvasCoord(e.clientX, e.clientY);
         gameState.touchX = pos.x;
     };
@@ -116,7 +103,6 @@ export function initInput(canvas) {
         gameState.touchX = null;
     };
 
-    // ===== BIND =====
     window.addEventListener('keydown', onKeyDown);
     window.addEventListener('keyup', onKeyUp);
     canvas.addEventListener('touchstart', onTouchStart, { passive: false });
