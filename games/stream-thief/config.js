@@ -34,7 +34,7 @@ export const CONFIG = {
     limitXMax:   2.0,
     limitYMin:   4.0,
     limitYMax:  12.0,
-    limitZMin: -42.0,
+    limitZMax: -8.0,    // hand reaches forward (+Z) toward table
 
     // ===== CAMERA (exact from your fly camera screenshot) =====
     cameraPosition: { x: -4.79, y: 12.18, z: -34.58 },
