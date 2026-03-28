@@ -29,7 +29,7 @@ export const GAMES = [
         ru: "Выбери  жри всё подряд или ешь только здоровое. Бесконечный челлендж!", 
         en: "Choose your path: eat everything or stay healthy. Endless food challenge!" 
     },
-    modulePath: "../games/fat-or-fit/index.js",
+    modulePath: "../games/simulatorFit/index.js",
     enabled: true
   },
   {
