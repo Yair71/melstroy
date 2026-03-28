@@ -31,6 +31,7 @@ export const gameState = {
     // Input
     moveLeft: false,
     moveRight: false,
+    touchActive: false,   // ← changed from touchX: whether user is actively dragging
     touchX: null,
 
     // Items in play
@@ -59,9 +60,11 @@ export const gameState = {
         this.currentFallSpeed = CONFIG.itemFallSpeed;
         this.moveLeft = false;
         this.moveRight = false;
+        this.touchActive = false;
         this.touchX = null;
         this.items = [];
         this.particles = [];
+        // CRITICAL: reset shake on new game!
         this.shakeTimer = 0;
         this.shakeIntensity = 0;
     }
