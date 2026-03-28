@@ -1,6 +1,13 @@
 // ============================================================
 // camera.js — Fixed gameplay camera (fly mode REMOVED)
-// Uses the exact coordinates you captured with the fly camera
+// Uses the exact coordinates + yaw/pitch from your fly camera
+//
+// Your fly camera data:
+//   POS(-4.79, 12.18, -34.58)
+//   YAW=179.2°  PITCH=0°
+//
+// YAW=179.2° means the camera was looking in the +Z direction
+// (back toward the room). We reproduce this with quaternion.
 // ============================================================
 import { CONFIG } from './config.js';
 
@@ -14,16 +21,17 @@ export function initCamera(scene) {
         500
     );
 
+    // Position from your fly camera
     camera.position.set(
         CONFIG.cameraPosition.x,
         CONFIG.cameraPosition.y,
         CONFIG.cameraPosition.z
     );
-    camera.lookAt(
-        CONFIG.cameraLookAt.x,
-        CONFIG.cameraLookAt.y,
-        CONFIG.cameraLookAt.z
-    );
+
+    // Apply the exact yaw/pitch as quaternion (same math the fly camera used)
+    const yaw   = CONFIG.cameraYaw * Math.PI / 180;
+    const pitch = CONFIG.cameraPitch * Math.PI / 180;
+    camera.quaternion.setFromEuler(new THREE.Euler(pitch, yaw, 0, 'YXZ'));
 
     scene.add(camera);
     return camera;
@@ -31,7 +39,6 @@ export function initCamera(scene) {
 
 export function updateCamera(deltaTime) {
     // Fixed camera — nothing to update
-    // Could add subtle breathing/sway effect here later
 }
 
 export function resizeCamera() {
@@ -42,7 +49,7 @@ export function resizeCamera() {
 }
 
 export function cleanupCamera() {
-    // Nothing to clean up — no event listeners
+    // No event listeners to clean
 }
 
 export function getCamera() {
