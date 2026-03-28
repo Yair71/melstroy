@@ -1,10 +1,29 @@
 // ============================================================
-// logic.js — Core game loop logic (spawning, movement, collision)
+// logic.js — Core game loop logic (FIXED)
+//
+// BUG FIXES:
+// 1. Shake timer now decays in ALL states (was only PLAYING)
+// 2. Items spawn in LANES so player can actually reach them
+// 3. Catch collision box is much bigger and scales with player
+// 4. Obesity miss counter only increments for items that were
+//    reasonably close to the player's lane (not across screen)
+// 5. Shake intensity capped by config values
 // ============================================================
 import { CONFIG, MODE, STATE, FOODS } from './config.js';
 import { gameState } from './gameState.js';
 
+// Called EVERY frame from index.js (not just during PLAYING)
 export function updateGame(dt) {
+    // ===== SHAKE ALWAYS DECAYS (fixes frozen shake on game over) =====
+    if (gameState.shakeTimer > 0) {
+        gameState.shakeTimer -= dt;
+        if (gameState.shakeTimer <= 0) {
+            gameState.shakeTimer = 0;
+            gameState.shakeIntensity = 0;
+        }
+    }
+
+    // Only run game logic during PLAYING
     if (gameState.current !== STATE.PLAYING) return;
 
     gameState.elapsed += dt;
@@ -35,11 +54,6 @@ export function updateGame(dt) {
     // ===== UPDATE PARTICLES =====
     updateParticles(dt);
 
-    // ===== SCREEN SHAKE =====
-    if (gameState.shakeTimer > 0) {
-        gameState.shakeTimer -= dt;
-    }
-
     // ===== PASSIVE SCORE (survival time) =====
     gameState.score += dt * 2;
 }
@@ -48,10 +62,11 @@ function updatePlayerMovement(dt) {
     const speed = CONFIG.playerSpeed;
     const halfW = (CONFIG.playerWidth * gameState.playerScale) / 2;
 
-    // Touch/mouse: move toward touch position
-    if (gameState.touchX !== null) {
+    // Touch/mouse drag: snap toward touch position (fast, responsive)
+    if (gameState.touchActive && gameState.touchX !== null) {
         const diff = gameState.touchX - gameState.playerX;
-        const moveAmount = Math.sign(diff) * Math.min(Math.abs(diff), speed * dt * 1.5);
+        // Move directly toward touch, speed proportional to distance
+        const moveAmount = diff * Math.min(1, dt * 12);
         gameState.playerX += moveAmount;
     }
 
@@ -63,24 +78,31 @@ function updatePlayerMovement(dt) {
         gameState.playerX += speed * dt;
     }
 
-    // Clamp
+    // Clamp to screen edges
     gameState.playerX = Math.max(halfW + 5, Math.min(CONFIG.canvasWidth - halfW - 5, gameState.playerX));
 }
 
 function spawnItem() {
     const isObesity = gameState.mode === MODE.OBESITY;
 
-    // In obesity mode: 60% junk, 40% healthy
+    // In obesity mode: 55% junk, 45% healthy
     // In fit mode: 50/50
-    const junkChance = isObesity ? 0.6 : 0.5;
+    const junkChance = isObesity ? 0.55 : 0.5;
     const isJunk = Math.random() < junkChance;
 
     const pool = isJunk ? FOODS.junk : FOODS.healthy;
     const food = pool[Math.floor(Math.random() * pool.length)];
 
-    // Random X position (with some padding)
-    const pad = CONFIG.itemSize;
-    const x = pad + Math.random() * (CONFIG.canvasWidth - pad * 2);
+    // ===== LANE-BASED SPAWNING (instead of random X) =====
+    // This ensures items land in predictable columns the player can reach
+    const laneCount = CONFIG.lanes;
+    const pad = CONFIG.itemSize * 0.8;
+    const usableW = CONFIG.canvasWidth - pad * 2;
+    const laneWidth = usableW / laneCount;
+
+    const lane = Math.floor(Math.random() * laneCount);
+    // Center of lane + small random offset for variety
+    const x = pad + lane * laneWidth + laneWidth / 2 + (Math.random() - 0.5) * laneWidth * 0.4;
 
     gameState.items.push({
         x: x,
@@ -89,15 +111,16 @@ function spawnItem() {
         name: food.name,
         isJunk: isJunk,
         phase: Math.random() * Math.PI * 2,
-        speed: gameState.currentFallSpeed * (0.85 + Math.random() * 0.3)
+        speed: gameState.currentFallSpeed * (0.9 + Math.random() * 0.2)
     });
 }
 
 function updateItems(dt) {
     const playerX = gameState.playerX;
     const playerY = CONFIG.playerY;
-    const playerHalfW = (CONFIG.playerWidth * gameState.playerScale) / 2;
-    const playerHalfH = (CONFIG.playerHeight * gameState.playerScale) / 2;
+    const scale = gameState.playerScale;
+    const playerHalfW = (CONFIG.playerWidth * scale) / 2;
+    const playerHalfH = (CONFIG.playerHeight * scale) / 2;
     const isObesity = gameState.mode === MODE.OBESITY;
 
     for (let i = gameState.items.length - 1; i >= 0; i--) {
@@ -106,22 +129,22 @@ function updateItems(dt) {
         // Move down
         item.y += item.speed * dt;
 
-        // Collision check (box overlap)
+        // ===== COLLISION: generous catch zone =====
+        // The catch box grows with the player scale (fatter = bigger catch area)
         const dx = Math.abs(item.x - playerX);
         const dy = Math.abs(item.y - playerY);
-        const catchX = playerHalfW + CONFIG.itemSize * 0.3;
-        const catchY = playerHalfH + CONFIG.itemSize * 0.3;
+        const catchX = playerHalfW + CONFIG.itemSize * 0.4;
+        const catchY = playerHalfH + CONFIG.itemSize * 0.5;
 
         if (dx < catchX && dy < catchY) {
-            // CAUGHT!
             handleCatch(item, isObesity);
             gameState.items.splice(i, 1);
             continue;
         }
 
-        // Missed (fell below screen)
+        // ===== MISSED: fell below screen =====
         if (item.y > CONFIG.canvasHeight + CONFIG.itemSize) {
-            handleMiss(item, isObesity);
+            handleMiss(item, isObesity, playerX);
             gameState.items.splice(i, 1);
         }
     }
@@ -140,8 +163,8 @@ function handleCatch(item, isObesity) {
         // Grow!
         gameState.playerScale += CONFIG.growthPerCatch;
 
-        // Particles — happy burst
-        spawnParticles(item.x, item.y, item.emoji, '#FFD700', 5);
+        // Particles
+        spawnParticles(item.x, item.y, item.emoji, '#FFD700', 4);
         spawnTextParticle(item.x, item.y - 20, `+${Math.floor(points)}`, '#FFD700');
 
     } else {
@@ -151,10 +174,10 @@ function handleCatch(item, isObesity) {
             gameState.strikes++;
             gameState.combo = 0;
             gameState.playerScale += CONFIG.growthPerJunk;
-            gameState.shakeTimer = 0.3;
-            gameState.shakeIntensity = 10;
+            gameState.shakeTimer = 0.2;
+            gameState.shakeIntensity = Math.min(CONFIG.maxShakeIntensity, 6);
 
-            spawnParticles(item.x, item.y, item.emoji, '#FF003C', 6);
+            spawnParticles(item.x, item.y, item.emoji, '#FF003C', 5);
             spawnTextParticle(item.x, item.y - 20, '💀 JUNK!', '#FF003C');
 
             if (gameState.strikes >= CONFIG.fitStrikesMax) {
@@ -169,41 +192,48 @@ function handleCatch(item, isObesity) {
             const points = CONFIG.healthyPoints * comboMult;
             gameState.score += points;
 
-            // Slight shrink toward base
             gameState.playerScale = Math.max(1.0, gameState.playerScale - CONFIG.shrinkPerHealthy);
 
-            spawnParticles(item.x, item.y, item.emoji, '#00FF41', 4);
+            spawnParticles(item.x, item.y, item.emoji, '#00FF41', 3);
             spawnTextParticle(item.x, item.y - 20, `+${Math.floor(points)}`, '#00FF41');
         }
     }
 }
 
-function handleMiss(item, isObesity) {
+function handleMiss(item, isObesity, playerX) {
     if (isObesity) {
-        // Missed item in obesity = bad
-        gameState.missed++;
-        gameState.combo = 0;
-        gameState.shakeTimer = 0.2;
-        gameState.shakeIntensity = 6;
+        // ===== FIX: Only count miss if item was reasonably reachable =====
+        // If item was on the complete opposite side of the screen, don't punish
+        const distFromPlayer = Math.abs(item.x - playerX);
+        const reachable = CONFIG.canvasWidth * 0.6; // within 60% of screen width
 
-        if (gameState.missed >= CONFIG.obesityMissLimit) {
-            triggerGameOver();
+        if (distFromPlayer < reachable) {
+            gameState.missed++;
+            gameState.combo = 0;
+
+            // Gentle shake (not intense)
+            gameState.shakeTimer = 0.15;
+            gameState.shakeIntensity = Math.min(CONFIG.maxShakeIntensity, 4);
+
+            if (gameState.missed >= CONFIG.obesityMissLimit) {
+                triggerGameOver();
+            }
         }
+        // Far away items are silently removed — not the player's fault
     } else {
-        // Fit mode: missing junk = good (dodged it), missing healthy = slight penalty
+        // Fit mode: missing junk = good (dodged it), missing healthy = small penalty
         if (!item.isJunk) {
-            // Missed healthy food — small score penalty
-            gameState.score = Math.max(0, gameState.score - 5);
+            gameState.score = Math.max(0, gameState.score - 3);
             gameState.combo = 0;
         }
-        // Missing junk = no penalty (you dodged it!)
     }
 }
 
 function triggerGameOver() {
     gameState.current = STATE.GAMEOVER;
-    gameState.shakeTimer = 0.5;
-    gameState.shakeIntensity = 15;
+    // Gentle game over shake (not insane)
+    gameState.shakeTimer = CONFIG.gameOverShakeDuration;
+    gameState.shakeIntensity = CONFIG.gameOverShakeIntensity;
 }
 
 // ===== PARTICLES =====
@@ -212,12 +242,12 @@ function spawnParticles(x, y, emoji, color, count) {
         gameState.particles.push({
             x: x + (Math.random() - 0.5) * 30,
             y: y + (Math.random() - 0.5) * 20,
-            vx: (Math.random() - 0.5) * 120,
-            vy: -60 - Math.random() * 100,
+            vx: (Math.random() - 0.5) * 100,
+            vy: -50 - Math.random() * 80,
             emoji: emoji,
-            size: 14 + Math.random() * 12,
+            size: 14 + Math.random() * 10,
             life: 1.0,
-            decay: 1.2 + Math.random() * 0.8
+            decay: 1.5 + Math.random() * 0.5
         });
     }
 }
@@ -227,7 +257,7 @@ function spawnTextParticle(x, y, text, color) {
         x: x,
         y: y,
         vx: 0,
-        vy: -80,
+        vy: -60,
         emoji: text,
         size: 18,
         life: 1.0,
@@ -242,7 +272,7 @@ function updateParticles(dt) {
         const p = gameState.particles[i];
         p.x += p.vx * dt;
         p.y += p.vy * dt;
-        p.vy += 200 * dt; // gravity
+        p.vy += 150 * dt;
         p.life -= p.decay * dt;
 
         if (p.life <= 0) {
