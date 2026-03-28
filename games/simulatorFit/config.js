@@ -1,3 +1,7 @@
+// ============================================================
+// config.js — Fat or Fit: all game constants (v3)
+// ============================================================
+
 export const STATE = {
     LOADING:  'LOADING',
     MENU:     'MENU',
@@ -11,7 +15,7 @@ export const MODE = {
 };
 
 export const CONFIG = {
-    // Canvas
+    // Canvas (logical — will be scaled by dynamic zoom)
     canvasWidth: 480,
     canvasHeight: 720,
 
@@ -22,7 +26,7 @@ export const CONFIG = {
     playerY: 640,
 
     // Items
-    itemSize: 40,
+    itemSize: 36,
     itemSpawnInterval: 0.9,
     itemFallSpeed: 140,
     
@@ -34,24 +38,47 @@ export const CONFIG = {
 
     // Obesity mode
     obesityMissLimit: 8,
-    growthPerCatch: 0.03,
+    growthPerCatch: 0.025,
 
     // Fit mode
     fitStrikesMax: 3,
-    shrinkPerHealthy: 0.01,
+    shrinkPerHealthy: 0.015,    // ← stronger shrink
     growthPerJunk: 0.12,
 
     // Scoring
     junkPoints: 15,
     healthyPoints: 10,
 
-    // Lanes (items spawn in lanes, not random X)
-    lanes: 5,
+    // Starting lanes
+    baseLanes: 5,
+
+    // Dynamic scaling: when player width > this fraction of play area, expand
+    expandThreshold: 0.35,   // player wider than 35% of field → expand
+    maxLanes: 20,            // absolute max lanes
+    maxPlayerScaleRatio: 0.45, // player never wider than 45% of current field
 
     // Shake limits
     maxShakeIntensity: 6,
     gameOverShakeIntensity: 3,
-    gameOverShakeDuration: 0.25
+    gameOverShakeDuration: 0.25,
+
+    // Face images (relative to game folder ./assets/)
+    faceImagesObesity: [
+        { minKg: 0,   src: './assets/fat1.png' },
+        { minKg: 20,  src: './assets/fat2.png' },
+        { minKg: 40,  src: './assets/fat5.png' },
+        { minKg: 60,  src: './assets/fat7.png' },
+        { minKg: 100, src: './assets/fatMax.png' }
+    ],
+    faceImagesFit: [
+        { minKg: 0,   src: './assets/fit1.png' },
+        { minKg: 20,  src: './assets/fit3.png' },
+        { minKg: 60,  src: './assets/fitMax.png' }
+    ],
+
+    // Weight calc
+    baseWeight: 70,        // kg at scale 1.0
+    kgPerScale: 200        // kg gained per 1.0 scale increase
 };
 
 // Food items database
