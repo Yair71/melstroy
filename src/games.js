@@ -18,15 +18,15 @@ export const GAMES = [
         ru: "Тяни руку к луту, пока Мел спит. Не спались!", 
         en: "Steal the loot while Mel is sleeping. Don't get caught!" 
     },
-    modulePath: "../games/stream-thief/index.js", // Путь к нашей новой игре
-    enabled: true // Включили кнопку "Играть"
+    modulePath: "../games/stream-thief/index.js", 
+    enabled: true 
   },
 {
     id: "fatorfit",
     tag: "Аркада",
     titleKey: { ru: "Жир или Фит", en: "Fat or Fit" },
     descKey: { 
-        ru: "Выбери путь: жри всё подряд или ешь только здоровое. Бесконечный челлендж!", 
+        ru: "Выбери  жри всё подряд или ешь только здоровое. Бесконечный челлендж!", 
         en: "Choose your path: eat everything or stay healthy. Endless food challenge!" 
     },
     modulePath: "../games/fat-or-fit/index.js",
