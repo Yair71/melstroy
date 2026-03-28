@@ -1,17 +1,13 @@
-// ============================================================
-// config.js — Fat or Fit: all game constants
-// ============================================================
-
 export const STATE = {
     LOADING:  'LOADING',
-    MENU:     'MENU',       // Choose mode
+    MENU:     'MENU',
     PLAYING:  'PLAYING',
     GAMEOVER: 'GAMEOVER'
 };
 
 export const MODE = {
-    OBESITY: 'OBESITY',     // Catch everything, grow huge
-    FIT:     'FIT'          // Dodge junk, catch healthy only
+    OBESITY: 'OBESITY',
+    FIT:     'FIT'
 };
 
 export const CONFIG = {
@@ -22,39 +18,40 @@ export const CONFIG = {
     // Player
     playerWidth: 60,
     playerHeight: 80,
-    playerSpeed: 320,
-    playerY: 640,           // Bottom area
+    playerSpeed: 400,
+    playerY: 640,
 
     // Items
     itemSize: 40,
-    itemSpawnInterval: 0.8, // seconds (initial)
-    itemFallSpeed: 180,     // pixels/sec (initial)
+    itemSpawnInterval: 0.9,
+    itemFallSpeed: 140,
     
     // Difficulty ramp
-    speedIncreaseRate: 3,     // px/sec added per second of play
-    spawnDecreaseRate: 0.008, // seconds removed from interval per second
-    minSpawnInterval: 0.25,
-    maxFallSpeed: 600,
+    speedIncreaseRate: 2.5,
+    spawnDecreaseRate: 0.005,
+    minSpawnInterval: 0.3,
+    maxFallSpeed: 450,
 
     // Obesity mode
-    obesityMissLimit: 5,      // miss 5 items = game over
-    growthPerCatch: 0.04,     // scale increase per catch
+    obesityMissLimit: 8,
+    growthPerCatch: 0.03,
 
     // Fit mode
-    fitStrikesMax: 3,         // catch 3 junk items = game over
-    shrinkPerHealthy: 0.01,   // slight shrink per healthy catch
-    growthPerJunk: 0.15,      // big growth per junk caught
+    fitStrikesMax: 3,
+    shrinkPerHealthy: 0.01,
+    growthPerJunk: 0.12,
 
     // Scoring
     junkPoints: 15,
     healthyPoints: 10,
 
-    // Visual
-    bgColor: '#0a0a14',
-    floorColor: '#1a1a2e',
-    
-    // Columns (lanes)
-    lanes: 5
+    // Lanes (items spawn in lanes, not random X)
+    lanes: 5,
+
+    // Shake limits
+    maxShakeIntensity: 6,
+    gameOverShakeIntensity: 3,
+    gameOverShakeDuration: 0.25
 };
 
 // Food items database
