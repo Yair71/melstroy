@@ -1,69 +1,63 @@
 // ============================================================
-// streamer.js — Mel sits on chair. 
-// Model code COPIED FROM murino-run/player.js (the WORKING code)
-// Key pattern: gltf.scene directly, scaleFactor = modelHeight / maxDim,
-// position.y = -newBox.min.y, mixer on gltf.scene
+// streamer.js — Mel sits on chair (chair.glb from world.js)
+// FIXED: uses cloneModel() to avoid Three.js singleton bug
 // ============================================================
-import { CONFIG, DEBUG } from './config.js';
-import { loadedAssets } from './assets.js';
-import { tableInfo } from './world.js';
+import { CONFIG } from './config.js';
+import { cloneModel } from './assets.js';
+import { tableInfo, chairModel } from './world.js';
 
 const sittingModels = ['sit2', 'sit3', 'sitwait', 'sleepsit'];
 
 let streamerGroup;
-let chairGroup;
 let mixer = null;
 let currentAction = null;
 let currentModelKey = null;
 let seatWorldY = 0;
 
 export function initStreamer(scene) {
-    // ===== CHAIR POSITION =====
+    // ===== POSITION: near the chair or table =====
     let chairPos;
-    if (tableInfo) {
+    if (chairModel) {
+        // Place streamer at the chair's position
+        chairModel.updateMatrixWorld(true);
+        const chairBox = new THREE.Box3().setFromObject(chairModel);
+        const chairCenter = chairBox.getCenter(new THREE.Vector3());
+        chairPos = {
+            x: chairCenter.x,
+            y: CONFIG.floorY,
+            z: chairCenter.z
+        };
+        // Seat height = top of the chair seat area (roughly 40-50% of chair height)
+        seatWorldY = chairBox.min.y + (chairBox.max.y - chairBox.min.y) * 0.35;
+    } else if (tableInfo) {
         chairPos = {
             x: tableInfo.position.x,
-            y: 0,
+            y: CONFIG.floorY,
             z: tableInfo.position.z + tableInfo.size.z / 2 + 2.0
         };
+        seatWorldY = CONFIG.floorY + CONFIG.chairSeatHeight * CONFIG.chairScale;
     } else {
         chairPos = {
             x: CONFIG.streamerPosition.x,
             y: CONFIG.streamerPosition.y,
             z: CONFIG.streamerPosition.z
         };
+        seatWorldY = CONFIG.floorY + CONFIG.chairSeatHeight * CONFIG.chairScale;
     }
-
-    // ===== CREATE CHAIR =====
-    chairGroup = createChair(CONFIG.chairScale);
-    chairGroup.position.set(chairPos.x, chairPos.y, chairPos.z);
-    scene.add(chairGroup);
-
-    seatWorldY = chairPos.y + CONFIG.chairSeatHeight * CONFIG.chairScale;
 
     // ===== STREAMER GROUP =====
     streamerGroup = new THREE.Group();
     streamerGroup.position.set(chairPos.x, seatWorldY, chairPos.z);
     scene.add(streamerGroup);
 
-    // Start with random model
+    // Start with random sitting animation
     const start = sittingModels[Math.floor(Math.random() * sittingModels.length)];
     switchModel(start);
 
-    if (DEBUG) {
-        const m = new THREE.Mesh(
-            new THREE.SphereGeometry(0.4, 8, 8),
-            new THREE.MeshBasicMaterial({ color: 0xffff00, wireframe: true })
-        );
-        m.position.set(chairPos.x, seatWorldY + 3, chairPos.z);
-        scene.add(m);
-        console.log('%c=== CHAIR & STREAMER ===', 'color:#ff0; font-weight:bold;');
-        console.log(`  Chair: (${chairPos.x.toFixed(2)}, ${chairPos.y.toFixed(2)}, ${chairPos.z.toFixed(2)})`);
-        console.log(`  Seat Y: ${seatWorldY.toFixed(2)}`);
-    }
+    console.log(`%c🧑 Streamer at (${chairPos.x.toFixed(1)}, ${seatWorldY.toFixed(1)}, ${chairPos.z.toFixed(1)})`, 'color:#0ff; font-weight:bold;');
 }
 
-// ===== switchModel — EXACT COPY of murino-run/player.js pattern =====
+// ===== switchModel — uses cloneModel() to avoid singleton bug =====
 function switchModel(modelKey) {
     if (currentModelKey === modelKey) return;
     if (mixer) mixer.stopAllAction();
@@ -73,49 +67,51 @@ function switchModel(modelKey) {
         streamerGroup.remove(streamerGroup.children[0]);
     }
 
-    const gltf = loadedAssets.models[modelKey];
-    if (!gltf) {
+    // CRITICAL: clone the model, don't use gltf.scene directly!
+    const cloned = cloneModel(modelKey);
+    if (!cloned) {
         console.warn(`Model "${modelKey}" not found!`);
         return;
     }
 
-    // ===== EXACTLY like murino-run/player.js: =====
+    const modelScene = cloned.scene;
+
     // 1. Reset scale and position
-    gltf.scene.scale.set(1, 1, 1);
-    gltf.scene.position.set(0, 0, 0);
+    modelScene.scale.set(1, 1, 1);
+    modelScene.position.set(0, 0, 0);
 
-    // 2. Rotation: sitting models face -Z (toward table)
-    gltf.scene.rotation.y = Math.PI;
+    // 2. Face toward table (-Z direction)
+    modelScene.rotation.y = Math.PI;
 
-    // 3. Measure and scale
-    gltf.scene.updateMatrixWorld(true);
-    const box = new THREE.Box3().setFromObject(gltf.scene);
+    // 3. Measure and scale to modelHeight
+    modelScene.updateMatrixWorld(true);
+    const box = new THREE.Box3().setFromObject(modelScene);
     const size = box.getSize(new THREE.Vector3());
     const maxDim = Math.max(size.x, size.y, size.z);
 
     if (maxDim > 0) {
         const scaleFactor = CONFIG.modelHeight / maxDim;
-        gltf.scene.scale.set(scaleFactor, scaleFactor, scaleFactor);
-        gltf.scene.updateMatrixWorld(true);
+        modelScene.scale.set(scaleFactor, scaleFactor, scaleFactor);
+        modelScene.updateMatrixWorld(true);
 
-        // 4. Ground the model: bottom sits at Y=0 of the group
-        const newBox = new THREE.Box3().setFromObject(gltf.scene);
-        gltf.scene.position.y = 0 - newBox.min.y;
+        // Ground the model: bottom sits at Y=0 of the group
+        const newBox = new THREE.Box3().setFromObject(modelScene);
+        modelScene.position.y = 0 - newBox.min.y;
     }
 
-    streamerGroup.add(gltf.scene);
+    streamerGroup.add(modelScene);
     currentModelKey = modelKey;
 
-    // 5. Animation — EXACTLY like murino-run
-    if (gltf.animations && gltf.animations.length > 0) {
-        const clip = gltf.animations[0];
+    // 4. Animation
+    if (cloned.animations && cloned.animations.length > 0) {
+        const clip = cloned.animations[0].clone();
 
-        // Filter out position tracks (sitting animations might have root motion)
+        // Filter out position tracks (sitting animations have root motion)
         clip.tracks = clip.tracks.filter(track =>
             !track.name.toLowerCase().includes('position')
         );
 
-        mixer = new THREE.AnimationMixer(gltf.scene);
+        mixer = new THREE.AnimationMixer(modelScene);
         currentAction = mixer.clipAction(clip);
         currentAction.setLoop(THREE.LoopRepeat);
         currentAction.play();
@@ -123,86 +119,6 @@ function switchModel(modelKey) {
         mixer = null;
         currentAction = null;
     }
-
-    if (DEBUG) {
-        console.log(`%c🧑 Model "${modelKey}" loaded. Scale=${(CONFIG.modelHeight / maxDim).toFixed(3)} Height=${CONFIG.modelHeight}`, 'color:#0ff;');
-    }
-}
-
-// ===== GAMING CHAIR =====
-function createChair(scale) {
-    const chair = new THREE.Group();
-
-    const frameMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.4, metalness: 0.6 });
-    const cushionMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.8, metalness: 0.1 });
-    const accentMat = new THREE.MeshStandardMaterial({ color: 0xcc0000, roughness: 0.6, metalness: 0.2 });
-
-    // Central column
-    const column = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.12 * scale, 0.12 * scale, CONFIG.chairSeatHeight * scale, 12),
-        frameMat
-    );
-    column.position.y = (CONFIG.chairSeatHeight * scale) / 2;
-    column.castShadow = true;
-    chair.add(column);
-
-    // 5-star base
-    for (let i = 0; i < 5; i++) {
-        const angle = (Math.PI * 2 * i) / 5;
-        const leg = new THREE.Mesh(
-            new THREE.BoxGeometry(0.08 * scale, 0.06 * scale, 0.8 * scale),
-            frameMat
-        );
-        leg.position.set(Math.sin(angle) * 0.4 * scale, 0.03 * scale, Math.cos(angle) * 0.4 * scale);
-        leg.rotation.y = -angle;
-        leg.castShadow = true;
-        chair.add(leg);
-
-        // Wheels
-        const wheel = new THREE.Mesh(new THREE.SphereGeometry(0.07 * scale, 8, 8), frameMat);
-        wheel.position.set(Math.sin(angle) * 0.75 * scale, 0.07 * scale, Math.cos(angle) * 0.75 * scale);
-        chair.add(wheel);
-    }
-
-    // Seat
-    const seatH = CONFIG.chairSeatHeight * scale;
-    const seat = new THREE.Mesh(new THREE.BoxGeometry(0.8 * scale, 0.12 * scale, 0.7 * scale), cushionMat);
-    seat.position.y = seatH;
-    seat.castShadow = true;
-    chair.add(seat);
-
-    // Backrest
-    const back = new THREE.Mesh(new THREE.BoxGeometry(0.75 * scale, 1.2 * scale, 0.1 * scale), cushionMat);
-    back.position.set(0, seatH + 0.65 * scale, -0.32 * scale);
-    back.castShadow = true;
-    chair.add(back);
-
-    // Red stripe
-    const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.2 * scale, 0.9 * scale, 0.11 * scale), accentMat);
-    stripe.position.set(0, seatH + 0.65 * scale, -0.32 * scale);
-    chair.add(stripe);
-
-    // Armrests
-    for (const side of [-1, 1]) {
-        const arm = new THREE.Mesh(new THREE.BoxGeometry(0.07 * scale, 0.07 * scale, 0.45 * scale), frameMat);
-        arm.position.set(side * 0.4 * scale, seatH + 0.35 * scale, -0.05 * scale);
-        arm.castShadow = true;
-        chair.add(arm);
-
-        const support = new THREE.Mesh(
-            new THREE.CylinderGeometry(0.03 * scale, 0.03 * scale, 0.35 * scale, 8),
-            frameMat
-        );
-        support.position.set(side * 0.4 * scale, seatH + 0.17 * scale, 0.1 * scale);
-        chair.add(support);
-    }
-
-    // Headrest
-    const headrest = new THREE.Mesh(new THREE.BoxGeometry(0.4 * scale, 0.25 * scale, 0.08 * scale), cushionMat);
-    headrest.position.set(0, seatH + 1.35 * scale, -0.32 * scale);
-    chair.add(headrest);
-
-    return chair;
 }
 
 let swapTimer = 4.0;
