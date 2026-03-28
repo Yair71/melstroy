@@ -1,18 +1,19 @@
 // ============================================================
-// renderer.js — All canvas 2D drawing
+// renderer.js — All canvas 2D drawing (FIXED)
+//
+// BUG FIX: Shake intensity now capped and decays properly
+// BUG FIX: Text particles render with their color property
 // ============================================================
-import { CONFIG, MODE, STATE, FOODS } from './config.js';
+import { CONFIG, MODE, STATE } from './config.js';
 import { gameState } from './gameState.js';
 
 const W = CONFIG.canvasWidth;
 const H = CONFIG.canvasHeight;
 
-// Cache
 let bgGradient = null;
 let starField = [];
 
 export function initRenderer(ctx) {
-    // Build starfield once
     starField = [];
     for (let i = 0; i < 60; i++) {
         starField.push({
@@ -29,17 +30,19 @@ export function initRenderer(ctx) {
 export function drawFrame(ctx, time) {
     const state = gameState.current;
 
-    // Screen shake offset
+    // Screen shake offset — capped!
     let shakeX = 0, shakeY = 0;
-    if (gameState.shakeTimer > 0) {
-        shakeX = (Math.random() - 0.5) * gameState.shakeIntensity;
-        shakeY = (Math.random() - 0.5) * gameState.shakeIntensity;
+    if (gameState.shakeTimer > 0 && gameState.shakeIntensity > 0) {
+        const intensity = Math.min(gameState.shakeIntensity, CONFIG.maxShakeIntensity);
+        // Fade shake toward end of timer
+        const fade = Math.min(1, gameState.shakeTimer / 0.1);
+        shakeX = (Math.random() - 0.5) * intensity * fade;
+        shakeY = (Math.random() - 0.5) * intensity * fade;
     }
 
     ctx.save();
     ctx.translate(shakeX, shakeY);
 
-    // Background
     drawBackground(ctx, time);
 
     if (state === STATE.MENU) {
@@ -56,7 +59,6 @@ export function drawFrame(ctx, time) {
 
 // ===== BACKGROUND =====
 function drawBackground(ctx, time) {
-    // Dark gradient
     if (!bgGradient) {
         bgGradient = ctx.createLinearGradient(0, 0, 0, H);
         bgGradient.addColorStop(0, '#050510');
@@ -66,7 +68,6 @@ function drawBackground(ctx, time) {
     ctx.fillStyle = bgGradient;
     ctx.fillRect(0, 0, W, H);
 
-    // Animated stars
     for (const s of starField) {
         const alpha = 0.3 + Math.sin(time * s.speed + s.phase) * 0.3;
         ctx.globalAlpha = alpha;
@@ -80,12 +81,10 @@ function drawBackground(ctx, time) {
 
 // ===== MENU =====
 function drawMenu(ctx, time) {
-    // Title
     const bounce = Math.sin(time * 2) * 5;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
-    // Glow effect
     ctx.shadowColor = '#FFD700';
     ctx.shadowBlur = 20;
     ctx.font = 'bold 52px Impact, sans-serif';
@@ -93,18 +92,16 @@ function drawMenu(ctx, time) {
     ctx.fillText('FAT or FIT', W / 2, 100 + bounce);
     ctx.shadowBlur = 0;
 
-    ctx.font = '18px "Segoe UI", sans-serif';
+    ctx.font = '18px sans-serif';
     ctx.fillStyle = '#888';
     ctx.fillText('Choose your challenge', W / 2, 150);
 
-    // Two big cards
-    drawModeCard(ctx, W / 2 - 105, 200, 200, 220, MODE.OBESITY, time);
-    drawModeCard(ctx, W / 2 - 105, 440, 200, 220, MODE.FIT, time);
+    drawModeCard(ctx, W / 2 - 105, 200, 210, 220, MODE.OBESITY, time);
+    drawModeCard(ctx, W / 2 - 105, 440, 210, 220, MODE.FIT, time);
 
-    // Controls hint
-    ctx.font = '14px "Segoe UI", sans-serif';
+    ctx.font = '14px sans-serif';
     ctx.fillStyle = '#555';
-    ctx.fillText('← → or SWIPE to move', W / 2, H - 30);
+    ctx.fillText('← → / CLICK-DRAG / SWIPE', W / 2, H - 30);
 }
 
 function drawModeCard(ctx, x, y, w, h, mode, time) {
@@ -112,13 +109,11 @@ function drawModeCard(ctx, x, y, w, h, mode, time) {
     const color = isObesity ? '#FF003C' : '#00FF41';
     const hoverPulse = Math.sin(time * 3) * 2;
 
-    // Card background
     ctx.fillStyle = '#111';
     ctx.strokeStyle = color;
     ctx.lineWidth = 2;
     roundRect(ctx, x, y + hoverPulse, w, h, 12, true, true);
 
-    // Glow
     ctx.shadowColor = color;
     ctx.shadowBlur = 15;
     ctx.strokeStyle = color;
@@ -126,41 +121,35 @@ function drawModeCard(ctx, x, y, w, h, mode, time) {
     roundRect(ctx, x, y + hoverPulse, w, h, 12, false, true);
     ctx.shadowBlur = 0;
 
-    // Icon
     ctx.font = '48px serif';
     ctx.textAlign = 'center';
     ctx.fillStyle = '#fff';
     ctx.fillText(isObesity ? '🍔' : '🥗', x + w / 2, y + hoverPulse + 55);
 
-    // Title
     ctx.font = 'bold 26px Impact, sans-serif';
     ctx.fillStyle = color;
     ctx.fillText(isObesity ? 'OBESITY' : 'FITNESS', x + w / 2, y + hoverPulse + 100);
 
-    // Description
-    ctx.font = '13px "Segoe UI", sans-serif';
+    ctx.font = '13px sans-serif';
     ctx.fillStyle = '#aaa';
     if (isObesity) {
         ctx.fillText('Catch EVERYTHING!', x + w / 2, y + hoverPulse + 130);
         ctx.fillText('Grow as big as possible', x + w / 2, y + hoverPulse + 148);
-        ctx.fillText('Miss 5 = Game Over', x + w / 2, y + hoverPulse + 166);
+        ctx.fillText(`Miss ${CONFIG.obesityMissLimit} = Game Over`, x + w / 2, y + hoverPulse + 166);
     } else {
         ctx.fillText('Catch ONLY healthy food', x + w / 2, y + hoverPulse + 130);
         ctx.fillText('Dodge all junk food!', x + w / 2, y + hoverPulse + 148);
         ctx.fillText('3 junk caught = Game Over', x + w / 2, y + hoverPulse + 166);
     }
 
-    // Click area tag
     ctx.font = 'bold 14px Impact, sans-serif';
     ctx.fillStyle = color;
     ctx.fillText('▶ TAP TO PLAY', x + w / 2, y + hoverPulse + 200);
 
-    // Store bounds for click detection
     if (!drawModeCard._bounds) drawModeCard._bounds = {};
-    drawModeCard._bounds[mode] = { x, y: y + hoverPulse, w, h };
+    drawModeCard._bounds[mode] = { x, y: y, w, h };  // use base y, not bounced
 }
 
-// Export for click detection
 export function getMenuCardBounds() {
     return drawModeCard._bounds || {};
 }
@@ -175,7 +164,7 @@ function drawGame(ctx, time) {
 
     // Lane lines (subtle)
     const laneW = W / CONFIG.lanes;
-    ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+    ctx.strokeStyle = 'rgba(255,255,255,0.04)';
     ctx.lineWidth = 1;
     for (let i = 1; i < CONFIG.lanes; i++) {
         ctx.beginPath();
@@ -184,24 +173,31 @@ function drawGame(ctx, time) {
         ctx.stroke();
     }
 
-    // Draw items
+    // Items
     for (const item of gameState.items) {
         drawItem(ctx, item, time);
     }
 
-    // Draw particles
+    // Particles
     for (const p of gameState.particles) {
-        ctx.globalAlpha = p.life;
-        ctx.font = `${p.size}px serif`;
-        ctx.textAlign = 'center';
-        ctx.fillText(p.emoji, p.x, p.y);
+        ctx.globalAlpha = Math.max(0, p.life);
+        if (p.isText) {
+            ctx.font = `bold ${p.size}px Impact, sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.fillStyle = p.color || '#fff';
+            ctx.fillText(p.emoji, p.x, p.y);
+        } else {
+            ctx.font = `${p.size}px serif`;
+            ctx.textAlign = 'center';
+            ctx.fillText(p.emoji, p.x, p.y);
+        }
     }
     ctx.globalAlpha = 1;
 
-    // Draw player
+    // Player
     drawPlayer(ctx, time);
 
-    // Draw HUD
+    // HUD
     drawHUD(ctx, isObesity);
 }
 
@@ -213,12 +209,9 @@ function drawItem(ctx, item, time) {
     ctx.translate(item.x, item.y + bob);
     ctx.rotate(rot);
 
-    // Glow underneath
-    const glowColor = item.isJunk ? 'rgba(255,0,60,0.15)' : 'rgba(0,255,65,0.15)';
     ctx.shadowColor = item.isJunk ? '#FF003C' : '#00FF41';
-    ctx.shadowBlur = 12;
+    ctx.shadowBlur = 10;
 
-    // Emoji
     ctx.font = `${CONFIG.itemSize}px serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -239,9 +232,9 @@ function drawPlayer(ctx, time) {
     ctx.save();
     ctx.translate(px, py);
 
-    // Body (rounded rectangle — the "character")
+    // Body color
     const bodyColor = isObesity
-        ? `hsl(${Math.max(0, 40 - scale * 15)}, 70%, ${Math.max(30, 60 - scale * 10)}%)`
+        ? `hsl(${Math.max(0, 40 - scale * 12)}, 70%, ${Math.max(30, 60 - scale * 8)}%)`
         : `hsl(${120 + scale * 10}, 70%, ${50 + Math.sin(time * 2) * 5}%)`;
 
     // Shadow
@@ -257,16 +250,14 @@ function drawPlayer(ctx, time) {
     // Eyes
     const eyeSpacing = w * 0.2;
     const eyeY = -h * 0.15;
-    const eyeSize = Math.max(3, 5 * (1 / scale));
+    const eyeSize = Math.max(3, 5 * (1 / Math.sqrt(scale)));
 
-    // Eye whites
     ctx.fillStyle = '#fff';
     ctx.beginPath();
     ctx.arc(-eyeSpacing, eyeY, eyeSize + 2, 0, Math.PI * 2);
     ctx.arc(eyeSpacing, eyeY, eyeSize + 2, 0, Math.PI * 2);
     ctx.fill();
 
-    // Pupils
     ctx.fillStyle = '#111';
     ctx.beginPath();
     ctx.arc(-eyeSpacing + 1, eyeY + 1, eyeSize, 0, Math.PI * 2);
@@ -278,15 +269,13 @@ function drawPlayer(ctx, time) {
     ctx.lineWidth = 2;
     ctx.beginPath();
     if (isObesity) {
-        // Happy open mouth
         ctx.arc(0, h * 0.1, w * 0.15, 0, Math.PI);
     } else {
-        // Determined smile
         ctx.arc(0, h * 0.05, w * 0.12, 0.2, Math.PI - 0.2);
     }
     ctx.stroke();
 
-    // Arms (little stubs)
+    // Arms
     ctx.fillStyle = bodyColor;
     ctx.beginPath();
     ctx.ellipse(-w / 2 - 4, 0, 6 * scale, 10 * scale, -0.3, 0, Math.PI * 2);
@@ -297,7 +286,6 @@ function drawPlayer(ctx, time) {
 }
 
 function drawHUD(ctx, isObesity) {
-    // Score
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
     ctx.font = 'bold 28px Impact, sans-serif';
@@ -307,35 +295,37 @@ function drawHUD(ctx, isObesity) {
     ctx.fillText(`${Math.floor(gameState.score)}`, 15, 15);
     ctx.shadowBlur = 0;
 
-    // Combo
     if (gameState.combo > 2) {
         ctx.font = 'bold 18px Impact, sans-serif';
         ctx.fillStyle = '#FF6600';
         ctx.fillText(`x${gameState.combo} COMBO`, 15, 48);
     }
 
-    // Mode-specific HUD
     ctx.textAlign = 'right';
     if (isObesity) {
-        // Missed counter
-        ctx.font = '16px "Segoe UI", sans-serif';
-        ctx.fillStyle = '#FF003C';
-        const hearts = '💔'.repeat(gameState.missed) + '❤️'.repeat(CONFIG.obesityMissLimit - gameState.missed);
+        // Hearts display
+        const livesLeft = CONFIG.obesityMissLimit - gameState.missed;
+        ctx.font = '16px serif';
+        let hearts = '';
+        for (let i = 0; i < CONFIG.obesityMissLimit; i++) {
+            hearts += i < livesLeft ? '❤️' : '💔';
+        }
         ctx.fillText(hearts, W - 15, 15);
 
-        // Weight indicator
+        // Weight
         ctx.font = 'bold 16px Impact, sans-serif';
         ctx.fillStyle = '#ff8800';
         const weight = Math.floor(70 + (gameState.playerScale - 1) * 200);
         ctx.fillText(`${weight} kg`, W - 15, 42);
     } else {
         // Strikes
-        ctx.font = '16px "Segoe UI", sans-serif';
-        ctx.fillStyle = '#FF003C';
-        const strikes = '💀'.repeat(gameState.strikes) + '💚'.repeat(CONFIG.fitStrikesMax - gameState.strikes);
+        ctx.font = '16px serif';
+        let strikes = '';
+        for (let i = 0; i < CONFIG.fitStrikesMax; i++) {
+            strikes += i < (CONFIG.fitStrikesMax - gameState.strikes) ? '💚' : '💀';
+        }
         ctx.fillText(strikes, W - 15, 15);
 
-        // Fitness level
         ctx.font = 'bold 16px Impact, sans-serif';
         ctx.fillStyle = '#00FF41';
         ctx.fillText(`FIT LVL ${Math.floor(gameState.elapsed / 10) + 1}`, W - 15, 42);
@@ -344,7 +334,6 @@ function drawHUD(ctx, isObesity) {
 
 // ===== GAME OVER =====
 function drawGameOver(ctx, time) {
-    // Dark overlay
     ctx.fillStyle = 'rgba(0,0,0,0.75)';
     ctx.fillRect(0, 0, W, H);
 
@@ -354,11 +343,9 @@ function drawGameOver(ctx, time) {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
-    // Big emoji
     ctx.font = '64px serif';
     ctx.fillText(isObesity ? '🤮' : '😵', W / 2, 180 + bounce);
 
-    // Title
     ctx.shadowColor = '#FF003C';
     ctx.shadowBlur = 20;
     ctx.font = 'bold 48px Impact, sans-serif';
@@ -366,18 +353,16 @@ function drawGameOver(ctx, time) {
     ctx.fillText('GAME OVER', W / 2, 260);
     ctx.shadowBlur = 0;
 
-    // Reason
-    ctx.font = '18px "Segoe UI", sans-serif';
+    ctx.font = '18px sans-serif';
     ctx.fillStyle = '#aaa';
     if (isObesity) {
-        ctx.fillText(`Missed too many items!`, W / 2, 310);
+        ctx.fillText('Missed too many items!', W / 2, 310);
         const weight = Math.floor(70 + (gameState.playerScale - 1) * 200);
         ctx.fillText(`Final weight: ${weight} kg`, W / 2, 335);
     } else {
-        ctx.fillText(`Ate too much junk food!`, W / 2, 310);
+        ctx.fillText('Ate too much junk food!', W / 2, 310);
     }
 
-    // Score
     ctx.font = 'bold 36px Impact, sans-serif';
     ctx.fillStyle = '#FFD700';
     ctx.shadowColor = '#FFD700';
@@ -385,25 +370,22 @@ function drawGameOver(ctx, time) {
     ctx.fillText(`SCORE: ${Math.floor(gameState.score)}`, W / 2, 400);
     ctx.shadowBlur = 0;
 
-    // Max combo
     if (gameState.maxCombo > 2) {
-        ctx.font = '18px "Segoe UI", sans-serif';
+        ctx.font = '18px sans-serif';
         ctx.fillStyle = '#FF6600';
         ctx.fillText(`Best combo: x${gameState.maxCombo}`, W / 2, 440);
     }
 
-    // Restart buttons
     const pulse = 0.9 + Math.sin(time * 4) * 0.1;
     ctx.font = `bold ${20 * pulse}px Impact, sans-serif`;
     ctx.fillStyle = '#00FF41';
     ctx.fillText('▶ TAP TO RESTART', W / 2, 520);
 
-    ctx.font = '15px "Segoe UI", sans-serif';
+    ctx.font = '15px sans-serif';
     ctx.fillStyle = '#666';
     ctx.fillText('or press SPACE', W / 2, 550);
 
-    // Back to menu
-    ctx.font = '14px "Segoe UI", sans-serif';
+    ctx.font = '14px sans-serif';
     ctx.fillStyle = '#888';
     ctx.fillText('ESC — Back to menu', W / 2, 600);
 }
