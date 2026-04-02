@@ -37,12 +37,12 @@ export const CONFIG = {
     maxFallSpeed: 450,
 
     // Obesity mode
-    obesityMissLimit: 8,
+    obesityMissLimit: 3, // Уменьшено до 3
     growthPerCatch: 0.025,
 
     // Fit mode
     fitStrikesMax: 3,
-    shrinkPerHealthy: 0.015,    // ← stronger shrink
+    shrinkPerHealthy: 0.015,
     growthPerJunk: 0.12,
 
     // Scoring
@@ -52,10 +52,10 @@ export const CONFIG = {
     // Starting lanes
     baseLanes: 5,
 
-    // Dynamic scaling: when player width > this fraction of play area, expand
-    expandThreshold: 0.35,   // player wider than 35% of field → expand
-    maxLanes: 20,            // absolute max lanes
-    maxPlayerScaleRatio: 0.45, // player never wider than 45% of current field
+    // Dynamic scaling
+    expandThreshold: 0.35,
+    maxLanes: 20,
+    maxPlayerScaleRatio: 0.45,
 
     // Shake limits
     maxShakeIntensity: 6,
@@ -77,8 +77,8 @@ export const CONFIG = {
     ],
 
     // Weight calc
-    baseWeight: 70,        // kg at scale 1.0
-    kgPerScale: 200        // kg gained per 1.0 scale increase
+    baseWeight: 70,        
+    kgPerScale: 200        
 };
 
 // Food items database
