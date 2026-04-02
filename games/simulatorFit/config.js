@@ -68,17 +68,19 @@ export const CONFIG = {
     // Ты можешь добавлять новые строчки или менять названия файлов.
 
     faceImagesObesity: [
-        { weight: 70,  image: 'fat1.png' },   // Начальный вес
-        { weight: 90,  image: 'fat2.png' },   // От 90 кг
-        { weight: 110, image: 'fat5.png' },   // От 110 кг
-        { weight: 130, image: 'fat7.png' },   // От 130 кг
-        { weight: 170, image: 'fatMax.png' }  // Самый толстый (от 170 и выше)
+        { weight: 50,  image: 'fitMax.png' },   
+        { weight: 70,  image: 'fit1.png' },  
+        { weight: 90, image: 'fit3.png' },  
+        { weight: 130, image: 'fat1.png' },  
+        { weight: 170, image: 'fat5.png' }, 
+           { weight: 200, image: 'fat7.png' },
+           { weight: 250, image: 'fatMax.png' }
     ],
     
     faceImagesFit: [
         { weight: 0,   image: 'fitMax.png' }, // Идеальная форма (когда похудел ниже 50 кг)
-        { weight: 50,  image: 'fit3.png' },   // Спортивная форма (от 50 кг)
-        { weight: 70,  image: 'fit1.png' },   // Начальный вес
+        { weight: 50,  image: 'fit1.png' },   // Спортивная форма (от 50 кг)
+        { weight: 70,  image: 'fit3.png' },   // Начальный вес
         { weight: 90,  image: 'fat2.png' },   // Если растолстел от ошибок
         { weight: 110, image: 'fatMax.png' }  // Если поймал много фастфуда
     ],
