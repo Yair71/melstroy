@@ -1,21 +1,10 @@
 // ============================================================
-// logic.js — v3: ALL bugs fixed + dynamic lane expansion
-//
-// FIT MODE FIXES:
-// - Junk food falling to floor does NOT remove hearts (only catching does)
-// - Catching healthy food now properly SHRINKS weight (stronger shrink)
-// - Collision box tightened so dodging actually works
-//
-// DYNAMIC LANES:
-// - When player width > 35% of play area, world expands (+lanes)
-// - Camera zooms out smoothly to show wider field
-// - Player can never be wider than 45% of current field
+// logic.js — v3: Fixed logic for dodging and catching
 // ============================================================
 import { CONFIG, MODE, STATE, FOODS } from './config.js';
 import { gameState } from './gameState.js';
 
 export function updateGame(dt) {
-    // Shake always decays
     if (gameState.shakeTimer > 0) {
         gameState.shakeTimer -= dt;
         if (gameState.shakeTimer <= 0) {
@@ -28,7 +17,6 @@ export function updateGame(dt) {
 
     gameState.elapsed += dt;
 
-    // ===== DIFFICULTY RAMP =====
     gameState.currentFallSpeed = Math.min(
         CONFIG.maxFallSpeed,
         CONFIG.itemFallSpeed + gameState.elapsed * CONFIG.speedIncreaseRate
@@ -38,59 +26,41 @@ export function updateGame(dt) {
         CONFIG.itemSpawnInterval - gameState.elapsed * CONFIG.spawnDecreaseRate
     );
 
-    // ===== DYNAMIC LANE EXPANSION =====
     updateDynamicLanes();
-
-    // ===== PLAYER MOVEMENT =====
     updatePlayerMovement(dt);
 
-    // ===== SPAWN ITEMS =====
     gameState.spawnTimer -= dt;
     if (gameState.spawnTimer <= 0) {
         spawnItem();
         gameState.spawnTimer = gameState.currentSpawnInterval;
     }
 
-    // ===== UPDATE ITEMS =====
     updateItems(dt);
-
-    // ===== UPDATE PARTICLES =====
     updateParticles(dt);
 
-    // ===== PASSIVE SCORE =====
     gameState.score += dt * 2;
 }
 
-// ===== DYNAMIC LANE EXPANSION (smooth, no jitter) =====
 function updateDynamicLanes() {
     const playerPixelW = CONFIG.playerWidth * gameState.playerScale;
     const currentFieldW = gameState.worldWidth;
-
-    // Check if player is too wide for current field
     const ratio = playerPixelW / currentFieldW;
 
     if (ratio > CONFIG.expandThreshold && gameState.currentLanes < CONFIG.maxLanes) {
-        // Add lanes
         gameState.currentLanes += 1;
-
-        // Expand world width proportionally
         const laneW = CONFIG.canvasWidth / CONFIG.baseLanes;
         gameState.worldWidth = gameState.currentLanes * laneW;
-
-        // Set TARGET zoom — will be interpolated smoothly below
         gameState._targetZoom = CONFIG.canvasWidth / gameState.worldWidth;
     }
 
-    // Smooth zoom interpolation (no sudden jumps)
     if (gameState._targetZoom === undefined) gameState._targetZoom = 1.0;
     const zoomDiff = gameState._targetZoom - gameState.cameraZoom;
     if (Math.abs(zoomDiff) > 0.001) {
-        gameState.cameraZoom += zoomDiff * 0.05; // smooth lerp
+        gameState.cameraZoom += zoomDiff * 0.05; 
     } else {
         gameState.cameraZoom = gameState._targetZoom;
     }
 
-    // Cap player scale so they never exceed maxPlayerScaleRatio of current field
     const maxW = currentFieldW * CONFIG.maxPlayerScaleRatio;
     const maxScale = maxW / CONFIG.playerWidth;
     if (gameState.playerScale > maxScale) {
@@ -99,11 +69,10 @@ function updateDynamicLanes() {
 }
 
 function updatePlayerMovement(dt) {
-    const speed = CONFIG.playerSpeed / gameState.cameraZoom; // faster when zoomed out
+    const speed = CONFIG.playerSpeed / gameState.cameraZoom; 
     const halfW = (CONFIG.playerWidth * gameState.playerScale) / 2;
 
     if (gameState.touchActive && gameState.touchX !== null) {
-        // Convert screen touch to world coords
         const worldTouchX = gameState.touchX / gameState.cameraZoom;
         const diff = worldTouchX - gameState.playerX;
         const moveAmount = diff * Math.min(1, dt * 12);
@@ -117,7 +86,6 @@ function updatePlayerMovement(dt) {
         gameState.playerX += speed * dt;
     }
 
-    // Clamp to world edges
     const worldW = gameState.worldWidth;
     gameState.playerX = Math.max(halfW + 5, Math.min(worldW - halfW - 5, gameState.playerX));
 }
@@ -130,7 +98,6 @@ function spawnItem() {
     const pool = isJunk ? FOODS.junk : FOODS.healthy;
     const food = pool[Math.floor(Math.random() * pool.length)];
 
-    // Lane-based spawning in CURRENT world width
     const laneCount = gameState.currentLanes;
     const pad = CONFIG.itemSize * 0.8;
     const usableW = gameState.worldWidth - pad * 2;
@@ -159,23 +126,12 @@ function updateItems(dt) {
 
     for (let i = gameState.items.length - 1; i >= 0; i--) {
         const item = gameState.items[i];
-
         item.y += item.speed * dt;
 
-        // ===== COLLISION — VERY TIGHT =====
-        // Item must be horizontally inside body AND vertically at player's feet
-        // playerY is the CENTER of the player body
         const dx = Math.abs(item.x - playerX);
-
-        // Horizontal: item must overlap with body width (no extra margin)
         const catchX = playerHalfW * 0.7;
-
-        // Vertical: item must be in a narrow band near the top of the player
-        // Player center is at playerY, top edge is at playerY - halfH
         const playerTopY = playerY - (CONFIG.playerHeight * scale) / 2;
         const itemBottomEdge = item.y + CONFIG.itemSize * 0.3;
-
-        // Catch only when item's bottom is between player's top and center
         const verticalHit = itemBottomEdge >= playerTopY && item.y <= playerY + 10;
 
         if (dx < catchX && verticalHit) {
@@ -184,7 +140,6 @@ function updateItems(dt) {
             continue;
         }
 
-        // Missed: fell below player (past the catch zone)
         if (item.y > playerY + 30) {
             handleMiss(item, isObesity, playerX);
             gameState.items.splice(i, 1);
@@ -194,27 +149,42 @@ function updateItems(dt) {
 
 function handleCatch(item, isObesity) {
     if (isObesity) {
-        // OBESITY: catch everything = good
-        gameState.combo++;
-        if (gameState.combo > gameState.maxCombo) gameState.maxCombo = gameState.combo;
+        // OBESITY MODE: Catching junk = good, healthy = BAD
+        if (!item.isJunk) {
+            // BAD: Caught healthy food!
+            gameState.missed++;
+            gameState.combo = 0;
+            gameState.playerScale = Math.max(0.8, gameState.playerScale - CONFIG.shrinkPerHealthy);
+            gameState.shakeTimer = 0.2;
+            gameState.shakeIntensity = Math.min(CONFIG.maxShakeIntensity, 6);
 
-        const comboMult = Math.min(gameState.combo, 10);
-        const points = (item.isJunk ? CONFIG.junkPoints : CONFIG.healthyPoints) * comboMult;
-        gameState.score += points;
+            spawnParticles(item.x, item.y, item.emoji, '#FF003C', 5);
+            spawnTextParticle(item.x, item.y - 20, '💀 EW!', '#FF003C');
 
-        // Grow!
-        gameState.playerScale += CONFIG.growthPerCatch;
+            if (gameState.missed >= CONFIG.obesityMissLimit) {
+                triggerGameOver();
+            }
+        } else {
+            // GOOD: caught junk food
+            gameState.combo++;
+            if (gameState.combo > gameState.maxCombo) gameState.maxCombo = gameState.combo;
 
-        spawnParticles(item.x, item.y, item.emoji, '#FFD700', 4);
-        spawnTextParticle(item.x, item.y - 20, `+${Math.floor(points)}`, '#FFD700');
+            const comboMult = Math.min(gameState.combo, 10);
+            const points = CONFIG.junkPoints * comboMult;
+            gameState.score += points;
 
+            gameState.playerScale += CONFIG.growthPerCatch;
+
+            spawnParticles(item.x, item.y, item.emoji, '#FFD700', 4);
+            spawnTextParticle(item.x, item.y - 20, `+${Math.floor(points)}`, '#FFD700');
+        }
     } else {
-        // ===== FIT MODE =====
+        // FIT MODE: Catching healthy = good, junk = BAD
         if (item.isJunk) {
             // BAD: caught junk food
             gameState.strikes++;
             gameState.combo = 0;
-            gameState.playerScale += CONFIG.growthPerJunk;  // get fatter
+            gameState.playerScale += CONFIG.growthPerJunk; 
             gameState.shakeTimer = 0.2;
             gameState.shakeIntensity = Math.min(CONFIG.maxShakeIntensity, 6);
 
@@ -233,7 +203,6 @@ function handleCatch(item, isObesity) {
             const points = CONFIG.healthyPoints * comboMult;
             gameState.score += points;
 
-            // ===== FIX: Actually shrink! Use 0.8 as floor (was 1.0, meaning no shrink) =====
             gameState.playerScale = Math.max(0.8, gameState.playerScale - CONFIG.shrinkPerHealthy);
 
             spawnParticles(item.x, item.y, item.emoji, '#00FF41', 3);
@@ -243,41 +212,17 @@ function handleCatch(item, isObesity) {
 }
 
 function handleMiss(item, isObesity, playerX) {
+    // Падение еды на пол больше не отнимает жизни (сердца/черепа).
+    // Только сбивает комбо и отнимает чуть-чуть очков, если ты пропустил свою "правильную" еду
     if (isObesity) {
-        // ===== OBESITY: only GREEN (healthy) food on floor = lose heart =====
-        // Red junk food on floor = fine, you don't need it
-        if (!item.isJunk) {
-            // Healthy food wasted! That's bad in obesity mode
-            const distFromPlayer = Math.abs(item.x - playerX);
-            const reachable = gameState.worldWidth * 0.5;
-
-            if (distFromPlayer < reachable) {
-                gameState.missed++;
-                gameState.combo = 0;
-                gameState.shakeTimer = 0.15;
-                gameState.shakeIntensity = Math.min(CONFIG.maxShakeIntensity, 4);
-
-                if (gameState.missed >= CONFIG.obesityMissLimit) {
-                    triggerGameOver();
-                }
-            }
-        }
-        // Junk on floor in obesity = no penalty
-    } else {
-        // ===== FIT: only RED (junk) food on floor = lose heart =====
-        // Green healthy food on floor = small score penalty, no heart
         if (item.isJunk) {
-            // Junk food reached the floor — you failed to dodge (it got past you)
-            gameState.strikes++;
+            // Пропустил фастфуд в Obesity
+            gameState.score = Math.max(0, gameState.score - 3);
             gameState.combo = 0;
-            gameState.shakeTimer = 0.15;
-            gameState.shakeIntensity = Math.min(CONFIG.maxShakeIntensity, 4);
-
-            if (gameState.strikes >= CONFIG.fitStrikesMax) {
-                triggerGameOver();
-            }
-        } else {
-            // Healthy food missed — small score penalty only
+        }
+    } else {
+        if (!item.isJunk) {
+            // Пропустил здоровую еду в Fit
             gameState.score = Math.max(0, gameState.score - 3);
             gameState.combo = 0;
         }
@@ -290,7 +235,6 @@ function triggerGameOver() {
     gameState.shakeIntensity = CONFIG.gameOverShakeIntensity;
 }
 
-// ===== PARTICLES =====
 function spawnParticles(x, y, emoji, color, count) {
     for (let i = 0; i < count; i++) {
         gameState.particles.push({
