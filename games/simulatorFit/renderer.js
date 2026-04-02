@@ -1,8 +1,8 @@
 // ============================================================
-// renderer.js — v3: Updated Hearts HUD and Game Over Texts
+// renderer.js — v4: Easy image structure
 // ============================================================
 import { CONFIG, MODE, STATE } from './config.js';
-import { gameState, getWeightKg, getWeightGainKg } from './gameState.js';
+import { gameState, getWeightKg } from './gameState.js';
 
 const W = CONFIG.canvasWidth;
 const H = CONFIG.canvasHeight;
@@ -22,12 +22,23 @@ export function loadFaceImages() {
     const total = allSources.length;
 
     for (const entry of allSources) {
+        // Простая подстановка папки assets
+        const src = './assets/' + entry.image;
+        
+        if (faceImages[src]) {
+            loaded++;
+            if (loaded >= total) faceImagesLoaded = true;
+            continue;
+        }
+
         const img = new Image();
         img.onload = () => { loaded++; if (loaded >= total) faceImagesLoaded = true; };
-        img.onerror = () => { loaded++; console.warn(`Failed: ${entry.src}`); if (loaded >= total) faceImagesLoaded = true; };
-        img.src = entry.src;
-        faceImages[entry.src] = img;
+        img.onerror = () => { loaded++; console.warn(`Failed: ${src}`); if (loaded >= total) faceImagesLoaded = true; };
+        img.src = src;
+        faceImages[src] = img;
     }
+    
+    if (total === 0) faceImagesLoaded = true;
 }
 
 function getCurrentFaceImage() {
@@ -35,13 +46,26 @@ function getCurrentFaceImage() {
 
     const isObesity = gameState.mode === MODE.OBESITY;
     const list = isObesity ? CONFIG.faceImagesObesity : CONFIG.faceImagesFit;
-    const gainKg = getWeightGainKg();
+    
+    // Смотрим на общий текущий вес, который написан на экране
+    const currentWeight = getWeightKg();
 
-    let best = null;
-    for (const entry of list) {
-        if (gainKg >= entry.minKg) best = entry;
+    // Сортируем от меньшего веса к большему (на случай, если в config.js они написаны не по порядку)
+    const sortedList = [...list].sort((a, b) => a.weight - b.weight);
+
+    let best = sortedList[0];
+    for (const entry of sortedList) {
+        if (currentWeight >= entry.weight) {
+            best = entry;
+        }
     }
-    if (best && faceImages[best.src] && faceImages[best.src].complete) return faceImages[best.src];
+
+    if (best) {
+        const src = './assets/' + best.image;
+        if (faceImages[src] && faceImages[src].complete) {
+            return faceImages[src];
+        }
+    }
     return null;
 }
 
