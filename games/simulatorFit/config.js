@@ -1,5 +1,5 @@
 // ============================================================
-// config.js — Fat or Fit: all game constants (v3)
+// config.js — Fat or Fit: all game constants (v4 - Easy Images)
 // ============================================================
 
 export const STATE = {
@@ -37,7 +37,7 @@ export const CONFIG = {
     maxFallSpeed: 450,
 
     // Obesity mode
-    obesityMissLimit: 3, // Уменьшено до 3
+    obesityMissLimit: 3,
     growthPerCatch: 0.025,
 
     // Fit mode
@@ -51,8 +51,6 @@ export const CONFIG = {
 
     // Starting lanes
     baseLanes: 5,
-
-    // Dynamic scaling
     expandThreshold: 0.35,
     maxLanes: 20,
     maxPlayerScaleRatio: 0.45,
@@ -62,23 +60,32 @@ export const CONFIG = {
     gameOverShakeIntensity: 3,
     gameOverShakeDuration: 0.25,
 
-    // Face images (relative to game folder ./assets/)
+    // =========================================================
+    // НАСТРОЙКИ КАРТИНОК
+    // =========================================================
+    // weight: Общий вес на экране в килограммах.
+    // image: Название файла картинки в папке ./assets/
+    // Ты можешь добавлять новые строчки или менять названия файлов.
+
     faceImagesObesity: [
-        { minKg: 0,   src: './assets/fat1.png' },
-        { minKg: 20,  src: './assets/fat2.png' },
-        { minKg: 40,  src: './assets/fat5.png' },
-        { minKg: 60,  src: './assets/fat7.png' },
-        { minKg: 100, src: './assets/fatMax.png' }
+        { weight: 70,  image: 'fat1.png' },   // Начальный вес
+        { weight: 90,  image: 'fat2.png' },   // От 90 кг
+        { weight: 110, image: 'fat5.png' },   // От 110 кг
+        { weight: 130, image: 'fat7.png' },   // От 130 кг
+        { weight: 170, image: 'fatMax.png' }  // Самый толстый (от 170 и выше)
     ],
+    
     faceImagesFit: [
-        { minKg: 0,   src: './assets/fit1.png' },
-        { minKg: 20,  src: './assets/fit3.png' },
-        { minKg: 60,  src: './assets/fitMax.png' }
+        { weight: 0,   image: 'fitMax.png' }, // Идеальная форма (когда похудел ниже 50 кг)
+        { weight: 50,  image: 'fit3.png' },   // Спортивная форма (от 50 кг)
+        { weight: 70,  image: 'fit1.png' },   // Начальный вес
+        { weight: 90,  image: 'fat2.png' },   // Если растолстел от ошибок
+        { weight: 110, image: 'fatMax.png' }  // Если поймал много фастфуда
     ],
 
     // Weight calc
-    baseWeight: 70,        
-    kgPerScale: 200        
+    baseWeight: 70,        // kg at scale 1.0
+    kgPerScale: 200        // kg gained per 1.0 scale increase
 };
 
 // Food items database
