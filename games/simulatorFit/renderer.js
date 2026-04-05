@@ -1,6 +1,4 @@
-// ============================================================
-// renderer.js — v4: Easy image structure
-// ============================================================
+
 import { CONFIG, MODE, STATE } from './config.js';
 import { gameState, getWeightKg } from './gameState.js';
 
@@ -22,9 +20,7 @@ export function loadFaceImages() {
     const total = allSources.length;
 
     for (const entry of allSources) {
-        // Простая подстановка папки assets
         const src = './assets/' + entry.image;
-        
         if (faceImages[src]) {
             loaded++;
             if (loaded >= total) faceImagesLoaded = true;
@@ -47,10 +43,7 @@ function getCurrentFaceImage() {
     const isObesity = gameState.mode === MODE.OBESITY;
     const list = isObesity ? CONFIG.faceImagesObesity : CONFIG.faceImagesFit;
     
-    // Смотрим на общий текущий вес, который написан на экране
     const currentWeight = getWeightKg();
-
-    // Сортируем от меньшего веса к большему (на случай, если в config.js они написаны не по порядку)
     const sortedList = [...list].sort((a, b) => a.weight - b.weight);
 
     let best = sortedList[0];
@@ -243,24 +236,24 @@ function drawPlayer(ctx, time) {
     const isObesity = gameState.mode === MODE.OBESITY;
 
     ctx.save(); ctx.translate(px, py);
-    const bodyColor = isObesity
-        ? `hsl(${Math.max(0, 40 - scale * 12)}, 70%, ${Math.max(30, 60 - scale * 8)}%)`
-        : `hsl(${120 + scale * 10}, 70%, ${50 + Math.sin(time * 2) * 5}%)`;
-
+    
+    // Тень под игроком
     ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath();
     ctx.ellipse(0, h / 2 + 5, w / 2, 8, 0, 0, Math.PI * 2); ctx.fill();
 
-    ctx.fillStyle = bodyColor;
-    roundRect(ctx, -w / 2, -h / 2, w, h, w * 0.3, true, false);
-
     const faceImg = getCurrentFaceImage();
+    
     if (faceImg) {
-        const imgAspect = faceImg.naturalWidth / (faceImg.naturalHeight || 1);
-        let faceW, faceH;
-        if (imgAspect > 1) { faceW = w * 0.9; faceH = faceW / imgAspect; } 
-        else { faceH = h * 0.85; faceW = faceH * imgAspect; }
-        ctx.drawImage(faceImg, -faceW / 2, -faceH / 2, faceW, faceH);
+        // Картинка полностью заменяет тело и растягивается под нужный размер
+        ctx.drawImage(faceImg, -w / 2, -h / 2, w, h);
     } else {
+        // Заглушка, если картинки вдруг не загрузились
+        const bodyColor = isObesity
+            ? `hsl(${Math.max(0, 40 - scale * 12)}, 70%, ${Math.max(30, 60 - scale * 8)}%)`
+            : `hsl(${120 + scale * 10}, 70%, ${50 + Math.sin(time * 2) * 5}%)`;
+        ctx.fillStyle = bodyColor;
+        roundRect(ctx, -w / 2, -h / 2, w, h, w * 0.3, true, false);
+
         const eyeSpacing = w * 0.2, eyeY = -h * 0.15, eyeSize = Math.max(3, 5 * (1 / Math.sqrt(scale)));
         ctx.fillStyle = '#fff'; ctx.beginPath();
         ctx.arc(-eyeSpacing, eyeY, eyeSize + 2, 0, Math.PI * 2); ctx.arc(eyeSpacing, eyeY, eyeSize + 2, 0, Math.PI * 2); ctx.fill();
@@ -272,13 +265,17 @@ function drawPlayer(ctx, time) {
         ctx.stroke();
     }
 
-    ctx.fillStyle = bodyColor; ctx.beginPath();
-    ctx.ellipse(-w / 2 - 4, 0, 6 * scale, 10 * scale, -0.3, 0, Math.PI * 2);
-    ctx.ellipse(w / 2 + 4, 0, 6 * scale, 10 * scale, 0.3, 0, Math.PI * 2);
-    ctx.fill(); ctx.restore();
+    ctx.restore();
 }
 
 function drawHUD(ctx, isObesity) {
+    // Полупрозрачный текст режима по центру (чтобы не забыть во что играешь)
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.font = 'bold 22px Impact, sans-serif';
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.2)'; // 20% непрозрачности (не мешает игре)
+    ctx.fillText(isObesity ? '🍔 OBESITY MODE 🍔' : '🥗 FITNESS MODE 🥗', W / 2, 20);
+
     ctx.textAlign = 'left'; ctx.textBaseline = 'top';
     ctx.font = 'bold 28px Impact, sans-serif'; ctx.fillStyle = '#FFD700';
     ctx.shadowColor = '#FFD700'; ctx.shadowBlur = 8;
@@ -315,7 +312,7 @@ function drawHUD(ctx, isObesity) {
         }
         ctx.fillText(icons, W - 15, 15);
 
-        ctx.font = 'bold 16px Impact, sans-serif'; ctx.fillStyle = weight <= CONFIG.baseWeight ? '#00FF41' : '#ff8800';
+        ctx.font = 'bold 16px Impact, sans-serif'; ctx.fillStyle = weight <= CONFIG.baseWeightObesity ? '#00FF41' : '#ff8800';
         ctx.fillText(`${weight} kg`, W - 15, 38);
 
         ctx.font = '12px sans-serif'; ctx.fillStyle = '#00FF41';
