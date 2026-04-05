@@ -7,7 +7,6 @@ export function createGame(mount, api) {
     iframe.style.borderRadius = '8px';
 
     function handleMessage(event) {
-        // Защита: слушаем только сообщения из нашего iframe
         if (event.source !== iframe.contentWindow) return;
 
         if (event.data.type === 'REQUEST_BALANCE') {
@@ -18,7 +17,6 @@ export function createGame(mount, api) {
         if (event.data.type === 'ADD_BALANCE') {
             api.addCoins(event.data.amount); 
             api.onUiUpdate(); 
-            // Отправляем новый баланс обратно
             const profile = api.getProfile();
             iframe.contentWindow.postMessage({ type: 'SYNC_BALANCE', balance: profile.coins }, '*');
         }
@@ -31,7 +29,7 @@ export function createGame(mount, api) {
         },
         stop: () => {
             window.removeEventListener('message', handleMessage);
-            mount.innerHTML = ''; // Полное уничтожение iframe убивает всех "призраков"
+            mount.innerHTML = '';
         }
     };
 }
