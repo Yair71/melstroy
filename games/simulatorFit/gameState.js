@@ -1,49 +1,43 @@
-
+// ============================================================
+// gameState.js — Runtime state (v6)
+// ============================================================
 import { STATE, MODE, CONFIG } from './config.js';
 
 export const gameState = {
     current: STATE.LOADING,
     mode: null,
 
-    // Player
     playerX: 0,
     playerScale: 1.0,
 
-    // Dynamic world
     currentLanes: CONFIG.baseLanes,
     worldWidth: CONFIG.canvasWidth,
     cameraZoom: 1.0,
 
-    // Score
     score: 0,
+    coins: 0,         // Сбор монет
+    coinsSaved: false,// Флаг отправки монет на аккаунт
+    killedByBomb: false,
+
     combo: 0,
     maxCombo: 0,
 
-    // Obesity mode
     missed: 0,
-
-    // Fit mode
     strikes: 0,
 
-    // Timing
     elapsed: 0,
     spawnTimer: 0,
     currentSpawnInterval: CONFIG.itemSpawnInterval,
     currentFallSpeed: CONFIG.itemFallSpeed,
 
-    // Input
     moveLeft: false,
     moveRight: false,
     touchActive: false,
     touchX: null,
 
-    // Items in play
     items: [],
-
-    // Particles
     particles: [],
 
-    // Screen shake
     shakeTimer: 0,
     shakeIntensity: 0,
 
@@ -56,6 +50,9 @@ export const gameState = {
         this.worldWidth = CONFIG.canvasWidth;
         this.cameraZoom = 1.0;
         this.score = 0;
+        this.coins = 0;
+        this.coinsSaved = false;
+        this.killedByBomb = false;
         this.combo = 0;
         this.maxCombo = 0;
         this.missed = 0;
@@ -75,7 +72,6 @@ export const gameState = {
     }
 };
 
-// Helper: get current weight in kg based on mode
 export function getWeightKg() {
     const base = gameState.mode === MODE.OBESITY ? CONFIG.baseWeightObesity : CONFIG.baseWeightFit;
     return Math.floor(base + (gameState.playerScale - 1) * CONFIG.kgPerScale);
