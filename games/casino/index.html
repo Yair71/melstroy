@@ -3,90 +3,252 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>MELL CASINO HUB</title>
+    <title>MELL CASINO</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;600;700&family=Press+Start+2P&display=swap" rel="stylesheet">
 </head>
 <body>
-    <div id="hub-menu" class="screen active">
-        <h1 class="neon-text">CASINO HUB</h1>
-        <div class="balance-board">ТВОЙ КЭШ: <span class="cash-value">...</span> 💰</div>
-        
-        <div class="games-grid">
-            <div class="game-card" data-target="game-slots">
+
+<!-- ===================== HUB MENU ===================== -->
+<div id="hub-menu" class="screen active">
+    <div class="hub-bg-effects">
+        <div class="bg-orb orb1"></div>
+        <div class="bg-orb orb2"></div>
+        <div class="bg-orb orb3"></div>
+    </div>
+    <div class="hub-header">
+        <div class="logo-wrap">
+            <div class="logo-icon">🎰</div>
+            <h1 class="logo-text">MELL<span class="logo-accent">CASINO</span></h1>
+        </div>
+        <div class="balance-chip">
+            <div class="chip-label">БАЛАНС</div>
+            <div class="chip-value"><span class="cash-value">0</span> <span class="coin-icon">💰</span></div>
+        </div>
+    </div>
+
+    <div class="games-grid">
+        <div class="game-card card-slots" data-target="game-slots">
+            <div class="card-glow"></div>
+            <div class="card-content">
                 <div class="card-icon">🎰</div>
-                <h3>Слоты</h3>
-                <p>Классика. Джекпот x100</p>
-            </div>
-            <div class="game-card" data-target="game-wheel">
-                <div class="card-icon">🎡</div>
-                <h3>Колесо</h3>
-                <p>Множители до x5</p>
-            </div>
-            <div class="game-card" data-target="game-cases">
-                <div class="card-icon">📦</div>
-                <h3>Кейсы</h3>
-                <p>Лутбоксы за 50 💰</p>
-            </div>
-        </div>
-    </div>
-
-    <div id="game-slots" class="screen hidden">
-        <div class="header-bar">
-            <button class="btn-back">🔙 НАЗАД</button>
-            <div class="mini-balance"><span class="cash-value">...</span> 💰</div>
-        </div>
-        
-        <div class="slot-machine">
-            <div class="reel" id="reel-0">🍒</div>
-            <div class="reel" id="reel-1">🍒</div>
-            <div class="reel" id="reel-2">🍒</div>
-        </div>
-        
-        <div class="controls">
-            <button class="bet-btn" id="slot-down">-</button>
-            <div class="bet-display">BET: <span id="slot-bet">10</span></div>
-            <button class="bet-btn" id="slot-up">+</button>
-        </div>
-        <button id="btn-spin-slots" class="btn-action">КРУТИТЬ!</button>
-        <div id="slot-msg" class="msg-box">ГОТОВ?</div>
-    </div>
-
-    <div id="game-wheel" class="screen hidden">
-        <div class="header-bar">
-            <button class="btn-back">🔙 НАЗАД</button>
-            <div class="mini-balance"><span class="cash-value">...</span> 💰</div>
-        </div>
-        
-        <div class="wheel-container">
-            <div class="wheel-pointer">▼</div>
-            <div id="wheel" class="wheel">
+                <div class="card-info">
+                    <h3>СЛОТЫ</h3>
+                    <p>Джекпот x100</p>
                 </div>
+                <div class="card-arrow">▶</div>
+            </div>
         </div>
-        
-        <div class="controls">
-            <button class="bet-btn" id="wheel-down">-</button>
-            <div class="bet-display">BET: <span id="wheel-bet">10</span></div>
-            <button class="bet-btn" id="wheel-up">+</button>
+        <div class="game-card card-wheel" data-target="game-wheel">
+            <div class="card-glow"></div>
+            <div class="card-content">
+                <div class="card-icon">🎡</div>
+                <div class="card-info">
+                    <h3>КОЛЕСО ФОРТУНЫ</h3>
+                    <p>Множители до x10</p>
+                </div>
+                <div class="card-arrow">▶</div>
+            </div>
         </div>
-        <button id="btn-spin-wheel" class="btn-action">ВРАЩАТЬ!</button>
-        <div id="wheel-msg" class="msg-box">ВЫБЕРИ СТАВКУ</div>
+        <div class="game-card card-horses" data-target="game-horses">
+            <div class="card-glow"></div>
+            <div class="card-content">
+                <div class="card-icon">🏇</div>
+                <div class="card-info">
+                    <h3>СКАЧКИ</h3>
+                    <p>Ставки на лошадей</p>
+                </div>
+                <div class="card-arrow">▶</div>
+            </div>
+        </div>
+        <div class="game-card card-blackjack" data-target="game-blackjack">
+            <div class="card-glow"></div>
+            <div class="card-content">
+                <div class="card-icon">🃏</div>
+                <div class="card-info">
+                    <h3>БЛЭКДЖЕК</h3>
+                    <p>Классика 21</p>
+                </div>
+                <div class="card-arrow">▶</div>
+            </div>
+        </div>
+        <div class="game-card card-cases" data-target="game-cases">
+            <div class="card-glow"></div>
+            <div class="card-content">
+                <div class="card-icon">📦</div>
+                <div class="card-info">
+                    <h3>КЕЙСЫ</h3>
+                    <p>Открой удачу</p>
+                </div>
+                <div class="card-arrow">▶</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ===================== SLOTS ===================== -->
+<div id="game-slots" class="screen hidden">
+    <div class="game-header">
+        <button class="btn-back">← НАЗАД</button>
+        <div class="mini-balance"><span class="cash-value">0</span> 💰</div>
+    </div>
+    <div class="game-title-bar">
+        <h2>🎰 СЛОТЫ</h2>
     </div>
 
-    <div id="game-cases" class="screen hidden">
-        <div class="header-bar">
-            <button class="btn-back">🔙 НАЗАД</button>
-            <div class="mini-balance"><span class="cash-value">...</span> 💰</div>
+    <div class="slot-machine">
+        <div class="slot-frame">
+            <div class="reel-window">
+                <div class="reel" id="reel-0">🍒</div>
+                <div class="reel" id="reel-1">🍒</div>
+                <div class="reel" id="reel-2">🍒</div>
+            </div>
+            <div class="slot-line"></div>
         </div>
-        
-        <h2 class="neon-text" style="font-size:24px;">ЦЕНА: 50 💰</h2>
-        <div class="cases-container">
-            <div class="case" data-id="0">📦</div>
-            <div class="case" data-id="1">📦</div>
-            <div class="case" data-id="2">📦</div>
+        <div class="slot-paytable">
+            <span>🍒x2</span><span>🍋x3</span><span>🍺x5</span><span>🍔x10</span><span>💎x50</span><span>🦍x100</span>
         </div>
-        <div id="cases-msg" class="msg-box">ВЫБЕРИ КЕЙС</div>
     </div>
 
-    <script src="app.js"></script>
+    <div class="controls-row">
+        <button class="ctrl-btn" id="slot-down">−</button>
+        <div class="bet-chip">BET <span id="slot-bet">10</span></div>
+        <button class="ctrl-btn" id="slot-up">+</button>
+    </div>
+    <button id="btn-spin-slots" class="btn-play">КРУТИТЬ</button>
+    <div id="slot-msg" class="game-msg">ЖМЯКАЙ КРУТИТЬ!</div>
+</div>
+
+<!-- ===================== WHEEL ===================== -->
+<div id="game-wheel" class="screen hidden">
+    <div class="game-header">
+        <button class="btn-back">← НАЗАД</button>
+        <div class="mini-balance"><span class="cash-value">0</span> 💰</div>
+    </div>
+    <div class="game-title-bar"><h2>🎡 КОЛЕСО ФОРТУНЫ</h2></div>
+
+    <div class="wheel-stage">
+        <div class="wheel-pointer-wrap"><div class="wheel-pointer">▼</div></div>
+        <canvas id="wheel-canvas" width="300" height="300"></canvas>
+    </div>
+
+    <div class="controls-row">
+        <button class="ctrl-btn" id="wheel-down">−</button>
+        <div class="bet-chip">BET <span id="wheel-bet">10</span></div>
+        <button class="ctrl-btn" id="wheel-up">+</button>
+    </div>
+    <button id="btn-spin-wheel" class="btn-play">ВРАЩАТЬ</button>
+    <div id="wheel-msg" class="game-msg">ВЫБЕРИ СТАВКУ</div>
+</div>
+
+<!-- ===================== HORSE RACING ===================== -->
+<div id="game-horses" class="screen hidden">
+    <div class="game-header">
+        <button class="btn-back">← НАЗАД</button>
+        <div class="mini-balance"><span class="cash-value">0</span> 💰</div>
+    </div>
+    <div class="game-title-bar"><h2>🏇 СКАЧКИ</h2></div>
+
+    <div class="horse-select">
+        <div class="horse-option selected" data-horse="0">
+            <span class="horse-emoji">🐎</span>
+            <span class="horse-name">Молния</span>
+            <span class="horse-odds">x2</span>
+        </div>
+        <div class="horse-option" data-horse="1">
+            <span class="horse-emoji">🦄</span>
+            <span class="horse-name">Единорог</span>
+            <span class="horse-odds">x3</span>
+        </div>
+        <div class="horse-option" data-horse="2">
+            <span class="horse-emoji">🐴</span>
+            <span class="horse-name">Ракета</span>
+            <span class="horse-odds">x5</span>
+        </div>
+        <div class="horse-option" data-horse="3">
+            <span class="horse-emoji">🦓</span>
+            <span class="horse-name">Зебра</span>
+            <span class="horse-odds">x8</span>
+        </div>
+    </div>
+
+    <div class="race-track">
+        <div class="track-lane" data-lane="0"><span class="runner">🐎</span><div class="finish-line"></div></div>
+        <div class="track-lane" data-lane="1"><span class="runner">🦄</span><div class="finish-line"></div></div>
+        <div class="track-lane" data-lane="2"><span class="runner">🐴</span><div class="finish-line"></div></div>
+        <div class="track-lane" data-lane="3"><span class="runner">🦓</span><div class="finish-line"></div></div>
+    </div>
+
+    <div class="controls-row">
+        <button class="ctrl-btn" id="horse-down">−</button>
+        <div class="bet-chip">BET <span id="horse-bet">10</span></div>
+        <button class="ctrl-btn" id="horse-up">+</button>
+    </div>
+    <button id="btn-race" class="btn-play">СТАРТ ЗАЕЗДА</button>
+    <div id="horse-msg" class="game-msg">ВЫБЕРИ ЛОШАДЬ</div>
+</div>
+
+<!-- ===================== BLACKJACK ===================== -->
+<div id="game-blackjack" class="screen hidden">
+    <div class="game-header">
+        <button class="btn-back">← НАЗАД</button>
+        <div class="mini-balance"><span class="cash-value">0</span> 💰</div>
+    </div>
+    <div class="game-title-bar"><h2>🃏 БЛЭКДЖЕК</h2></div>
+
+    <div class="bj-table">
+        <div class="bj-zone dealer-zone">
+            <div class="zone-label">ДИЛЕР <span id="dealer-score"></span></div>
+            <div class="card-hand" id="dealer-hand"></div>
+        </div>
+        <div class="bj-divider"><span>VS</span></div>
+        <div class="bj-zone player-zone">
+            <div class="zone-label">ТЫ <span id="player-score"></span></div>
+            <div class="card-hand" id="player-hand"></div>
+        </div>
+    </div>
+
+    <div class="controls-row" id="bj-bet-controls">
+        <button class="ctrl-btn" id="bj-down">−</button>
+        <div class="bet-chip">BET <span id="bj-bet">10</span></div>
+        <button class="ctrl-btn" id="bj-up">+</button>
+    </div>
+    <div class="bj-actions" id="bj-actions" style="display:none;">
+        <button class="btn-play btn-hit" id="btn-hit">ЕЩЁ</button>
+        <button class="btn-play btn-stand" id="btn-stand">СТОП</button>
+    </div>
+    <button id="btn-deal" class="btn-play">РАЗДАТЬ</button>
+    <div id="bj-msg" class="game-msg">СТАВКА И РАЗДАЧА</div>
+</div>
+
+<!-- ===================== CASES (CS:GO STYLE) ===================== -->
+<div id="game-cases" class="screen hidden">
+    <div class="game-header">
+        <button class="btn-back">← НАЗАД</button>
+        <div class="mini-balance"><span class="cash-value">0</span> 💰</div>
+    </div>
+    <div class="game-title-bar"><h2>📦 КЕЙСЫ MELL</h2></div>
+
+    <div class="case-tier-select" id="case-tiers">
+        <!-- Filled by JS -->
+    </div>
+
+    <div class="case-preview" id="case-preview">
+        <!-- Filled by JS: shows selected case contents -->
+    </div>
+
+    <div class="case-spinner-wrap" id="case-spinner-wrap" style="display:none;">
+        <div class="spinner-arrow">▼</div>
+        <div class="spinner-viewport">
+            <div class="spinner-strip" id="spinner-strip"></div>
+        </div>
+    </div>
+
+    <button id="btn-open-case" class="btn-play">ОТКРЫТЬ КЕЙС</button>
+    <div id="case-msg" class="game-msg">ВЫБЕРИ КЕЙС</div>
+</div>
+
+<script src="app.js"></script>
 </body>
 </html>
