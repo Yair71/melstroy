@@ -1,4 +1,6 @@
-
+// ============================================================
+// renderer.js — v6: Coins Display and Bomb VFX
+// ============================================================
 import { CONFIG, MODE, STATE } from './config.js';
 import { gameState, getWeightKg } from './gameState.js';
 
@@ -11,21 +13,13 @@ const faceImages = {};
 let faceImagesLoaded = false;
 
 export function loadFaceImages() {
-    const allSources = [
-        ...CONFIG.faceImagesObesity,
-        ...CONFIG.faceImagesFit
-    ];
-
+    const allSources = [...CONFIG.faceImagesObesity, ...CONFIG.faceImagesFit];
     let loaded = 0;
     const total = allSources.length;
 
     for (const entry of allSources) {
         const src = './assets/' + entry.image;
-        if (faceImages[src]) {
-            loaded++;
-            if (loaded >= total) faceImagesLoaded = true;
-            continue;
-        }
+        if (faceImages[src]) { loaded++; if (loaded >= total) faceImagesLoaded = true; continue; }
 
         const img = new Image();
         img.onload = () => { loaded++; if (loaded >= total) faceImagesLoaded = true; };
@@ -33,31 +27,23 @@ export function loadFaceImages() {
         img.src = src;
         faceImages[src] = img;
     }
-    
     if (total === 0) faceImagesLoaded = true;
 }
 
 function getCurrentFaceImage() {
     if (!faceImagesLoaded) return null;
-
     const isObesity = gameState.mode === MODE.OBESITY;
     const list = isObesity ? CONFIG.faceImagesObesity : CONFIG.faceImagesFit;
-    
     const currentWeight = getWeightKg();
     const sortedList = [...list].sort((a, b) => a.weight - b.weight);
 
     let best = sortedList[0];
     for (const entry of sortedList) {
-        if (currentWeight >= entry.weight) {
-            best = entry;
-        }
+        if (currentWeight >= entry.weight) best = entry;
     }
-
     if (best) {
         const src = './assets/' + best.image;
-        if (faceImages[src] && faceImages[src].complete) {
-            return faceImages[src];
-        }
+        if (faceImages[src] && faceImages[src].complete) return faceImages[src];
     }
     return null;
 }
@@ -78,7 +64,7 @@ export function drawFrame(ctx, time) {
     let shakeX = 0, shakeY = 0;
 
     if (gameState.shakeTimer > 0 && gameState.shakeIntensity > 0) {
-        const intensity = Math.min(gameState.shakeIntensity, CONFIG.maxShakeIntensity);
+        const intensity = Math.min(gameState.shakeIntensity, 15);
         const fade = Math.min(1, gameState.shakeTimer / 0.1);
         shakeX = (Math.random() - 0.5) * intensity * fade;
         shakeY = (Math.random() - 0.5) * intensity * fade;
@@ -154,11 +140,11 @@ function drawModeCard(ctx, x, y, w, h, mode, time) {
     if (isObesity) {
         ctx.fillText('Catch ONLY junk food!', x + w / 2, y + pulse + 130);
         ctx.fillText('Grow as big as possible', x + w / 2, y + pulse + 148);
-        ctx.fillText(`3 HEALTHY CAUGHT = Game Over`, x + w / 2, y + pulse + 166);
+        ctx.fillText(`3 HEALTHY = Game Over`, x + w / 2, y + pulse + 166);
     } else {
         ctx.fillText('Catch ONLY healthy food!', x + w / 2, y + pulse + 130);
         ctx.fillText('Dodge all junk food', x + w / 2, y + pulse + 148);
-        ctx.fillText('3 JUNK CAUGHT = Game Over', x + w / 2, y + pulse + 166);
+        ctx.fillText('3 JUNK = Game Over', x + w / 2, y + pulse + 166);
     }
 
     ctx.font = 'bold 14px Impact, sans-serif'; ctx.fillStyle = color;
@@ -190,17 +176,15 @@ function drawGame(ctx, time) {
         ctx.beginPath(); ctx.moveTo(i * laneW, 0); ctx.lineTo(i * laneW, floorY); ctx.stroke();
     }
 
-    if (gameState.currentLanes > CONFIG.baseLanes) {
-        ctx.font = '11px sans-serif'; ctx.fillStyle = 'rgba(255,255,255,0.15)'; ctx.textAlign = 'center';
-        ctx.fillText(`${gameState.currentLanes} lanes`, gameState.worldWidth / 2, 12);
-    }
-
     for (const item of gameState.items) drawItem(ctx, item, time);
     for (const p of gameState.particles) {
         ctx.globalAlpha = Math.max(0, p.life);
         if (p.isText) {
             ctx.font = `bold ${p.size}px Impact, sans-serif`; ctx.textAlign = 'center'; ctx.fillStyle = p.color || '#fff';
+            // Тень под текстом веса, чтобы было лучше видно
+            ctx.shadowColor = '#000'; ctx.shadowBlur = 4;
             ctx.fillText(p.emoji, p.x, p.y);
+            ctx.shadowBlur = 0;
         } else {
             ctx.font = `${p.size}px serif`; ctx.textAlign = 'center'; ctx.fillText(p.emoji, p.x, p.y);
         }
@@ -218,7 +202,12 @@ function drawItem(ctx, item, time) {
     const zoom = gameState.cameraZoom;
 
     ctx.save(); ctx.translate(item.x, item.y + bob); ctx.rotate(rot);
-    const glowColor = item.isJunk ? '#FF003C' : '#00FF41';
+    
+    let glowColor = '#fff';
+    if (item.type === 'coin') glowColor = '#FFD700';
+    else if (item.type === 'bomb') glowColor = '#ff0000';
+    else glowColor = item.isJunk ? '#FF003C' : '#00FF41';
+
     const glowSize = Math.max(15, 18 / zoom);
 
     ctx.shadowColor = glowColor; ctx.shadowBlur = glowSize;
@@ -233,59 +222,46 @@ function drawItem(ctx, item, time) {
 function drawPlayer(ctx, time) {
     const px = gameState.playerX, py = CONFIG.playerY, scale = gameState.playerScale;
     const w = CONFIG.playerWidth * scale, h = CONFIG.playerHeight * scale;
-    const isObesity = gameState.mode === MODE.OBESITY;
 
     ctx.save(); ctx.translate(px, py);
     
-    // Тень под игроком
     ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath();
     ctx.ellipse(0, h / 2 + 5, w / 2, 8, 0, 0, Math.PI * 2); ctx.fill();
 
     const faceImg = getCurrentFaceImage();
     
     if (faceImg) {
-        // Картинка полностью заменяет тело и растягивается под нужный размер
         ctx.drawImage(faceImg, -w / 2, -h / 2, w, h);
     } else {
-        // Заглушка, если картинки вдруг не загрузились
+        const isObesity = gameState.mode === MODE.OBESITY;
         const bodyColor = isObesity
             ? `hsl(${Math.max(0, 40 - scale * 12)}, 70%, ${Math.max(30, 60 - scale * 8)}%)`
             : `hsl(${120 + scale * 10}, 70%, ${50 + Math.sin(time * 2) * 5}%)`;
         ctx.fillStyle = bodyColor;
         roundRect(ctx, -w / 2, -h / 2, w, h, w * 0.3, true, false);
-
-        const eyeSpacing = w * 0.2, eyeY = -h * 0.15, eyeSize = Math.max(3, 5 * (1 / Math.sqrt(scale)));
-        ctx.fillStyle = '#fff'; ctx.beginPath();
-        ctx.arc(-eyeSpacing, eyeY, eyeSize + 2, 0, Math.PI * 2); ctx.arc(eyeSpacing, eyeY, eyeSize + 2, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = '#111'; ctx.beginPath();
-        ctx.arc(-eyeSpacing + 1, eyeY + 1, eyeSize, 0, Math.PI * 2); ctx.arc(eyeSpacing + 1, eyeY + 1, eyeSize, 0, Math.PI * 2); ctx.fill();
-        ctx.strokeStyle = '#111'; ctx.lineWidth = 2; ctx.beginPath();
-        if (isObesity) ctx.arc(0, h * 0.1, w * 0.15, 0, Math.PI);
-        else ctx.arc(0, h * 0.05, w * 0.12, 0.2, Math.PI - 0.2);
-        ctx.stroke();
     }
 
     ctx.restore();
 }
 
 function drawHUD(ctx, isObesity) {
-    // Полупрозрачный текст режима по центру (чтобы не забыть во что играешь)
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'top';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'top';
     ctx.font = 'bold 22px Impact, sans-serif';
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.2)'; // 20% непрозрачности (не мешает игре)
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.2)'; 
     ctx.fillText(isObesity ? '🍔 OBESITY MODE 🍔' : '🥗 FITNESS MODE 🥗', W / 2, 20);
 
-    ctx.textAlign = 'left'; ctx.textBaseline = 'top';
-    ctx.font = 'bold 28px Impact, sans-serif'; ctx.fillStyle = '#FFD700';
-    ctx.shadowColor = '#FFD700'; ctx.shadowBlur = 8;
-    ctx.fillText(`${Math.floor(gameState.score)}`, 15, 15); ctx.shadowBlur = 0;
+    // ОТОБРАЖЕНИЕ СОБРАННЫХ МОНЕТ
+    ctx.font = 'bold 28px Impact, sans-serif';
+    ctx.fillStyle = '#FFD700'; ctx.shadowColor = '#FFD700'; ctx.shadowBlur = 8;
+    ctx.fillText(`${gameState.coins} 💰`, W / 2, 50);
+    ctx.shadowBlur = 0;
 
-    if (gameState.combo > 2) {
-        ctx.font = 'bold 18px Impact, sans-serif'; ctx.fillStyle = '#FF6600';
-        ctx.fillText(`x${gameState.combo} COMBO`, 15, 48);
-    }
+    // SCORE
+    ctx.textAlign = 'left';
+    ctx.font = 'bold 24px Impact, sans-serif'; ctx.fillStyle = '#fff';
+    ctx.fillText(`SCORE: ${Math.floor(gameState.score)}`, 15, 15); 
 
+    // ВЕС И ЖИЗНИ
     ctx.textAlign = 'right';
     const weight = getWeightKg();
 
@@ -299,11 +275,6 @@ function drawHUD(ctx, isObesity) {
 
         ctx.font = 'bold 16px Impact, sans-serif'; ctx.fillStyle = '#ff8800';
         ctx.fillText(`${weight} kg`, W - 15, 38);
-
-        if (gameState.currentLanes > CONFIG.baseLanes) {
-            ctx.font = '12px sans-serif'; ctx.fillStyle = '#888';
-            ctx.fillText(`${gameState.currentLanes} lanes`, W - 15, 58);
-        }
     } else {
         ctx.font = '14px serif';
         let icons = '';
@@ -314,9 +285,6 @@ function drawHUD(ctx, isObesity) {
 
         ctx.font = 'bold 16px Impact, sans-serif'; ctx.fillStyle = weight <= CONFIG.baseWeightObesity ? '#00FF41' : '#ff8800';
         ctx.fillText(`${weight} kg`, W - 15, 38);
-
-        ctx.font = '12px sans-serif'; ctx.fillStyle = '#00FF41';
-        ctx.fillText(`FIT LVL ${Math.floor(gameState.elapsed / 10) + 1}`, W - 15, 58);
     }
 }
 
@@ -330,36 +298,36 @@ function drawGameOver(ctx, time) {
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
 
     const faceImg = getCurrentFaceImage();
-    if (faceImg) ctx.drawImage(faceImg, W / 2 - 48, 130 + bounce, 96, 96);
-    else { ctx.font = '64px serif'; ctx.fillText(isObesity ? '🤮' : '😵', W / 2, 180 + bounce); }
+    if (gameState.killedByBomb) {
+        ctx.font = '64px serif'; ctx.fillText('💥', W / 2, 130 + bounce);
+    } else if (faceImg) {
+        ctx.drawImage(faceImg, W / 2 - 48, 130 + bounce, 96, 96);
+    }
 
     ctx.shadowColor = '#FF003C'; ctx.shadowBlur = 20;
     ctx.font = 'bold 48px Impact, sans-serif'; ctx.fillStyle = '#FF003C';
-    ctx.fillText('GAME OVER', W / 2, 260); ctx.shadowBlur = 0;
+    ctx.fillText(gameState.killedByBomb ? 'KILLED BY BOMB!' : 'GAME OVER', W / 2, 260); ctx.shadowBlur = 0;
 
     ctx.font = '18px sans-serif'; ctx.fillStyle = '#aaa';
-    if (isObesity) {
-        ctx.fillText('Caught too much healthy food!', W / 2, 310);
-        ctx.fillText(`Final weight: ${weight} kg`, W / 2, 335);
-    } else {
-        ctx.fillText('Caught too much junk food!', W / 2, 310);
-        ctx.fillText(`Final weight: ${weight} kg`, W / 2, 335);
+    if (!gameState.killedByBomb) {
+        if (isObesity) ctx.fillText('Caught too much healthy food!', W / 2, 310);
+        else ctx.fillText('Caught too much junk food!', W / 2, 310);
     }
+    
+    ctx.fillText(`Final weight: ${weight} kg`, W / 2, 340);
 
     ctx.font = 'bold 36px Impact, sans-serif'; ctx.fillStyle = '#FFD700'; ctx.shadowBlur = 15;
-    ctx.fillText(`SCORE: ${Math.floor(gameState.score)}`, W / 2, 400); ctx.shadowBlur = 0;
+    ctx.fillText(`EARNED: ${gameState.coins} 💰`, W / 2, 400); ctx.shadowBlur = 0;
 
-    if (gameState.maxCombo > 2) {
-        ctx.font = '18px sans-serif'; ctx.fillStyle = '#FF6600';
-        ctx.fillText(`Best combo: x${gameState.maxCombo}`, W / 2, 440);
-    }
+    ctx.font = 'bold 24px Impact, sans-serif'; ctx.fillStyle = '#fff';
+    ctx.fillText(`SCORE: ${Math.floor(gameState.score)}`, W / 2, 450);
 
     const pulse = 0.9 + Math.sin(time * 4) * 0.1;
     ctx.font = `bold ${20 * pulse}px Impact, sans-serif`; ctx.fillStyle = '#00FF41';
-    ctx.fillText('▶ TAP TO RESTART', W / 2, 520);
+    ctx.fillText('▶ TAP TO RESTART', W / 2, 540);
 
-    ctx.font = '15px sans-serif'; ctx.fillStyle = '#666'; ctx.fillText('or press SPACE', W / 2, 550);
-    ctx.font = '14px sans-serif'; ctx.fillStyle = '#888'; ctx.fillText('ESC — Back to menu', W / 2, 600);
+    ctx.font = '15px sans-serif'; ctx.fillStyle = '#666'; ctx.fillText('or press SPACE', W / 2, 570);
+    ctx.font = '14px sans-serif'; ctx.fillStyle = '#888'; ctx.fillText('ESC — Back to menu', W / 2, 620);
 }
 
 function roundRect(ctx, x, y, w, h, r, fill, stroke) {
