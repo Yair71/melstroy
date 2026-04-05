@@ -269,4 +269,23 @@ function bindUI() {
   renderRoute();
   applyI18n(document);
 })();
+// =====================================================================
+// ⛔⛔⛔ DELETE BEFORE RELEASE - DEV CHEAT CODE ⛔⛔⛔
+// =====================================================================
+window.addTestMoney = () => {
+    updateProfile(p => { 
+        p.coins += 10000; 
+    });
+    renderTop();
+    console.log("🤑 10,000 COINS ADDED FOR CASINO TESTING!");
+};
 
+// Press 'M' on the keyboard to instantly get 10k coins
+document.addEventListener("keydown", (e) => {
+    if (e.key.toLowerCase() === "m") { 
+        window.addTestMoney();
+    }
+});
+// =====================================================================
+// ⛔⛔⛔ DELETE BEFORE RELEASE - DEV CHEAT CODE ⛔⛔⛔
+// =====================================================================
