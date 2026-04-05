@@ -1,6 +1,3 @@
-// ============================================================
-// config.js — Fat or Fit: all game constants (v4 - Easy Images)
-// ============================================================
 
 export const STATE = {
     LOADING:  'LOADING',
@@ -15,18 +12,18 @@ export const MODE = {
 };
 
 export const CONFIG = {
-    // Canvas (logical — will be scaled by dynamic zoom)
+    // Canvas
     canvasWidth: 480,
     canvasHeight: 720,
 
-    // Player
-    playerWidth: 60,
-    playerHeight: 80,
+    // Player (Увеличены размеры для эффекта "зума")
+    playerWidth: 85,
+    playerHeight: 115,
     playerSpeed: 400,
     playerY: 640,
 
-    // Items
-    itemSize: 36,
+    // Items (Увеличен размер еды)
+    itemSize: 48,
     itemSpawnInterval: 0.9,
     itemFallSpeed: 140,
     
@@ -63,31 +60,31 @@ export const CONFIG = {
     // =========================================================
     // НАСТРОЙКИ КАРТИНОК
     // =========================================================
-    // weight: Общий вес на экране в килограммах.
-    // image: Название файла картинки в папке ./assets/
-    // Ты можешь добавлять новые строчки или менять названия файлов.
 
     faceImagesObesity: [
         { weight: 50,  image: 'fitMax.png' },   
         { weight: 70,  image: 'fit1.png' },  
-        { weight: 90, image: 'fit3.png' },  
+        { weight: 90,  image: 'fit3.png' },  
         { weight: 130, image: 'fat1.png' },  
         { weight: 170, image: 'fat5.png' }, 
-           { weight: 200, image: 'fat7.png' },
-           { weight: 250, image: 'fatMax.png' }
+        { weight: 200, image: 'fat7.png' },
+        { weight: 250, image: 'fatMax.png' }
     ],
     
     faceImagesFit: [
-        { weight: 0,   image: 'fitMax.png' }, // Идеальная форма (когда похудел ниже 50 кг)
-        { weight: 50,  image: 'fit1.png' },   // Спортивная форма (от 50 кг)
-        { weight: 70,  image: 'fit3.png' },   // Начальный вес
-        { weight: 90,  image: 'fat2.png' },   // Если растолстел от ошибок
-        { weight: 110, image: 'fatMax.png' }  // Если поймал много фастфуда
+        { weight: 70,  image: 'fitMax.png' }, // Когда похудел до 70 кг (победа/идеал)
+        { weight: 90,  image: 'fit1.png' },   
+        { weight: 110, image: 'fit3.png' },   
+        { weight: 130, image: 'fat1.png' },   
+        { weight: 150, image: 'fat5.png' },   // Начальный вес в режиме худения
+        { weight: 170, image: 'fat7.png' },   // Если случайно съел бургер и потолстел
+        { weight: 190, image: 'fatMax.png' }  
     ],
 
-    // Weight calc
-    baseWeight: 70,        // kg at scale 1.0
-    kgPerScale: 200        // kg gained per 1.0 scale increase
+    // Weight calc (Раздельный базовый вес)
+    baseWeightObesity: 70,  // Начальный вес для набора
+    baseWeightFit: 150,     // Начальный вес для похудения
+    kgPerScale: 200         // кг за каждое увеличение размера на 1.0
 };
 
 // Food items database
