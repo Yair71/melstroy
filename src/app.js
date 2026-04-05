@@ -270,22 +270,20 @@ function bindUI() {
   applyI18n(document);
 })();
 // =====================================================================
-// ⛔⛔⛔ DELETE BEFORE RELEASE - DEV CHEAT CODE ⛔⛔⛔
+// ⛔⛔⛔ DELETE BEFORE RELEASE - DEV CHEAT CODE (BUTTON) ⛔⛔⛔
 // =====================================================================
-window.addTestMoney = () => {
+const cheatBtn = document.createElement("button");
+cheatBtn.innerHTML = "💰 ДАТЬ 10,000";
+cheatBtn.style.cssText = "position: fixed; bottom: 80px; right: 20px; z-index: 9999; padding: 15px 20px; font-family: Impact, sans-serif; font-size: 18px; background: #FF003C; color: #fff; border: 2px solid #FFD700; border-radius: 12px; cursor: pointer; box-shadow: 0 4px 15px rgba(255, 0, 60, 0.5);";
+
+cheatBtn.onclick = () => {
     updateProfile(p => { 
-        p.coins += 10000; 
+        // Принудительно делаем числом, чтобы не было бага со строками
+        p.coins = (Number(p.coins) || 0) + 10000; 
     });
     renderTop();
-    console.log("🤑 10,000 COINS ADDED FOR CASINO TESTING!");
+    alert("🤑 +10,000 МОНЕТ ВЫДАНО! Иди крути слоты!");
 };
 
-// Press 'M' on the keyboard to instantly get 10k coins
-document.addEventListener("keydown", (e) => {
-    if (e.key.toLowerCase() === "m") { 
-        window.addTestMoney();
-    }
-});
-// =====================================================================
-// ⛔⛔⛔ DELETE BEFORE RELEASE - DEV CHEAT CODE ⛔⛔⛔
+document.body.appendChild(cheatBtn);
 // =====================================================================
