@@ -1,5 +1,5 @@
 // ============================================================
-// logic.js — v3: Fixed logic for dodging and catching
+// logic.js — v6: Bombs, Coins, KG Text instead of Score Text
 // ============================================================
 import { CONFIG, MODE, STATE, FOODS } from './config.js';
 import { gameState } from './gameState.js';
@@ -79,12 +79,8 @@ function updatePlayerMovement(dt) {
         gameState.playerX += moveAmount;
     }
 
-    if (gameState.moveLeft) {
-        gameState.playerX -= speed * dt;
-    }
-    if (gameState.moveRight) {
-        gameState.playerX += speed * dt;
-    }
+    if (gameState.moveLeft) gameState.playerX -= speed * dt;
+    if (gameState.moveRight) gameState.playerX += speed * dt;
 
     const worldW = gameState.worldWidth;
     gameState.playerX = Math.max(halfW + 5, Math.min(worldW - halfW - 5, gameState.playerX));
@@ -92,25 +88,40 @@ function updatePlayerMovement(dt) {
 
 function spawnItem() {
     const isObesity = gameState.mode === MODE.OBESITY;
-    const junkChance = isObesity ? 0.55 : 0.5;
-    const isJunk = Math.random() < junkChance;
-
-    const pool = isJunk ? FOODS.junk : FOODS.healthy;
-    const food = pool[Math.floor(Math.random() * pool.length)];
+    
+    let type = 'food';
+    let isJunk = false;
+    let emoji = '';
+    
+    const r = Math.random();
+    
+    // Выбор: Бомба, Монета или Еда
+    if (r < CONFIG.bombChance) {
+        type = 'bomb';
+        emoji = '💣';
+    } else if (r < CONFIG.bombChance + CONFIG.coinChance) {
+        type = 'coin';
+        emoji = '💰';
+    } else {
+        const junkChance = isObesity ? 0.55 : 0.5;
+        isJunk = Math.random() < junkChance;
+        const pool = isJunk ? FOODS.junk : FOODS.healthy;
+        const food = pool[Math.floor(Math.random() * pool.length)];
+        emoji = food.emoji;
+    }
 
     const laneCount = gameState.currentLanes;
     const pad = CONFIG.itemSize * 0.8;
     const usableW = gameState.worldWidth - pad * 2;
     const laneWidth = usableW / laneCount;
-
     const lane = Math.floor(Math.random() * laneCount);
     const x = pad + lane * laneWidth + laneWidth / 2 + (Math.random() - 0.5) * laneWidth * 0.3;
 
     gameState.items.push({
+        type: type,
         x: x,
         y: -CONFIG.itemSize,
-        emoji: food.emoji,
-        name: food.name,
+        emoji: emoji,
         isJunk: isJunk,
         phase: Math.random() * Math.PI * 2,
         speed: gameState.currentFallSpeed * (0.9 + Math.random() * 0.2)
@@ -148,81 +159,88 @@ function updateItems(dt) {
 }
 
 function handleCatch(item, isObesity) {
+    // Взрыв от бомбы
+    if (item.type === 'bomb') {
+        gameState.killedByBomb = true;
+        spawnParticles(item.x, item.y, '💥', '#ff0000', 15);
+        spawnParticles(item.x, item.y, '🔥', '#ff8800', 10);
+        triggerGameOver();
+        return;
+    }
+
+    // Сбор монеты
+    if (item.type === 'coin') {
+        gameState.coins++;
+        spawnParticles(item.x, item.y, '✨', '#FFD700', 3);
+        spawnTextParticle(item.x, item.y - 20, '+1 💰', '#FFD700');
+        return;
+    }
+
+    // Подбор еды
     if (isObesity) {
-        // OBESITY MODE: Catching junk = good, healthy = BAD
         if (!item.isJunk) {
-            // BAD: Caught healthy food!
+            // Плохо в Obesity
             gameState.missed++;
             gameState.combo = 0;
-            gameState.playerScale = Math.max(0.8, gameState.playerScale - CONFIG.shrinkPerHealthy);
+            // Scale Math.max(0.5) позволяет весу падать ниже
+            gameState.playerScale = Math.max(0.5, gameState.playerScale - CONFIG.shrinkPerHealthy);
             gameState.shakeTimer = 0.2;
             gameState.shakeIntensity = Math.min(CONFIG.maxShakeIntensity, 6);
 
+            const kgLost = Math.floor(CONFIG.shrinkPerHealthy * CONFIG.kgPerScale);
             spawnParticles(item.x, item.y, item.emoji, '#FF003C', 5);
-            spawnTextParticle(item.x, item.y - 20, '💀 EW!', '#FF003C');
+            spawnTextParticle(item.x, item.y - 20, `-${kgLost} kg`, '#FF003C');
 
-            if (gameState.missed >= CONFIG.obesityMissLimit) {
-                triggerGameOver();
-            }
+            if (gameState.missed >= CONFIG.obesityMissLimit) triggerGameOver();
         } else {
-            // GOOD: caught junk food
+            // Хорошо в Obesity
             gameState.combo++;
             if (gameState.combo > gameState.maxCombo) gameState.maxCombo = gameState.combo;
-
-            const comboMult = Math.min(gameState.combo, 10);
-            const points = CONFIG.junkPoints * comboMult;
-            gameState.score += points;
-
             gameState.playerScale += CONFIG.growthPerCatch;
 
-            spawnParticles(item.x, item.y, item.emoji, '#FFD700', 4);
-            spawnTextParticle(item.x, item.y - 20, `+${Math.floor(points)}`, '#FFD700');
+            const kgGain = Math.floor(CONFIG.growthPerCatch * CONFIG.kgPerScale);
+            spawnParticles(item.x, item.y, item.emoji, '#00FF41', 4); // Зеленый текст (успех)
+            spawnTextParticle(item.x, item.y - 20, `+${kgGain} kg`, '#00FF41');
         }
     } else {
-        // FIT MODE: Catching healthy = good, junk = BAD
         if (item.isJunk) {
-            // BAD: caught junk food
+            // Плохо в Fit
             gameState.strikes++;
             gameState.combo = 0;
             gameState.playerScale += CONFIG.growthPerJunk; 
             gameState.shakeTimer = 0.2;
             gameState.shakeIntensity = Math.min(CONFIG.maxShakeIntensity, 6);
 
+            const kgGain = Math.floor(CONFIG.growthPerJunk * CONFIG.kgPerScale);
             spawnParticles(item.x, item.y, item.emoji, '#FF003C', 5);
-            spawnTextParticle(item.x, item.y - 20, '💀 JUNK!', '#FF003C');
+            spawnTextParticle(item.x, item.y - 20, `+${kgGain} kg`, '#FF003C'); // Красный текст (провал)
 
-            if (gameState.strikes >= CONFIG.fitStrikesMax) {
-                triggerGameOver();
-            }
+            if (gameState.strikes >= CONFIG.fitStrikesMax) triggerGameOver();
         } else {
-            // GOOD: caught healthy food
+            // Хорошо в Fit
             gameState.combo++;
             if (gameState.combo > gameState.maxCombo) gameState.maxCombo = gameState.combo;
+            
+            // ВОТ ТУТ 0.5 вместо 0.8, чтобы вес падал до 50 кг!
+            gameState.playerScale = Math.max(0.5, gameState.playerScale - CONFIG.shrinkPerHealthy);
 
-            const comboMult = Math.min(gameState.combo, 10);
-            const points = CONFIG.healthyPoints * comboMult;
-            gameState.score += points;
-
-            gameState.playerScale = Math.max(0.8, gameState.playerScale - CONFIG.shrinkPerHealthy);
-
+            const kgLost = Math.floor(CONFIG.shrinkPerHealthy * CONFIG.kgPerScale);
             spawnParticles(item.x, item.y, item.emoji, '#00FF41', 3);
-            spawnTextParticle(item.x, item.y - 20, `+${Math.floor(points)}`, '#00FF41');
+            spawnTextParticle(item.x, item.y - 20, `-${kgLost} kg`, '#00FF41'); // Зеленый текст (успех)
         }
     }
 }
 
 function handleMiss(item, isObesity, playerX) {
-    // Падение еды на пол больше не отнимает жизни (сердца/черепа).
-    // Только сбивает комбо и отнимает чуть-чуть очков, если ты пропустил свою "правильную" еду
+    if (item.type !== 'food') return;
+
     if (isObesity) {
         if (item.isJunk) {
-            // Пропустил фастфуд в Obesity
             gameState.score = Math.max(0, gameState.score - 3);
             gameState.combo = 0;
         }
     } else {
         if (!item.isJunk) {
-            // Пропустил здоровую еду в Fit
             gameState.score = Math.max(0, gameState.score - 3);
             gameState.combo = 0;
         }
@@ -231,21 +249,22 @@ function handleMiss(item, isObesity, playerX) {
 
 function triggerGameOver() {
     gameState.current = STATE.GAMEOVER;
-    gameState.shakeTimer = CONFIG.gameOverShakeDuration;
-    gameState.shakeIntensity = CONFIG.gameOverShakeIntensity;
+    gameState.shakeTimer = gameState.killedByBomb ? 0.8 : CONFIG.gameOverShakeDuration;
+    gameState.shakeIntensity = gameState.killedByBomb ? 12 : CONFIG.gameOverShakeIntensity;
+    
+    // ОТПРАВКА МОНЕТ НА АККАУНТ (один раз)
+    if (!gameState.coinsSaved && gameState.coins > 0) {
+        window.parent.postMessage({ type: 'ADD_BALANCE', amount: gameState.coins }, '*');
+        gameState.coinsSaved = true;
+    }
 }
 
 function spawnParticles(x, y, emoji, color, count) {
     for (let i = 0; i < count; i++) {
         gameState.particles.push({
-            x: x + (Math.random() - 0.5) * 30,
-            y: y + (Math.random() - 0.5) * 20,
-            vx: (Math.random() - 0.5) * 100,
-            vy: -50 - Math.random() * 80,
-            emoji: emoji,
-            size: 14 + Math.random() * 10,
-            life: 1.0,
-            decay: 1.5 + Math.random() * 0.5
+            x: x + (Math.random() - 0.5) * 30, y: y + (Math.random() - 0.5) * 20,
+            vx: (Math.random() - 0.5) * 100, vy: -50 - Math.random() * 80,
+            emoji: emoji, size: 14 + Math.random() * 10, life: 1.0, decay: 1.5 + Math.random() * 0.5
         });
     }
 }
@@ -253,7 +272,7 @@ function spawnParticles(x, y, emoji, color, count) {
 function spawnTextParticle(x, y, text, color) {
     gameState.particles.push({
         x: x, y: y, vx: 0, vy: -60,
-        emoji: text, size: 18, life: 1.0, decay: 1.5,
+        emoji: text, size: 20, life: 1.0, decay: 1.2, // Увеличен размер текста
         isText: true, color: color
     });
 }
@@ -265,8 +284,6 @@ function updateParticles(dt) {
         p.y += p.vy * dt;
         p.vy += 150 * dt;
         p.life -= p.decay * dt;
-        if (p.life <= 0) {
-            gameState.particles.splice(i, 1);
-        }
+        if (p.life <= 0) gameState.particles.splice(i, 1);
     }
 }
