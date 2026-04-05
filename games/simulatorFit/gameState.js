@@ -1,6 +1,4 @@
-// ============================================================
-// gameState.js — Runtime state (v3) — dynamic lanes + zoom
-// ============================================================
+
 import { STATE, MODE, CONFIG } from './config.js';
 
 export const gameState = {
@@ -13,8 +11,8 @@ export const gameState = {
 
     // Dynamic world
     currentLanes: CONFIG.baseLanes,
-    worldWidth: CONFIG.canvasWidth,    // logical play area width (grows)
-    cameraZoom: 1.0,                   // <1 = zoomed out to see more
+    worldWidth: CONFIG.canvasWidth,
+    cameraZoom: 1.0,
 
     // Score
     score: 0,
@@ -77,12 +75,12 @@ export const gameState = {
     }
 };
 
-// Helper: get current weight in kg
+// Helper: get current weight in kg based on mode
 export function getWeightKg() {
-    return Math.floor(CONFIG.baseWeight + (gameState.playerScale - 1) * CONFIG.kgPerScale);
+    const base = gameState.mode === MODE.OBESITY ? CONFIG.baseWeightObesity : CONFIG.baseWeightFit;
+    return Math.floor(base + (gameState.playerScale - 1) * CONFIG.kgPerScale);
 }
 
-// Helper: get weight gained above base
 export function getWeightGainKg() {
     return Math.max(0, Math.floor((gameState.playerScale - 1) * CONFIG.kgPerScale));
 }
