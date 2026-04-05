@@ -11,7 +11,7 @@ export const GAMES = [
     enabled: true
   },
   {
-    id: "streamthief", // Поменяли ID для красоты
+    id: "streamthief", 
     tag: "Стелс",
     titleKey: { ru: "Стрим-Вор", en: "Stream Thief" },
     descKey: { 
@@ -21,24 +21,27 @@ export const GAMES = [
     modulePath: "../games/stream-thief/index.js", 
     enabled: true 
   },
-{
+  {
     id: "fatorfit",
     tag: "Аркада",
     titleKey: { ru: "Жир или Фит", en: "Fat or Fit" },
     descKey: { 
-        ru: "Выбери  жри всё подряд или ешь только здоровое. Бесконечный челлендж!", 
+        ru: "Выбери жри всё подряд или ешь только здоровое. Бесконечный челлендж!", 
         en: "Choose your path: eat everything or stay healthy. Endless food challenge!" 
     },
     modulePath: "../games/simulatorFit/index.js",
     enabled: true
   },
   {
-    id: "game4",
-    tag: "Luck",
-    titleKey: { ru: "Game #4", en: "Game #4" },
-    descKey: { ru: "Скоро подключим.", en: "Coming soon." },
-    modulePath: null,
-    enabled: false
+    id: "casino",
+    tag: "Казино",
+    titleKey: { ru: "MELL CASINO", en: "MELL CASINO" },
+    descKey: { 
+        ru: "Крути слоты на заработанный кэш. Джекпот х100! С нуля не поднять.", 
+        en: "Spin the slots with your hard-earned cash. x100 Jackpot!" 
+    },
+    modulePath: "../games/casino/index.js",
+    enabled: true
   },
   {
     id: "game5",
