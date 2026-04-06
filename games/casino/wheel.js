@@ -1,7 +1,6 @@
 /* ============================================
-   MELL CASINO — wheel.js
-   Wheel of Fortune: Canvas, responsive size, correct results
-   Segments: x0 x0 x0 x0 x0 x0.5 x2 x3 x5 x10 x100
+   MELL CASINO — wheel.js  v2.0
+   Wheel of Fortune: Responsive canvas, proper sizing
    ============================================ */
 
 const WSEGS = [
@@ -29,29 +28,35 @@ const ARC = (Math.PI * 2) / SEG_COUNT;
 
 /* ---- Responsive canvas sizing ---- */
 function getWheelSize() {
-    // Use available screen width, clamped between 260 and 480
-    const available = Math.min(
-        window.innerWidth - 32,
-        window.innerHeight * 0.55
-    );
-    // On desktop (two-column), the visual column is ~60% of screen
-    if (window.innerWidth >= 900) {
-        return Math.min(Math.floor((window.innerWidth - 340 - 80) * 0.9), 480);
-    }
-    return Math.min(Math.max(available, 260), 400);
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+
+    // Use the smaller of width/height for proper fitting
+    // Subtract space for topbar, controls, button, msg
+    const availH = vh - 260;
+    const availW = vw - 40;
+
+    let size = Math.min(availW, availH);
+
+    // Clamp between reasonable limits
+    size = Math.max(200, Math.min(size, 500));
+
+    return Math.floor(size);
 }
 
 function resizeWheel() {
     const size = getWheelSize();
-    wCanvas.width = size;
-    wCanvas.height = size;
-    // Update CSS variable for CSS sizing fallback
+    // Use devicePixelRatio for crisp rendering on retina
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    wCanvas.width = size * dpr;
+    wCanvas.height = size * dpr;
+    wCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
     document.documentElement.style.setProperty('--wheel-size', size + 'px');
     drawWheel(wAngle);
 }
 
 function drawWheel(angle) {
-    const size = wCanvas.width;
+    const size = wCanvas.width / (Math.min(window.devicePixelRatio || 1, 2));
     const cx = size / 2, cy = size / 2, r = size / 2 - 4;
     wCtx.clearRect(0, 0, size, size);
     wCtx.save();
@@ -74,7 +79,7 @@ function drawWheel(angle) {
         wCtx.translate(cx, cy);
         wCtx.rotate(a0 + ARC / 2);
         wCtx.fillStyle = '#fff';
-        const fontSize = Math.max(10, Math.floor(size / 22));
+        const fontSize = Math.max(10, Math.floor(size / 24));
         wCtx.font = `bold ${WSEGS[i].m >= 100 ? fontSize - 2 : fontSize}px Orbitron, sans-serif`;
         wCtx.textAlign = 'center';
         wCtx.textBaseline = 'middle';
@@ -86,7 +91,7 @@ function drawWheel(angle) {
 
     // Center hub
     wCtx.beginPath();
-    wCtx.arc(cx, cy, Math.max(14, size * 0.065), 0, Math.PI * 2);
+    wCtx.arc(cx, cy, Math.max(12, size * 0.06), 0, Math.PI * 2);
     wCtx.fillStyle = '#0a0a18';
     wCtx.fill();
     wCtx.strokeStyle = '#ffd700';
@@ -95,9 +100,13 @@ function drawWheel(angle) {
     wCtx.restore();
 }
 
-// Initial draw + resize listener
+// Initial draw + debounced resize
 resizeWheel();
-window.addEventListener('resize', resizeWheel);
+let wheelResizeTimer;
+window.addEventListener('resize', () => {
+    clearTimeout(wheelResizeTimer);
+    wheelResizeTimer = setTimeout(resizeWheel, 100);
+});
 
 /* ---- Controls ---- */
 document.getElementById('wheel-up').onclick = () => {
