@@ -23,11 +23,9 @@ document.getElementById('bj-down').onclick = () => { if(!bjOn){ bjBet=clamp(bjBe
 
 function freshDeck() {
     const d = [];
-    // Use 2 decks for more cards
     for (let n = 0; n < 2; n++) {
         for (const s of SUITS) for (const r of RANKS) d.push({ suit: s, rank: r });
     }
-    // Fisher-Yates shuffle
     for (let i = d.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [d[i], d[j]] = [d[j], d[i]];
@@ -116,7 +114,6 @@ document.getElementById('btn-stand').onclick = () => doStand();
 
 function doStand() {
     if (!bjOn) return;
-    // Dealer draws to 17
     while (handValue(dCards) < 17) dCards.push(deck.pop());
     renderBJ(true);
 
