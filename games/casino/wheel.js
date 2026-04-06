@@ -1,6 +1,6 @@
 /* ============================================
    MELL CASINO — wheel.js
-   Wheel of Fortune: Canvas, always spins forward, correct results
+   Wheel of Fortune: Canvas, responsive size, correct results
    Segments: x0 x0 x0 x0 x0 x0.5 x2 x3 x5 x10 x100
    ============================================ */
 
@@ -27,15 +27,39 @@ const wMsg = document.getElementById('wheel-msg');
 const SEG_COUNT = WSEGS.length;
 const ARC = (Math.PI * 2) / SEG_COUNT;
 
+/* ---- Responsive canvas sizing ---- */
+function getWheelSize() {
+    // Use available screen width, clamped between 260 and 480
+    const available = Math.min(
+        window.innerWidth - 32,
+        window.innerHeight * 0.55
+    );
+    // On desktop (two-column), the visual column is ~60% of screen
+    if (window.innerWidth >= 900) {
+        return Math.min(Math.floor((window.innerWidth - 340 - 80) * 0.9), 480);
+    }
+    return Math.min(Math.max(available, 260), 400);
+}
+
+function resizeWheel() {
+    const size = getWheelSize();
+    wCanvas.width = size;
+    wCanvas.height = size;
+    // Update CSS variable for CSS sizing fallback
+    document.documentElement.style.setProperty('--wheel-size', size + 'px');
+    drawWheel(wAngle);
+}
+
 function drawWheel(angle) {
-    const cx = 160, cy = 160, r = 152;
-    wCtx.clearRect(0, 0, 320, 320);
+    const size = wCanvas.width;
+    const cx = size / 2, cy = size / 2, r = size / 2 - 4;
+    wCtx.clearRect(0, 0, size, size);
     wCtx.save();
 
     for (let i = 0; i < SEG_COUNT; i++) {
         const a0 = angle + i * ARC;
         const a1 = a0 + ARC;
-        // Segment
+        // Segment fill
         wCtx.beginPath();
         wCtx.moveTo(cx, cy);
         wCtx.arc(cx, cy, r, a0, a1);
@@ -50,7 +74,8 @@ function drawWheel(angle) {
         wCtx.translate(cx, cy);
         wCtx.rotate(a0 + ARC / 2);
         wCtx.fillStyle = '#fff';
-        wCtx.font = `bold ${WSEGS[i].m >= 100 ? 14 : 16}px Orbitron, sans-serif`;
+        const fontSize = Math.max(10, Math.floor(size / 22));
+        wCtx.font = `bold ${WSEGS[i].m >= 100 ? fontSize - 2 : fontSize}px Orbitron, sans-serif`;
         wCtx.textAlign = 'center';
         wCtx.textBaseline = 'middle';
         wCtx.shadowColor = '#000';
@@ -58,9 +83,10 @@ function drawWheel(angle) {
         wCtx.fillText(WSEGS[i].label, r * 0.62, 0);
         wCtx.restore();
     }
-    // Center
+
+    // Center hub
     wCtx.beginPath();
-    wCtx.arc(cx, cy, 20, 0, Math.PI*2);
+    wCtx.arc(cx, cy, Math.max(14, size * 0.065), 0, Math.PI * 2);
     wCtx.fillStyle = '#0a0a18';
     wCtx.fill();
     wCtx.strokeStyle = '#ffd700';
@@ -68,10 +94,18 @@ function drawWheel(angle) {
     wCtx.stroke();
     wCtx.restore();
 }
-drawWheel(0);
 
-document.getElementById('wheel-up').onclick = () => { if(!wSpinning){ wBet=clamp(wBet+10,10,500); wBetEl.innerText=wBet; }};
-document.getElementById('wheel-down').onclick = () => { if(!wSpinning){ wBet=clamp(wBet-10,10,500); wBetEl.innerText=wBet; }};
+// Initial draw + resize listener
+resizeWheel();
+window.addEventListener('resize', resizeWheel);
+
+/* ---- Controls ---- */
+document.getElementById('wheel-up').onclick = () => {
+    if (!wSpinning) { wBet = clamp(wBet + 10, 10, 500); wBetEl.innerText = wBet; }
+};
+document.getElementById('wheel-down').onclick = () => {
+    if (!wSpinning) { wBet = clamp(wBet - 10, 10, 500); wBetEl.innerText = wBet; }
+};
 
 document.getElementById('btn-spin-wheel').onclick = () => {
     if (wSpinning) return;
@@ -82,7 +116,7 @@ document.getElementById('btn-spin-wheel').onclick = () => {
 
     const targetIdx = Math.floor(Math.random() * SEG_COUNT);
 
-    const baseTarget = -Math.PI/2 - targetIdx * ARC - ARC/2;
+    const baseTarget = -Math.PI / 2 - targetIdx * ARC - ARC / 2;
     const fullSpins = (5 + Math.random() * 4) * Math.PI * 2;
     const finalAngle = baseTarget - fullSpins;
     let target = finalAngle;
@@ -95,7 +129,7 @@ document.getElementById('btn-spin-wheel').onclick = () => {
 
     function animate(now) {
         let t = Math.min((now - startTime) / duration, 1);
-        // Quartic ease-out for smooth deceleration
+        // Quartic ease-out
         t = 1 - Math.pow(1 - t, 4);
         const currentAngle = startAngle + delta * t;
         drawWheel(currentAngle);
