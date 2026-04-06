@@ -1,6 +1,6 @@
 /* ============================================
-   MELL CASINO — cases.js
-   Cases: CS:GO style, 6 tiers, gradual slowdown spinner
+   MELL CASINO — cases.js  v2.0
+   Cases: CS:GO style, responsive spinner
    ============================================ */
 
 const TIERS = [
@@ -73,7 +73,7 @@ const TIERS = [
 ];
 
 const RCOLS = {
-    common:'#666', uncommon:'#4488ff', rare:'#b388ff', epic:'#ff3355', legendary:'#ffd700'
+    common:'#555', uncommon:'#4488ff', rare:'#b388ff', epic:'#ff3355', legendary:'#ffd700'
 };
 
 let selTier = 0, caseSpinning = false;
@@ -124,6 +124,14 @@ function pickItem(idx) {
     return items[items.length - 1];
 }
 
+/* Get current spinner item width based on screen */
+function getSpinnerItemSize() {
+    const vw = window.innerWidth;
+    if (vw < 380) return { w: 56, gap: 4 };
+    if (vw < 600) return { w: 64, gap: 5 };
+    return { w: 72, gap: 6 };
+}
+
 document.getElementById('btn-open-case').onclick = () => {
     if (caseSpinning) return;
     const tier = TIERS[selTier];
@@ -144,40 +152,43 @@ document.getElementById('btn-open-case').onclick = () => {
         }
     }
 
+    const { w: ITEM_W, gap: ITEM_GAP } = getSpinnerItemSize();
+    const ITEM_TOTAL = ITEM_W + ITEM_GAP;
+
     spStrip.innerHTML = '';
+    spStrip.style.gap = ITEM_GAP + 'px';
+
     itemList.forEach((item, i) => {
         const el = document.createElement('div');
         el.className = 'sp-item';
         el.id = i === WIN_POS ? 'sp-winner-item' : '';
         el.style.borderColor = RCOLS[item.rarity];
+        el.style.width = ITEM_W + 'px';
+        el.style.height = ITEM_W + 'px';
         const valText = item.label.split(' ')[0];
-        el.innerHTML = `<span style="color:${RCOLS[item.rarity]};font-size:10px">${valText}</span><span class="sp-val">💰</span>`;
+        el.innerHTML = `<span style="color:${RCOLS[item.rarity]};font-size:${Math.max(9, ITEM_W/7)}px">${valText}</span><span class="sp-val">💰</span>`;
         spStrip.appendChild(el);
     });
 
     spinnerBox.style.display = '';
     caseContents.style.display = 'none';
 
-    const ITEM_W = 76; // 70 + 6 gap
     const vpCenter = spinnerBox.querySelector('.sp-viewport').offsetWidth / 2;
-    const targetOffset = WIN_POS * ITEM_W + ITEM_W / 2 - vpCenter;
+    const targetOffset = WIN_POS * ITEM_TOTAL + ITEM_W / 2 - vpCenter;
 
     const duration = 5500;
     const startTime = performance.now();
-    let currentOffset = 0;
 
     function animateSpinner(now) {
         let t = Math.min((now - startTime) / duration, 1);
-        // Quintic ease-out for dramatic deceleration
         const eased = 1 - Math.pow(1 - t, 5);
-        currentOffset = targetOffset * eased;
+        const currentOffset = targetOffset * eased;
         spStrip.style.transform = `translateX(-${currentOffset}px)`;
 
         if (t < 1) {
             requestAnimationFrame(animateSpinner);
         } else {
             spStrip.style.transform = `translateX(-${targetOffset}px)`;
-            // Highlight winner
             const winEl = document.getElementById('sp-winner-item');
             if (winEl) winEl.classList.add('sp-winner');
 
