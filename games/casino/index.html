@@ -12,8 +12,8 @@
 <body>
 
 <canvas id="bg-canvas"></canvas>
+<div class="ambient-bg"></div>
 
-<!-- ========== HUB ========== -->
 <div id="hub-menu" class="screen active">
     <div class="hub-top">
         <div class="logo">
@@ -28,34 +28,53 @@
     <div class="hub-grid">
         <div class="gc gc-slots" data-target="game-slots">
             <div class="gc-shine"></div>
-            <div class="gc-body"><span class="gc-ico">🎰</span><div><h3>СЛОТЫ</h3><p>Джекпот x100</p></div><span class="gc-arr">›</span></div>
+            <div class="gc-body">
+                <div class="gc-img-wrap"><img src="../../assets/melslot.png" alt="Слоты" class="gc-img"></div>
+                <div><h3>СЛОТЫ</h3><p>Джекпот x100</p></div>
+                <span class="gc-arr">›</span>
+            </div>
         </div>
         <div class="gc gc-wheel" data-target="game-wheel">
             <div class="gc-shine"></div>
-            <div class="gc-body"><span class="gc-ico">🎡</span><div><h3>КОЛЕСО</h3><p>До x100</p></div><span class="gc-arr">›</span></div>
+            <div class="gc-body">
+                <div class="gc-img-wrap"><img src="../../assets/mellucky.png" alt="Колесо" class="gc-img"></div>
+                <div><h3>КОЛЕСО</h3><p>До x100</p></div>
+                <span class="gc-arr">›</span>
+            </div>
         </div>
         <div class="gc gc-horses" data-target="game-horses">
             <div class="gc-shine"></div>
-            <div class="gc-body"><span class="gc-ico">🏇</span><div><h3>СКАЧКИ</h3><p>Рискни x5</p></div><span class="gc-arr">›</span></div>
+            <div class="gc-body">
+                <div class="gc-img-wrap"><img src="../../assets/melrace.png" alt="Скачки" class="gc-img"></div>
+                <div><h3>СКАЧКИ</h3><p>Рискни x5</p></div>
+                <span class="gc-arr">›</span>
+            </div>
         </div>
         <div class="gc gc-bj" data-target="game-blackjack">
             <div class="gc-shine"></div>
-            <div class="gc-body"><span class="gc-ico">🃏</span><div><h3>БЛЭКДЖЕК</h3><p>Классика 21</p></div><span class="gc-arr">›</span></div>
+            <div class="gc-body">
+                <div class="gc-img-wrap"><img src="../../assets/melblack.png" alt="Блэкджек" class="gc-img"></div>
+                <div><h3>БЛЭКДЖЕК</h3><p>Классика 21</p></div>
+                <span class="gc-arr">›</span>
+            </div>
         </div>
         <div class="gc gc-cases" data-target="game-cases">
             <div class="gc-shine"></div>
-            <div class="gc-body"><span class="gc-ico">📦</span><div><h3>КЕЙСЫ</h3><p>CS:GO стиль</p></div><span class="gc-arr">›</span></div>
+            <div class="gc-body">
+                <div class="gc-img-wrap"><img src="../../assets/melcase.png" alt="Кейсы" class="gc-img"></div>
+                <div><h3>КЕЙСЫ</h3><p>Топовый дроп</p></div>
+                <span class="gc-arr">›</span>
+            </div>
         </div>
     </div>
 </div>
 
-<!-- ========== SLOTS ========== -->
 <div id="game-slots" class="screen hidden">
     <div class="topbar">
         <button class="btn-back">← НАЗАД</button>
         <div class="topbar-bal"><span class="cash-value">0</span> 💰</div>
     </div>
-    <div class="g-title">🎰 СЛОТЫ</div>
+    <div class="g-title"><img src="../../assets/melslot.png" class="title-ico"> СЛОТЫ</div>
     <div class="slot-cabinet">
         <div class="slot-lights"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
         <div class="reels-wrap">
@@ -78,13 +97,12 @@
     <div id="slot-msg" class="msg">ЖМЯКАЙ КРУТИТЬ!</div>
 </div>
 
-<!-- ========== WHEEL ========== -->
 <div id="game-wheel" class="screen hidden">
     <div class="topbar">
         <button class="btn-back">← НАЗАД</button>
         <div class="topbar-bal"><span class="cash-value">0</span> 💰</div>
     </div>
-    <div class="g-title">🎡 КОЛЕСО ФОРТУНЫ</div>
+    <div class="g-title"><img src="../../assets/mellucky.png" class="title-ico"> КОЛЕСО ФОРТУНЫ</div>
     <div class="wheel-stage">
         <div class="wheel-ptr">▼</div>
         <canvas id="wheel-canvas" width="320" height="320"></canvas>
@@ -98,13 +116,12 @@
     <div id="wheel-msg" class="msg">ВЫБЕРИ СТАВКУ</div>
 </div>
 
-<!-- ========== HORSES ========== -->
 <div id="game-horses" class="screen hidden">
     <div class="topbar">
         <button class="btn-back">← НАЗАД</button>
         <div class="topbar-bal"><span class="cash-value">0</span> 💰</div>
     </div>
-    <div class="g-title">🏇 СКАЧКИ</div>
+    <div class="g-title"><img src="../../assets/melrace.png" class="title-ico"> СКАЧКИ</div>
     <div class="horse-pick" id="horse-pick"></div>
     <div class="race-track" id="race-track"></div>
     <div class="horse-result" id="horse-result" style="display:none;">
@@ -123,13 +140,12 @@
     <div id="horse-msg" class="msg">ВЫБЕРИ ЛОШАДЬ И СТАВКУ</div>
 </div>
 
-<!-- ========== BLACKJACK ========== -->
 <div id="game-blackjack" class="screen hidden">
     <div class="topbar">
         <button class="btn-back">← НАЗАД</button>
         <div class="topbar-bal"><span class="cash-value">0</span> 💰</div>
     </div>
-    <div class="g-title">🃏 БЛЭКДЖЕК</div>
+    <div class="g-title"><img src="../../assets/melblack.png" class="title-ico"> БЛЭКДЖЕК</div>
     <div class="bj-table">
         <div class="bj-half bj-dealer">
             <div class="bj-label">ДИЛЕР <span id="dealer-score" class="bj-sc"></span></div>
@@ -154,13 +170,12 @@
     <div id="bj-msg" class="msg">СТАВКА И РАЗДАЧА</div>
 </div>
 
-<!-- ========== CASES ========== -->
 <div id="game-cases" class="screen hidden">
     <div class="topbar">
         <button class="btn-back">← НАЗАД</button>
         <div class="topbar-bal"><span class="cash-value">0</span> 💰</div>
     </div>
-    <div class="g-title">📦 КЕЙСЫ MELL</div>
+    <div class="g-title"><img src="../../assets/melcase.png" class="title-ico"> КЕЙСЫ MELL</div>
     <div class="case-tiers" id="case-tiers"></div>
     <div class="case-contents" id="case-contents"></div>
     <div class="spinner-box" id="spinner-box" style="display:none;">
