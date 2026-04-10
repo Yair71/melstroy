@@ -753,3 +753,41 @@ body {
     0% { box-shadow: none; border-color: rgba(255,255,255,0.1); }
     100% { box-shadow: 0 0 30px var(--gold-glow), inset 0 0 20px var(--gold-glow); border-color: var(--gold); color: var(--gold); text-shadow: 0 0 10px var(--gold); }
 }
+/* =========================================
+   СТИЛИ ДЛЯ КАРТ БЛЭКДЖЕКА (STICH UI)
+   ========================================= */
+.playing-card {
+    width: 80px;
+    height: 112px;
+    background-color: white;
+    border-radius: 6px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 6px;
+    color: black;
+    font-weight: bold;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+    position: relative;
+    transition: all 0.3s;
+}
+
+.playing-card.red { color: #dc2626; }
+.playing-card.black { color: #171717; }
+
+/* Рубашка карты дилера */
+.playing-card-face-down {
+    background: repeating-linear-gradient(45deg, #333, #333 10px, #222 10px, #222 20px);
+    border: 2px solid #555;
+}
+
+/* Красивая анимация раздачи */
+@keyframes dealCard {
+    0% { opacity: 0; transform: translateY(-50px) scale(0.8) rotate(10deg); }
+    100% { opacity: 1; transform: translateY(0) scale(1) rotate(var(--rot, 0deg)); }
+}
+
+.card-anim {
+    animation: dealCard 0.4s ease-out forwards;
+    opacity: 0;
+}
