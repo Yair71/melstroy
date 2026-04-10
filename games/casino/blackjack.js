@@ -1,6 +1,6 @@
 /* ============================================
    MELL CASINO — blackjack.js
-   Blackjack: Proper ace, proper scoring, no bugs
+   Адаптировано под UI от Stich
    ============================================ */
 
 const SUITS = ['♠','♥','♦','♣'];
@@ -8,6 +8,13 @@ const RANKS = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
 
 let bjBet = 10, bjOn = false;
 let pCards = [], dCards = [], deck = [];
+
+// Мок-функции, если они у тебя лежат в core.js, удали их отсюда
+// let balance = 1000;
+// function clamp(val, min, max) { return Math.min(Math.max(val, min), max); }
+// function addBal(amount) { balance += amount; console.log("Баланс:", balance); }
+// function showMsg(el, text, type) { el.innerText = text; }
+
 const bjBetEl = document.getElementById('bj-bet');
 const bjMsg = document.getElementById('bj-msg');
 const dHandEl = document.getElementById('dealer-hand');
@@ -44,30 +51,53 @@ function handValue(cards) {
     return total;
 }
 
+// НОВАЯ ФУНКЦИЯ ГЕНЕРАЦИИ КАРТ (ПОД ДИЗАЙН STICH)
 function makeCardEl(card, faceDown) {
     const d = document.createElement('div');
     const isRed = card.suit === '♥' || card.suit === '♦';
+    
+    // Рандомный поворот карты для реалистичности
+    const randomRot = (Math.random() * 8 - 4).toFixed(1);
+    d.style.setProperty('--rot', `${randomRot}deg`);
+
     if (faceDown) {
-        d.className = 'card card-down';
+        d.className = 'playing-card playing-card-face-down card-anim';
+        // Если хочешь чтобы карты дилера наезжали друг на друга
+        d.style.marginLeft = "-20px"; 
     } else {
-        d.className = 'card card-up ' + (isRed ? 'c-red' : 'c-black');
-        d.innerHTML = `<span class="c-corner">${card.rank}${card.suit}</span><span class="c-center">${card.rank}<br>${card.suit}</span>`;
+        d.className = `playing-card card-anim ${isRed ? 'red' : 'black'}`;
+        d.style.marginLeft = "-20px"; // Карты ложатся веером
+        
+        d.innerHTML = `
+            <div class="text-sm leading-none">${card.rank}<br>${card.suit}</div>
+            <div class="absolute inset-0 flex items-center justify-center opacity-20 text-5xl">${card.suit}</div>
+            <div class="text-sm leading-none self-end rotate-180">${card.rank}<br>${card.suit}</div>
+        `;
     }
+    
+    // Убираем отрицательный отступ у первой карты
+    if (dHandEl.children.length === 0 && d.parentElement === dHandEl) d.style.marginLeft = "0px";
+    if (pHandEl.children.length === 0 && d.parentElement === pHandEl) d.style.marginLeft = "0px";
+
     return d;
 }
 
 function renderBJ(showHole) {
     dHandEl.innerHTML = '';
     pHandEl.innerHTML = '';
+    
     dCards.forEach((c, i) => {
-        const delay = i * 100;
+        const delay = i * 150;
         const el = makeCardEl(c, i === 1 && !showHole);
         el.style.animationDelay = delay + 'ms';
+        if(i===0) el.style.marginLeft = "0px";
         dHandEl.appendChild(el);
     });
+    
     pCards.forEach((c, i) => {
         const el = makeCardEl(c, false);
-        el.style.animationDelay = (i * 100 + 200) + 'ms';
+        el.style.animationDelay = (i * 150 + 300) + 'ms';
+        if(i===0) el.style.marginLeft = "0px";
         pHandEl.appendChild(el);
     });
 
@@ -77,23 +107,28 @@ function renderBJ(showHole) {
 
 btnDeal.onclick = () => {
     if (bjOn) return;
-    if (balance < bjBet) { showMsg(bjMsg, 'НЕТ ДЕНЕГ!', 'lose'); return; }
+    if (typeof balance !== 'undefined' && balance < bjBet) { 
+        if(typeof showMsg === 'function') showMsg(bjMsg, 'НЕТ ДЕНЕГ!', 'lose'); 
+        return; 
+    }
+    
     bjOn = true;
-    addBal(-bjBet);
+    if(typeof addBal === 'function') addBal(-bjBet);
 
     deck = freshDeck();
     pCards = [deck.pop(), deck.pop()];
     dCards = [deck.pop(), deck.pop()];
 
     renderBJ(false);
+    
+    // Переключаем интерфейс
     bjBetCtrls.style.display = 'none';
-    btnDeal.style.display = 'none';
     bjPlayBtns.style.display = 'flex';
 
     if (handValue(pCards) === 21) {
-        setTimeout(() => doStand(), 500);
+        setTimeout(() => doStand(), 800);
     } else {
-        showMsg(bjMsg, 'ЕЩЁ ИЛИ СТОП?');
+        if(typeof showMsg === 'function') showMsg(bjMsg, 'ЕЩЁ ИЛИ СТОП?');
     }
 };
 
@@ -101,15 +136,17 @@ document.getElementById('btn-hit').onclick = () => {
     if (!bjOn) return;
     pCards.push(deck.pop());
     renderBJ(false);
+    
     const v = handValue(pCards);
     if (v > 21) {
         renderBJ(true);
-        showMsg(bjMsg, `ПЕРЕБОР ${v}! −${bjBet} 💰`, 'lose');
+        if(typeof showMsg === 'function') showMsg(bjMsg, `ПЕРЕБОР ${v}! −${bjBet} 💰`, 'lose');
         endBJ();
     } else if (v === 21) {
-        setTimeout(() => doStand(), 400);
+        setTimeout(() => doStand(), 500);
     }
 };
+
 document.getElementById('btn-stand').onclick = () => doStand();
 
 function doStand() {
@@ -124,21 +161,22 @@ function doStand() {
         if (dv > 21 || pv > dv) {
             const isNatural = pv === 21 && pCards.length === 2;
             const winAmt = isNatural ? Math.floor(bjBet * 2.5) : bjBet * 2;
-            addBal(winAmt);
-            showMsg(bjMsg, `${isNatural ? 'БЛЭКДЖЕК!' : 'ПОБЕДА!'} +${winAmt} 💰`, 'win');
+            if(typeof addBal === 'function') addBal(winAmt);
+            if(typeof showMsg === 'function') showMsg(bjMsg, `${isNatural ? 'БЛЭКДЖЕК!' : 'ПОБЕДА!'} +${winAmt} 💰`, 'win');
         } else if (pv === dv) {
-            addBal(bjBet);
-            showMsg(bjMsg, 'НИЧЬЯ — ВОЗВРАТ');
+            if(typeof addBal === 'function') addBal(bjBet);
+            if(typeof showMsg === 'function') showMsg(bjMsg, 'НИЧЬЯ — ВОЗВРАТ');
         } else {
-            showMsg(bjMsg, `ДИЛЕР ${dv} — ПРОИГРЫШ 😭`, 'lose');
+            if(typeof showMsg === 'function') showMsg(bjMsg, `ДИЛЕР ${dv} — ПРОИГРЫШ 😭`, 'lose');
         }
         endBJ();
-    }, 500);
+    }, 1000);
 }
 
 function endBJ() {
     bjOn = false;
-    bjPlayBtns.style.display = 'none';
-    bjBetCtrls.style.display = '';
-    btnDeal.style.display = '';
+    setTimeout(() => {
+        bjPlayBtns.style.display = 'none';
+        bjBetCtrls.style.display = 'flex'; // Возвращаем панель ставок
+    }, 1500); // Даем время полюбоваться результатом
 }
