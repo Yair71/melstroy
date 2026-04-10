@@ -187,45 +187,62 @@
         </div>
     </div>
 
-    <div id="game-slots" class="screen hidden md:ml-64 pt-24 pb-28 md:pb-8 px-4 md:px-6 min-h-screen">
-        <div class="max-w-4xl mx-auto glass-panel rounded-2xl p-6 border border-white/10 shadow-2xl flex flex-col items-center relative">
-            <button class="btn-back absolute top-6 left-6 text-stone-400 hover:text-white font-label text-sm uppercase tracking-widest flex items-center gap-2 transition-colors">
-                <span class="material-symbols-outlined">arrow_back</span> Назад
-            </button>
-            
-            <div class="g-title text-3xl font-headline font-black text-white mb-8 flex items-center gap-3 mt-10 md:mt-0">
-                <img src="../../assets/melslot.png" class="w-12 h-12 object-contain drop-shadow-md"> СЛОТЫ
+  <div id="game-slots" class="screen hidden md:ml-64 pt-24 pb-28 md:pb-8 px-4 md:px-6 min-h-screen relative flex flex-col items-center justify-center overflow-hidden">
+    
+    <div class="absolute inset-0 z-0 pointer-events-none">
+        <img class="w-full h-full object-cover opacity-10 blur-xl" src="assest/adultsonly-neon.png" />
+        <div class="absolute inset-0 bg-gradient-to-b from-stone-950 via-transparent to-stone-950"></div>
+    </div>
+    
+    <button class="btn-back absolute top-6 left-6 text-stone-400 hover:text-white font-label text-sm uppercase tracking-widest flex items-center gap-2 transition-colors z-30">
+        <span class="material-symbols-outlined">arrow_back</span> Назад
+    </button>
+
+    <div class="relative z-10 w-full max-w-5xl flex justify-between items-end mb-6 mt-12 md:mt-0">
+        <div>
+            <h1 class="font-headline font-extrabold text-4xl md:text-5xl text-white tracking-tighter uppercase italic drop-shadow-lg">
+                Neon <span class="text-primary drop-shadow-[0_0_12px_rgba(223,183,255,0.8)]">Dynasty</span>
+            </h1>
+            <div class="flex gap-4 mt-2">
+                <span class="flex items-center gap-1 text-secondary-fixed text-xs font-bold font-label uppercase tracking-widest bg-black/40 px-3 py-1 rounded-full border border-yellow-500/30">
+                    <span class="material-symbols-outlined text-[14px]">auto_awesome</span>
+                    MELLSTROY JACKPOT
+                </span>
             </div>
-            
-            <div class="slot-cabinet w-full max-w-lg relative bg-stone-950 p-6 rounded-xl border-[4px] border-purple-600 shadow-[0_0_30px_rgba(157,0,255,0.3)]">
-                <div class="slot-lights flex justify-between absolute -top-2 left-4 right-4 text-purple-400"><span>•</span><span>•</span><span>•</span><span>•</span><span>•</span></div>
-                <div class="reels-wrap flex justify-center gap-4 bg-stone-900 p-4 rounded-lg overflow-hidden border border-white/5 relative">
-                    <div class="reel text-6xl bg-stone-800 p-4 rounded shadow-inner min-w-[80px] text-center" id="reel-0">🍒</div>
-                    <div class="reel text-6xl bg-stone-800 p-4 rounded shadow-inner min-w-[80px] text-center" id="reel-1">🍒</div>
-                    <div class="reel text-6xl bg-stone-800 p-4 rounded shadow-inner min-w-[80px] text-center" id="reel-2">🍒</div>
-                    <div class="pay-line absolute top-1/2 left-0 w-full h-1 bg-red-500/50 shadow-[0_0_10px_red] transform -translate-y-1/2 z-10"></div>
-                </div>
-            </div>
-            
-            <div class="paytable flex flex-wrap justify-center gap-4 mt-6 text-sm font-label text-stone-300">
-                <span class="bg-white/5 px-3 py-1 rounded">🍒x2</span><span class="bg-white/5 px-3 py-1 rounded">🍋x3</span><span class="bg-white/5 px-3 py-1 rounded">🍺x5</span><span class="bg-white/5 px-3 py-1 rounded">🍔x10</span><span class="bg-white/5 px-3 py-1 rounded border border-primary/50 text-primary">💎x50</span><span class="bg-primary/20 px-3 py-1 rounded border border-primary text-primary font-bold shadow-[0_0_10px_rgba(157,0,255,0.5)]">🦍x100</span>
-            </div>
-            <div class="pt-note text-xs text-stone-500 mt-3 uppercase tracking-wider">Пара 🦍🦍 = x2 · Три одинаковых = множитель</div>
-            
-            <div class="ctrl-row flex items-center justify-center gap-4 mt-8 bg-stone-900 p-3 rounded-xl border border-white/10">
-                <button class="ctrl-btn w-10 h-10 rounded bg-stone-800 hover:bg-stone-700 text-white font-bold text-xl transition" id="slot-down">−</button>
-                <div class="bet-pill flex flex-col items-center px-4">
-                    <span class="text-[10px] text-stone-400 font-label tracking-widest uppercase">Ставка</span>
-                    <span id="slot-bet" class="text-xl font-headline font-bold text-secondary-fixed">10</span>
-                </div>
-                <button class="ctrl-btn w-10 h-10 rounded bg-stone-800 hover:bg-stone-700 text-white font-bold text-xl transition" id="slot-up">+</button>
-            </div>
-            
-            <button id="btn-spin-slots" class="btn-action w-full max-w-sm mt-6 py-4 bg-gradient-to-r from-primary-container to-primary text-on-primary-fixed font-headline font-extrabold text-lg rounded-xl tracking-widest hover:shadow-[0_0_20px_rgba(157,0,255,0.6)] transition-all uppercase">КРУТИТЬ</button>
-            <div id="slot-msg" class="msg mt-4 text-sm font-label uppercase tracking-widest text-primary h-6">ЖМЯКАЙ КРУТИТЬ!</div>
         </div>
+        <div id="slot-msg" class="text-primary text-sm font-bold uppercase tracking-widest bg-black/50 px-4 py-2 rounded-lg border border-primary/20 backdrop-blur-md">КРУТИ БАРАБАН</div>
     </div>
 
+    <div class="relative z-10 w-full max-w-5xl glass-panel p-4 md:p-8 rounded-[2rem] border border-white/10 shadow-[0_40px_100px_rgba(0,0,0,0.8)] bg-black/40 backdrop-blur-xl">
+        <div class="grid grid-cols-5 gap-2 md:gap-4 h-[300px] md:h-[450px]" id="slot-reels-container">
+            </div>
+        <div class="absolute inset-x-0 top-1/2 -translate-y-1/2 h-[100px] md:h-[150px] bg-primary/10 border-y-2 border-primary/40 pointer-events-none shadow-[0_0_30px_rgba(157,0,255,0.2)] rounded-lg mx-4 md:mx-8"></div>
+    </div>
+
+    <div class="relative z-10 w-full max-w-5xl mt-8 grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
+        <div class="glass-panel p-4 rounded-2xl flex flex-col items-center justify-center border border-white/10 bg-black/40 backdrop-blur-md transition-all duration-300" id="slot-win-box">
+            <span class="text-[10px] uppercase tracking-[0.2em] text-stone-500 font-label">ВЫИГРЫШ</span>
+            <span id="slot-win-display" class="text-3xl font-headline font-black text-secondary-fixed mt-1 drop-shadow-[0_0_10px_rgba(234,179,8,0.5)]">0</span>
+        </div>
+        
+        <div class="flex items-center justify-center gap-4">
+            <button id="btn-spin-slots" class="w-24 h-24 md:w-32 md:h-32 rounded-full bg-gradient-to-tr from-purple-700 to-primary flex flex-col items-center justify-center shadow-[0_0_40px_rgba(157,0,255,0.5)] group transition-transform active:scale-90 relative overflow-hidden border-4 border-purple-900">
+                <div class="absolute inset-0 bg-[radial-gradient(circle_at_center,_rgba(255,255,255,0.4)_0%,_transparent_70%)] opacity-30"></div>
+                <span class="material-symbols-outlined text-4xl md:text-5xl text-on-primary-fixed mb-1 group-hover:rotate-12 transition-transform drop-shadow-md">play_arrow</span>
+                <span class="font-headline font-black text-on-primary-fixed tracking-widest text-sm md:text-base drop-shadow-md">SPIN</span>
+            </button>
+        </div>
+        
+        <div class="glass-panel p-4 rounded-2xl flex flex-col items-center border border-white/10 bg-black/40 backdrop-blur-md">
+            <span class="text-[10px] uppercase tracking-[0.2em] text-stone-500 font-label">СТАВКА</span>
+            <div class="flex items-center gap-6 mt-2">
+                <button id="slot-down" class="w-10 h-10 flex items-center justify-center rounded-full bg-stone-800 text-primary hover:text-white hover:bg-stone-700 transition-colors text-2xl font-bold">−</button>
+                <span id="slot-bet" class="text-3xl font-headline font-bold text-white w-16 text-center">10</span>
+                <button id="slot-up" class="w-10 h-10 flex items-center justify-center rounded-full bg-stone-800 text-primary hover:text-white hover:bg-stone-700 transition-colors text-2xl font-bold">+</button>
+            </div>
+        </div>
+    </div>
+</div>
     <div id="game-wheel" class="screen hidden md:ml-64 pt-24 pb-28 md:pb-8 px-4 md:px-6 min-h-screen">
         <div class="max-w-2xl mx-auto glass-panel rounded-2xl p-6 border border-white/10 shadow-2xl flex flex-col items-center relative">
             <button class="btn-back absolute top-6 left-6 text-stone-400 hover:text-white font-label text-sm uppercase tracking-widest flex items-center gap-2 transition-colors">
