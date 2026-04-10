@@ -243,8 +243,76 @@
         </div>
     </div>
 </div>
-  <div id="game-wheel" class="screen hidden md:ml-64 pt-24 pb-28 md:pb-8 px-4 md:px-6 min-h-screen relative flex flex-col items-center justify-center overflow-hidden">
+<div id="game-wheel" class="screen hidden md:ml-64 pt-24 pb-28 md:pb-8 px-4 md:px-6 min-h-screen relative flex flex-col items-center justify-center overflow-hidden">
     
+    <style>
+        .wf-container {
+            position: relative;
+            width: 320px;
+            height: 320px;
+            border-radius: 50%;
+            border: 8px solid #1a1a1a;
+            box-shadow: 0 0 0 6px #d4af37, 0 0 40px 10px rgba(212, 175, 55, 0.4), inset 0 0 40px rgba(0,0,0,0.9);
+            background: #111;
+            margin: 0 auto;
+        }
+        @media (min-width: 768px) {
+            .wf-container { width: 450px; height: 450px; }
+        }
+        .wf-glow {
+            position: absolute;
+            top: -10px; left: -10px; right: -10px; bottom: -10px;
+            border-radius: 50%;
+            border: 2px solid rgba(243, 229, 171, 0.4);
+            box-shadow: 0 0 30px rgba(243, 229, 171, 0.3);
+            pointer-events: none;
+            z-index: 10;
+        }
+        .wf-pointer {
+            position: absolute;
+            top: -15px; left: 50%;
+            transform: translate(-50%, 0);
+            width: 0; height: 0;
+            border-left: 20px solid transparent;
+            border-right: 20px solid transparent;
+            border-top: 40px solid #facc15;
+            z-index: 30;
+            filter: drop-shadow(0 6px 8px rgba(0,0,0,0.8));
+        }
+        .wf-center {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 90px; height: 90px;
+            background: radial-gradient(circle at 35% 35%, #fff2c8 0%, #e8c76c 25%, #c49a3c 50%, #9c7526 75%, #5a3c0d 100%);
+            border-radius: 50%;
+            z-index: 40;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #2b1f07;
+            font-weight: 900;
+            font-size: 1.2rem;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.8), inset 0 2px 6px rgba(255,255,255,0.7), inset 0 -6px 15px rgba(0,0,0,0.6);
+            cursor: pointer;
+        }
+        @media (min-width: 768px) {
+            .wf-center { width: 120px; height: 120px; font-size: 1.5rem; }
+        }
+        .wf-slice-item {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform-origin: 0 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: white;
+            font-weight: 800;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.9);
+            z-index: 20;
+        }
+    </style>
+
     <div class="absolute inset-0 z-0 pointer-events-none">
         <img class="w-full h-full object-cover opacity-15 blur-xl" src="assest/mellucky.png" />
         <div class="absolute inset-0 bg-gradient-to-b from-stone-950 via-transparent to-stone-950"></div>
@@ -254,7 +322,7 @@
         <span class="material-symbols-outlined">arrow_back</span> Назад
     </button>
 
-    <div class="relative z-10 w-full max-w-4xl flex justify-center mb-2 mt-12 md:mt-0">
+    <div class="relative z-10 w-full max-w-4xl flex justify-center mb-4 mt-12 md:mt-0">
         <h1 class="font-headline font-extrabold text-4xl md:text-5xl text-white tracking-tighter uppercase italic drop-shadow-lg text-center">
             WHEEL OF <span class="text-yellow-500 drop-shadow-[0_0_15px_rgba(234,179,8,0.8)]">FORTUNE</span>
         </h1>
@@ -263,25 +331,24 @@
         <div id="wheel-msg" class="text-yellow-400 text-sm font-bold uppercase tracking-widest bg-black/60 px-6 py-2 rounded-xl border border-yellow-500/30 backdrop-blur-md shadow-[0_0_20px_rgba(234,179,8,0.2)]">ИСПЫТАЙ УДАЧУ</div>
     </div>
 
-    <div class="relative z-10 flex items-center justify-center mb-8 scale-90 md:scale-100">
-        <div class="wheel-container shadow-2xl">
-            <div class="wheel-glow"></div>
-            <div class="wheel-pointer"></div>
+    <div class="relative z-10 flex items-center justify-center mb-8 w-full">
+        <div class="wf-container">
+            <div class="wf-glow"></div>
+            <div class="wf-pointer"></div>
             
             <div id="wheel-ring" class="w-full h-full relative rounded-full overflow-hidden will-change-transform">
                 <div id="wheel-slices" class="absolute inset-0"></div>
-                <div id="wheel-items" class="absolute inset-0">
-                    </div>
+                <div id="wheel-items" class="absolute inset-0"></div>
             </div>
             
-            <div id="btn-spin-wheel" class="wheel-center uppercase tracking-widest font-black shadow-2xl group hover:scale-105 transition-transform">
-                <span class="drop-shadow-md group-active:scale-95 transition-transform text-2xl">SPIN</span>
+            <div id="btn-spin-wheel" class="wf-center group hover:scale-105 transition-transform">
+                <span class="drop-shadow-md group-active:scale-95 transition-transform">SPIN</span>
             </div>
         </div>
     </div>
 
-    <div class="relative z-10 w-full max-w-xl glass-panel p-4 rounded-2xl flex items-center justify-between border border-white/10 bg-black/50 backdrop-blur-xl">
-        <button id="wheel-down" class="w-14 h-14 flex items-center justify-center rounded-xl bg-stone-800/80 text-yellow-500 hover:text-white hover:bg-stone-700 transition-colors text-3xl font-bold shadow-inner border border-white/5">−</button>
+    <div class="relative z-10 w-full max-w-sm md:max-w-xl glass-panel p-4 rounded-2xl flex items-center justify-between border border-white/10 bg-black/50 backdrop-blur-xl">
+        <button id="wheel-down" class="w-12 h-12 md:w-14 md:h-14 flex items-center justify-center rounded-xl bg-stone-800/80 text-yellow-500 hover:text-white hover:bg-stone-700 transition-colors text-3xl font-bold shadow-inner border border-white/5">−</button>
         <div class="flex flex-col items-center">
             <span class="text-[10px] uppercase tracking-[0.2em] text-stone-400 font-label">ТВОЯ СТАВКА</span>
             <div class="flex items-center gap-2 mt-1">
@@ -289,7 +356,7 @@
                 <span class="text-xl text-yellow-500">💰</span>
             </div>
         </div>
-        <button id="wheel-up" class="w-14 h-14 flex items-center justify-center rounded-xl bg-stone-800/80 text-yellow-500 hover:text-white hover:bg-stone-700 transition-colors text-3xl font-bold shadow-inner border border-white/5">+</button>
+        <button id="wheel-up" class="w-12 h-12 md:w-14 md:h-14 flex items-center justify-center rounded-xl bg-stone-800/80 text-yellow-500 hover:text-white hover:bg-stone-700 transition-colors text-3xl font-bold shadow-inner border border-white/5">+</button>
     </div>
 
 </div>
