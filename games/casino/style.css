@@ -544,9 +544,7 @@ body {
 }
 .pt-note { font-size: clamp(10px, 1.8vw, 12px); color: var(--gold-dim); text-align: center; font-family: var(--f-mono); }
 
-/* ===================================================
-   WHEEL
-   =================================================== */
+
 .wheel-stage { position: relative; display: flex; justify-content: center; align-items: center; margin: 10px 0; }
 .wheel-ptr {
     position: absolute; top: -10px; left: 50%; transform: translateX(-50%); z-index: 5;
@@ -566,9 +564,7 @@ body {
     height: var(--wheel-size, 300px) !important;
 }
 
-/* ===================================================
-   HORSES
-   =================================================== */
+
 .horse-pick { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; width: 100%; }
 @media (min-width: 480px) { .horse-pick { grid-template-columns: repeat(6, 1fr); } }
 
@@ -620,9 +616,7 @@ body {
 .btn-take { background: linear-gradient(135deg, var(--green), #009e4f); box-shadow: 0 6px 20px var(--green-glow); }
 .btn-risk { background: linear-gradient(135deg, #ff6600, var(--red)); box-shadow: 0 6px 20px var(--red-glow); }
 
-/* ===================================================
-   BLACKJACK
-   =================================================== */
+
 .bj-table {
     background: radial-gradient(circle at 50% 30%, #0d5a2a 0%, #073a18 80%);
     border: 4px solid #3c2a1e;
@@ -679,9 +673,7 @@ body {
 .btn-hit { background: linear-gradient(135deg, var(--green), #009e4f); box-shadow: 0 6px 20px var(--green-glow); }
 .btn-stand { background: linear-gradient(135deg, var(--blue), #0066cc); box-shadow: 0 6px 20px var(--blue-glow); }
 
-/* ===================================================
-   CASES
-   =================================================== */
+
 .case-tiers { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; width: 100%; }
 @media (min-width: 480px) { .case-tiers { grid-template-columns: repeat(6, 1fr); } }
 
@@ -753,9 +745,7 @@ body {
     0% { box-shadow: none; border-color: rgba(255,255,255,0.1); }
     100% { box-shadow: 0 0 30px var(--gold-glow), inset 0 0 20px var(--gold-glow); border-color: var(--gold); color: var(--gold); text-shadow: 0 0 10px var(--gold); }
 }
-/* =========================================
-   СТИЛИ ДЛЯ КАРТ БЛЭКДЖЕКА (STICH UI)
-   ========================================= */
+
 .playing-card {
     width: 80px;
     height: 112px;
@@ -775,13 +765,13 @@ body {
 .playing-card.red { color: #dc2626; }
 .playing-card.black { color: #171717; }
 
-/* Рубашка карты дилера */
+
 .playing-card-face-down {
     background: repeating-linear-gradient(45deg, #333, #333 10px, #222 10px, #222 20px);
     border: 2px solid #555;
 }
 
-/* Красивая анимация раздачи */
+
 @keyframes dealCard {
     0% { opacity: 0; transform: translateY(-50px) scale(0.8) rotate(10deg); }
     100% { opacity: 1; transform: translateY(0) scale(1) rotate(var(--rot, 0deg)); }
@@ -791,9 +781,7 @@ body {
     animation: dealCard 0.4s ease-out forwards;
     opacity: 0;
 }
-/* =========================================
-   СТИЛИ ДЛЯ КЕЙСОВ (CS:GO STYLE)
-   ========================================= */
+
 .sp-item {
     display: flex;
     flex-direction: column;
@@ -808,7 +796,7 @@ body {
     transition: all 0.3s ease;
 }
 
-/* Эффект свечения для выигрышного предмета */
+
 .sp-winner {
     transform: scale(1.1);
     z-index: 10;
@@ -822,8 +810,85 @@ body {
     100% { filter: brightness(1.4); }
 }
 
-/* Карточки в сетке "Что внутри" */
+
 .case-content-card {
     background: linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, rgba(20,20,20,0.9) 100%);
     border-top: 2px solid var(--rarity-hex);
+}
+
+.wheel-container {
+    position: relative;
+    width: 340px;
+    height: 340px;
+    border-radius: 50%;
+    border: 8px solid #1a1a1a;
+    box-shadow: 0 0 0 6px #d4af37, 0 0 40px 10px rgba(212, 175, 55, 0.4), inset 0 0 40px rgba(0,0,0,0.9);
+    background: #111;
+}
+
+@media (min-width: 768px) {
+    .wheel-container { width: 450px; height: 450px; }
+}
+
+.wheel-glow {
+    position: absolute;
+    top: -10px; left: -10px; right: -10px; bottom: -10px;
+    border-radius: 50%;
+    border: 2px solid rgba(243, 229, 171, 0.4);
+    box-shadow: 0 0 30px rgba(243, 229, 171, 0.3);
+    pointer-events: none;
+    z-index: 10;
+}
+
+.wheel-pointer {
+    position: absolute;
+    top: -15px; left: 50%;
+    transform: translate(-50%, 0);
+    width: 0; height: 0;
+    border-left: 20px solid transparent;
+    border-right: 20px solid transparent;
+    border-top: 40px solid #facc15; 
+    z-index: 30;
+    filter: drop-shadow(0 6px 8px rgba(0,0,0,0.8));
+}
+
+.wheel-center {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 90px;
+    height: 90px;
+    background: radial-gradient(circle at 35% 35%, #fff2c8 0%, #e8c76c 25%, #c49a3c 50%, #9c7526 75%, #5a3c0d 100%);
+    border-radius: 50%;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #2b1f07;
+    box-shadow: 0 15px 35px rgba(0,0,0,0.8), inset 0 2px 6px rgba(255,255,255,0.7), inset 0 -6px 15px rgba(0,0,0,0.6);
+    cursor: pointer;
+}
+
+.wheel-center::after {
+    content: '';
+    position: absolute;
+    top: 3px; left: 3px; right: 3px; bottom: 3px;
+    border-radius: 50%;
+    border: 1px dashed rgba(255,255,255,0.4);
+}
+
+@media (min-width: 768px) {
+    .wheel-center { width: 120px; height: 120px; }
+}
+
+.slice-item {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform-origin: 0 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    color: white;
+    font-weight: 800;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.9);
 }
