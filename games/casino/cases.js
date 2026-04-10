@@ -1,6 +1,5 @@
 /* ============================================
-   MELL CASINO — cases.js  v2.0
-   Cases: CS:GO style, responsive spinner
+   MELL CASINO — cases.js v3.0 (PRO CS:GO STYLE)
    ============================================ */
 
 const TIERS = [
@@ -72,8 +71,13 @@ const TIERS = [
     },
 ];
 
-const RCOLS = {
-    common:'#555', uncommon:'#4488ff', rare:'#b388ff', epic:'#ff3355', legendary:'#ffd700'
+// Цвета редкости (HEX для теней, Tailwind для текста)
+const RARITY_COLORS = {
+    common: { hex: '#78716c', text: 'text-stone-400' },     // Серый
+    uncommon: { hex: '#3b82f6', text: 'text-blue-400' },    // Синий
+    rare: { hex: '#a855f7', text: 'text-purple-400' },      // Фиолетовый
+    epic: { hex: '#ef4444', text: 'text-red-500' },         // Красный
+    legendary: { hex: '#facc15', text: 'text-yellow-400' }  // Золотой
 };
 
 let selTier = 0, caseSpinning = false;
@@ -82,39 +86,63 @@ const caseContents = document.getElementById('case-contents');
 const caseMsg = document.getElementById('case-msg');
 const spinnerBox = document.getElementById('spinner-box');
 const spStrip = document.getElementById('sp-strip');
+const casePriceDisplay = document.getElementById('case-price-display');
 
-// Build tier buttons
-TIERS.forEach((t, i) => {
-    const d = document.createElement('div');
-    d.className = 'ct' + (i === 0 ? ' sel' : '');
-    d.innerHTML = `<span class="ct-ico">${t.icon}</span><span class="ct-name">${t.name}</span><span class="ct-price">${t.price} 💰</span>`;
-    d.onclick = () => {
-        if (caseSpinning) return;
-        document.querySelectorAll('.ct').forEach(x => x.classList.remove('sel'));
-        d.classList.add('sel');
-        selTier = i;
-        renderContents(i);
-        spinnerBox.style.display = 'none';
-    };
-    caseTiersEl.appendChild(d);
-});
+// 1. Отрисовка кнопок выбора кейсов
+function renderTiers() {
+    caseTiersEl.innerHTML = '';
+    TIERS.forEach((t, i) => {
+        const d = document.createElement('div');
+        const isSel = i === selTier;
+        
+        // Tailwind классы для красивой кнопки
+        d.className = `flex flex-col items-center justify-center p-3 w-[100px] md:w-[120px] rounded-xl border-2 transition-all cursor-pointer bg-stone-900/80 hover:bg-stone-800 ${
+            isSel ? 'border-primary shadow-[0_0_20px_rgba(157,0,255,0.4)] scale-105' : 'border-white/5 opacity-60 hover:opacity-100'
+        }`;
+        
+        d.innerHTML = `
+            <span class="text-3xl mb-1 drop-shadow-md">${t.icon}</span>
+            <span class="font-headline font-bold text-white text-xs md:text-sm text-center truncate w-full">${t.name}</span>
+            <span class="font-label text-yellow-500 text-xs font-bold">${t.price} 💰</span>
+        `;
+        
+        d.onclick = () => {
+            if (caseSpinning) return;
+            selTier = i;
+            renderTiers(); // Перерисовываем для обновления стилей
+            renderContents(i);
+            casePriceDisplay.innerText = t.price;
+            spinnerBox.style.display = 'none';
+            caseContents.style.display = 'grid';
+        };
+        caseTiersEl.appendChild(d);
+    });
+}
 
+// 2. Отрисовка "Что внутри"
 function renderContents(idx) {
     const tier = TIERS[idx];
     caseContents.innerHTML = '';
+    
     tier.items.forEach(item => {
-        const row = document.createElement('div');
-        row.className = 'cc-row';
-        row.innerHTML = `
-            <div class="cc-bar r-${item.rarity}"></div>
-            <div class="cc-label">${item.label}</div>
-            <div class="cc-chance">${(item.chance*100).toFixed(0)}%</div>
-            <div class="cc-prize">${item.prize}</div>
+        const color = RARITY_COLORS[item.rarity];
+        const card = document.createElement('div');
+        
+        card.className = 'case-content-card flex flex-col items-center justify-center p-4 rounded-xl relative overflow-hidden transition-transform hover:scale-105';
+        card.style.setProperty('--rarity-hex', color.hex);
+        
+        card.innerHTML = `
+            <div class="text-2xl font-black ${color.text} mb-1 drop-shadow-[0_0_8px_var(--rarity-hex)] z-10">${item.label}</div>
+            <div class="text-[10px] text-stone-500 font-label uppercase tracking-widest z-10">Шанс: ${(item.chance*100).toFixed(0)}%</div>
+            <div class="absolute bottom-0 left-1/2 -translate-x-1/2 w-full h-1/2 opacity-20 blur-xl pointer-events-none" style="background-color: ${color.hex}"></div>
         `;
-        caseContents.appendChild(row);
+        caseContents.appendChild(card);
     });
 }
+
+renderTiers();
 renderContents(0);
+casePriceDisplay.innerText = TIERS[0].price;
 
 function pickItem(idx) {
     const items = TIERS[idx].items;
@@ -124,26 +152,34 @@ function pickItem(idx) {
     return items[items.length - 1];
 }
 
-/* Get current spinner item width based on screen */
+// Размеры карточек в рулетке
 function getSpinnerItemSize() {
     const vw = window.innerWidth;
-    if (vw < 380) return { w: 56, gap: 4 };
-    if (vw < 600) return { w: 64, gap: 5 };
-    return { w: 72, gap: 6 };
+    if (vw < 380) return { w: 80, gap: 4 };
+    if (vw < 600) return { w: 100, gap: 6 };
+    return { w: 120, gap: 8 };
 }
 
+// 3. Логика вращения рулетки
 document.getElementById('btn-open-case').onclick = () => {
     if (caseSpinning) return;
     const tier = TIERS[selTier];
-    if (balance < tier.price) { showMsg(caseMsg, 'НЕТ ДЕНЕГ!', 'lose'); return; }
+    
+    if (typeof balance !== 'undefined' && balance < tier.price) { 
+        if(typeof showMsg === 'function') showMsg(caseMsg, 'НЕТ ДЕНЕГ!', 'lose'); 
+        return; 
+    }
+    
     caseSpinning = true;
-    addBal(-tier.price);
-    showMsg(caseMsg, 'ОТКРЫВАЕМ...');
+    if(typeof addBal === 'function') addBal(-tier.price);
+    if(typeof showMsg === 'function') showMsg(caseMsg, 'ОТКРЫВАЕМ...', 'normal');
 
     const winItem = pickItem(selTier);
     const TOTAL = 60;
-    const WIN_POS = 48;
+    const WIN_POS = 50; // Предмет-победитель будет 50-м по счету
     const itemList = [];
+    
+    // Заполняем ленту случайным мусором, а на позицию WIN_POS ставим победителя
     for (let i = 0; i < TOTAL; i++) {
         if (i === WIN_POS) {
             itemList.push(winItem);
@@ -158,52 +194,70 @@ document.getElementById('btn-open-case').onclick = () => {
     spStrip.innerHTML = '';
     spStrip.style.gap = ITEM_GAP + 'px';
 
+    // Создаем DOM-элементы для ленты
     itemList.forEach((item, i) => {
+        const color = RARITY_COLORS[item.rarity];
         const el = document.createElement('div');
-        el.className = 'sp-item';
+        
+        el.className = 'sp-item shrink-0';
         el.id = i === WIN_POS ? 'sp-winner-item' : '';
-        el.style.borderColor = RCOLS[item.rarity];
         el.style.width = ITEM_W + 'px';
-        el.style.height = ITEM_W + 'px';
+        el.style.height = (ITEM_W * 1.1) + 'px'; // Карточки чуть вытянуты
+        el.style.setProperty('--rarity-hex', color.hex);
+        
         const valText = item.label.split(' ')[0];
-        el.innerHTML = `<span style="color:${RCOLS[item.rarity]};font-size:${Math.max(9, ITEM_W/7)}px">${valText}</span><span class="sp-val">💰</span>`;
+        el.innerHTML = `
+            <span class="${color.text} font-black drop-shadow-[0_0_5px_var(--rarity-hex)]" style="font-size:${Math.max(14, ITEM_W/4)}px">${valText}</span>
+            <span class="text-sm mt-1 text-yellow-500">💰</span>
+        `;
         spStrip.appendChild(el);
     });
 
-    spinnerBox.style.display = '';
+    // Прячем сетку содержимого, показываем рулетку
     caseContents.style.display = 'none';
+    spinnerBox.style.display = 'block';
 
-    const vpCenter = spinnerBox.querySelector('.sp-viewport').offsetWidth / 2;
-    const targetOffset = WIN_POS * ITEM_TOTAL + ITEM_W / 2 - vpCenter;
+    // Рассчитываем точную позицию остановки (чтобы победитель был ровно по центру)
+    const vpCenter = spinnerBox.offsetWidth / 2;
+    // Добавляем рандомный микро-сдвиг, чтобы останавливалось не ровно по центру пиксель-в-пиксель, а чуть реалистичнее
+    const randomOffset = (Math.random() * (ITEM_W - 10)) - (ITEM_W / 2 - 5); 
+    const targetOffset = (WIN_POS * ITEM_TOTAL) + (ITEM_W / 2) - vpCenter + randomOffset;
 
-    const duration = 5500;
+    const duration = 6000; // 6 секунд кручения
     const startTime = performance.now();
 
     function animateSpinner(now) {
         let t = Math.min((now - startTime) / duration, 1);
-        const eased = 1 - Math.pow(1 - t, 5);
+        // Кастомное замедление (easeOutQuint) - очень реалистичное торможение
+        const eased = 1 - Math.pow(1 - t, 5); 
         const currentOffset = targetOffset * eased;
-        spStrip.style.transform = `translateX(-${currentOffset}px)`;
+        
+        spStrip.style.transform = `translate3d(-${currentOffset}px, 0, 0)`;
 
         if (t < 1) {
             requestAnimationFrame(animateSpinner);
         } else {
-            spStrip.style.transform = `translateX(-${targetOffset}px)`;
+            // Остановка
+            spStrip.style.transform = `translate3d(-${targetOffset}px, 0, 0)`;
             const winEl = document.getElementById('sp-winner-item');
             if (winEl) winEl.classList.add('sp-winner');
 
             setTimeout(() => {
-                addBal(winItem.prize);
-                showMsg(caseMsg, `ВЫПАЛО: +${winItem.prize} 💰!`, 'win');
+                if(typeof addBal === 'function') addBal(winItem.prize);
+                if(typeof showMsg === 'function') showMsg(caseMsg, `ВЫПАЛО: +${winItem.prize} 💰!`, 'win');
 
+                // Возвращаемся к сетке
                 setTimeout(() => {
                     caseSpinning = false;
                     spinnerBox.style.display = 'none';
-                    caseContents.style.display = '';
-                    showMsg(caseMsg, 'ВЫБЕРИ КЕЙС');
-                }, 2500);
-            }, 500);
+                    caseContents.style.display = 'grid';
+                    if(typeof showMsg === 'function') showMsg(caseMsg, 'ВЫБЕРИ КЕЙС', 'normal');
+                }, 3000); // 3 секунды любуемся выигрышем
+            }, 300);
         }
     }
+    
+    // Сброс позиции перед началом
+    spStrip.style.transform = `translate3d(0, 0, 0)`;
     requestAnimationFrame(animateSpinner);
 };
