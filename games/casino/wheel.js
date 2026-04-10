@@ -1,162 +1,142 @@
 /* ============================================
-   MELL CASINO — wheel.js  v2.0
-   Wheel of Fortune: Responsive canvas, proper sizing
+   MELL CASINO — wheel.js (PRO VERSION)
+   Bug-free, Deterministic Rotation Math
    ============================================ */
 
-const WSEGS = [
-    { label:'x0',   m:0,   color:'#1a1a28' },
-    { label:'x2',   m:2,   color:'#cc2244' },
-    { label:'x0',   m:0,   color:'#12122a' },
-    { label:'x3',   m:3,   color:'#228844' },
-    { label:'x0',   m:0,   color:'#1a1a28' },
-    { label:'x0.5', m:0.5, color:'#333355' },
-    { label:'x0',   m:0,   color:'#12122a' },
-    { label:'x5',   m:5,   color:'#cc8800' },
-    { label:'x0',   m:0,   color:'#1a1a28' },
-    { label:'x10',  m:10,  color:'#6633cc' },
-    { label:'x0',   m:0,   color:'#12122a' },
-    { label:'x100', m:100, color:'#ff2255' },
+// Настройки секторов колеса (Множители ставки)
+const WHEEL_SEGMENTS = [
+    { mult: 0,   color: '#1e1b4b', label: 'LOSE',  icon: 'close' },         // Темный
+    { mult: 1.5, color: '#6b21a8', label: 'x1.5',  icon: 'payments' },      // Фиолетовый
+    { mult: 0.5, color: '#1e1b4b', label: 'x0.5',  icon: 'trending_down' }, // Темный
+    { mult: 2,   color: '#2563eb', label: 'x2',    icon: 'diamond' },       // Синий
+    { mult: 0,   color: '#1e1b4b', label: 'LOSE',  icon: 'close' },         // Темный
+    { mult: 1.5, color: '#6b21a8', label: 'x1.5',  icon: 'payments' },      // Фиолетовый
+    { mult: 0.5, color: '#1e1b4b', label: 'x0.5',  icon: 'trending_down' }, // Темный
+    { mult: 3,   color: '#dc2626', label: 'x3',    icon: 'local_fire_department' }, // Красный
+    { mult: 0,   color: '#1e1b4b', label: 'LOSE',  icon: 'close' },         // Темный
+    { mult: 1.5, color: '#6b21a8', label: 'x1.5',  icon: 'payments' },      // Фиолетовый
+    { mult: 0.5, color: '#1e1b4b', label: 'x0.5',  icon: 'trending_down' }, // Темный
+    { mult: 10,  color: '#d97706', label: 'x10',   icon: 'star' }           // Золотой (ДЖЕКПОТ)
 ];
 
-const wCanvas = document.getElementById('wheel-canvas');
-const wCtx = wCanvas.getContext('2d');
-let wAngle = 0, wBet = 10, wSpinning = false;
-const wBetEl = document.getElementById('wheel-bet');
-const wMsg = document.getElementById('wheel-msg');
-const SEG_COUNT = WSEGS.length;
-const ARC = (Math.PI * 2) / SEG_COUNT;
+let wheelBet = 10;
+let isWheelSpinning = false;
+let currentWheelRotation = 0; // Сохраняем текущий угол, чтобы крутить дальше, а не дергать назад
 
-/* ---- Responsive canvas sizing ---- */
-function getWheelSize() {
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
+const wheelBetEl = document.getElementById('wheel-bet');
+const wheelMsg = document.getElementById('wheel-msg');
+const btnSpinWheel = document.getElementById('btn-spin-wheel');
+const wheelRing = document.getElementById('wheel-ring');
+const wheelSlices = document.getElementById('wheel-slices');
+const wheelItems = document.getElementById('wheel-items');
 
-    // Use the smaller of width/height for proper fitting
-    // Subtract space for topbar, controls, button, msg
-    const availH = vh - 260;
-    const availW = vw - 40;
+// Управление ставкой
+document.getElementById('wheel-up').onclick = () => { if(!isWheelSpinning) { wheelBet = Math.min(wheelBet+10, 1000); wheelBetEl.innerText = wheelBet; }};
+document.getElementById('wheel-down').onclick = () => { if(!isWheelSpinning) { wheelBet = Math.max(wheelBet-10, 10); wheelBetEl.innerText = wheelBet; }};
 
-    let size = Math.min(availW, availH);
-
-    // Clamp between reasonable limits
-    size = Math.max(200, Math.min(size, 500));
-
-    return Math.floor(size);
-}
-
-function resizeWheel() {
-    const size = getWheelSize();
-    // Use devicePixelRatio for crisp rendering on retina
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    wCanvas.width = size * dpr;
-    wCanvas.height = size * dpr;
-    wCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    document.documentElement.style.setProperty('--wheel-size', size + 'px');
-    drawWheel(wAngle);
-}
-
-function drawWheel(angle) {
-    const size = wCanvas.width / (Math.min(window.devicePixelRatio || 1, 2));
-    const cx = size / 2, cy = size / 2, r = size / 2 - 4;
-    wCtx.clearRect(0, 0, size, size);
-    wCtx.save();
-
-    for (let i = 0; i < SEG_COUNT; i++) {
-        const a0 = angle + i * ARC;
-        const a1 = a0 + ARC;
-        // Segment fill
-        wCtx.beginPath();
-        wCtx.moveTo(cx, cy);
-        wCtx.arc(cx, cy, r, a0, a1);
-        wCtx.closePath();
-        wCtx.fillStyle = WSEGS[i].color;
-        wCtx.fill();
-        wCtx.strokeStyle = 'rgba(255,255,255,0.1)';
-        wCtx.lineWidth = 1;
-        wCtx.stroke();
-        // Label
-        wCtx.save();
-        wCtx.translate(cx, cy);
-        wCtx.rotate(a0 + ARC / 2);
-        wCtx.fillStyle = '#fff';
-        const fontSize = Math.max(10, Math.floor(size / 24));
-        wCtx.font = `bold ${WSEGS[i].m >= 100 ? fontSize - 2 : fontSize}px Orbitron, sans-serif`;
-        wCtx.textAlign = 'center';
-        wCtx.textBaseline = 'middle';
-        wCtx.shadowColor = '#000';
-        wCtx.shadowBlur = 5;
-        wCtx.fillText(WSEGS[i].label, r * 0.62, 0);
-        wCtx.restore();
-    }
-
-    // Center hub
-    wCtx.beginPath();
-    wCtx.arc(cx, cy, Math.max(12, size * 0.06), 0, Math.PI * 2);
-    wCtx.fillStyle = '#0a0a18';
-    wCtx.fill();
-    wCtx.strokeStyle = '#ffd700';
-    wCtx.lineWidth = 3;
-    wCtx.stroke();
-    wCtx.restore();
-}
-
-// Initial draw + debounced resize
-resizeWheel();
-let wheelResizeTimer;
-window.addEventListener('resize', () => {
-    clearTimeout(wheelResizeTimer);
-    wheelResizeTimer = setTimeout(resizeWheel, 100);
-});
-
-/* ---- Controls ---- */
-document.getElementById('wheel-up').onclick = () => {
-    if (!wSpinning) { wBet = clamp(wBet + 10, 10, 500); wBetEl.innerText = wBet; }
-};
-document.getElementById('wheel-down').onclick = () => {
-    if (!wSpinning) { wBet = clamp(wBet - 10, 10, 500); wBetEl.innerText = wBet; }
-};
-
-document.getElementById('btn-spin-wheel').onclick = () => {
-    if (wSpinning) return;
-    if (balance < wBet) { showMsg(wMsg, 'НЕТ ДЕНЕГ!', 'lose'); return; }
-    wSpinning = true;
-    addBal(-wBet);
-    showMsg(wMsg, 'ВРАЩЕНИЕ...');
-
-    const targetIdx = Math.floor(Math.random() * SEG_COUNT);
-
-    const baseTarget = -Math.PI / 2 - targetIdx * ARC - ARC / 2;
-    const fullSpins = (5 + Math.random() * 4) * Math.PI * 2;
-    const finalAngle = baseTarget - fullSpins;
-    let target = finalAngle;
-    while (target >= wAngle) target -= Math.PI * 2;
-
-    const startAngle = wAngle;
-    const delta = target - startAngle;
-    const duration = 5000;
-    const startTime = performance.now();
-
-    function animate(now) {
-        let t = Math.min((now - startTime) / duration, 1);
-        // Quartic ease-out
-        t = 1 - Math.pow(1 - t, 4);
-        const currentAngle = startAngle + delta * t;
-        drawWheel(currentAngle);
-
-        if (t < 1) {
-            requestAnimationFrame(animate);
-        } else {
-            wAngle = target;
-            drawWheel(wAngle);
-            const win = Math.floor(wBet * WSEGS[targetIdx].m);
-            if (win > 0) {
-                addBal(win);
-                showMsg(wMsg, `${WSEGS[targetIdx].label} = +${win} 💰!`, 'win');
-            } else {
-                showMsg(wMsg, `${WSEGS[targetIdx].label} — МИМО 😭`, 'lose');
-            }
-            wSpinning = false;
+// Инициализация графики колеса
+function drawWheel() {
+    const total = WHEEL_SEGMENTS.length;
+    const sliceAngle = 360 / total;
+    
+    // 1. Рисуем фон (CSS Conic Gradient)
+    let gradient = 'conic-gradient(';
+    WHEEL_SEGMENTS.forEach((seg, i) => {
+        gradient += `${seg.color} ${i * sliceAngle}deg ${(i + 1) * sliceAngle}deg, `;
+    });
+    gradient = gradient.slice(0, -2) + ')';
+    wheelSlices.style.background = gradient;
+    
+    // Внутренняя тень для объема
+    wheelSlices.style.boxShadow = 'inset 0 0 40px rgba(0,0,0,0.8)';
+    
+    // 2. Расставляем текст и иконки по кругу
+    wheelItems.innerHTML = '';
+    WHEEL_SEGMENTS.forEach((seg, i) => {
+        // Центр текущего сектора
+        const centerAngle = (i * sliceAngle) + (sliceAngle / 2);
+        
+        const item = document.createElement('div');
+        item.className = 'slice-item';
+        
+        // Магия позиционирования: двигаем в центр, крутим на нужный угол, сдвигаем вверх, и переворачиваем контент обратно, чтобы он смотрел в центр
+        item.style.transform = `translate(-50%, -50%) rotate(${centerAngle}deg) translateY(-110px) rotate(180deg)`;
+        
+        // На телефонах колесо меньше, поэтому поднимаем текст не так высоко
+        if(window.innerWidth >= 768) {
+             item.style.transform = `translate(-50%, -50%) rotate(${centerAngle}deg) translateY(-160px) rotate(180deg)`;
         }
+
+        item.innerHTML = `
+            <span class="material-symbols-outlined text-2xl md:text-3xl mb-1 text-white/90 drop-shadow-md">${seg.icon}</span>
+            <span class="text-xs md:text-sm tracking-wider">${seg.label}</span>
+        `;
+        wheelItems.appendChild(item);
+    });
+}
+
+// Запускаем отрисовку
+drawWheel();
+window.addEventListener('resize', drawWheel); // Перерисовываем при смене размера экрана
+
+// Логика вращения
+btnSpinWheel.onclick = () => {
+    if (isWheelSpinning) return;
+    
+    if (typeof balance !== 'undefined' && balance < wheelBet) { 
+        if(typeof showMsg === 'function') showMsg(wheelMsg, 'НЕТ ДЕНЕГ!', 'lose'); 
+        return; 
     }
-    requestAnimationFrame(animate);
+
+    isWheelSpinning = true;
+    if(typeof addBal === 'function') addBal(-wheelBet);
+    if(typeof showMsg === 'function') showMsg(wheelMsg, 'ВРАЩАЕМ...', 'normal');
+    
+    // 1. ВЫБИРАЕМ ПОБЕДИТЕЛЯ (Рандом от 0 до 11)
+    const winIndex = Math.floor(Math.random() * WHEEL_SEGMENTS.length);
+    const winSegment = WHEEL_SEGMENTS[winIndex];
+    
+    // 2. МАТЕМАТИКА ИДЕАЛЬНОЙ ОСТАНОВКИ
+    const sliceAngle = 360 / WHEEL_SEGMENTS.length;
+    // Угол, на котором находится центр выигрышного сектора
+    const centerAngle = (winIndex * sliceAngle) + (sliceAngle / 2);
+    
+    // Сколько нужно прокрутить от 0, чтобы этот сектор оказался ровно вверху (указатель)
+    const rotationToTop = 360 - centerAngle;
+    
+    // Добавляем микро-сдвиг внутри сектора, чтобы не всегда останавливалось ровно по центру (для азарта)
+    const randomOffset = (Math.random() - 0.5) * (sliceAngle - 4); 
+    
+    // Крутим минимум 5 полных кругов + доворот до нужного сектора
+    const extraSpins = (5 + Math.floor(Math.random() * 3)) * 360;
+    
+    // Рассчитываем итоговый угол вращения
+    // Вычитаем currentWheelRotation % 360, чтобы учесть, где колесо стоит сейчас
+    const targetRotation = currentWheelRotation + extraSpins + rotationToTop - (currentWheelRotation % 360) + randomOffset;
+    
+    currentWheelRotation = targetRotation; // Запоминаем для следующего крута
+
+    // 3. ЗАПУСК АНИМАЦИИ (Плавное затухание за 5 секунд)
+    wheelRing.style.transition = 'transform 5s cubic-bezier(0.15, 0.85, 0.25, 1)';
+    wheelRing.style.transform = `rotate(${currentWheelRotation}deg)`;
+
+    // 4. ВЫДАЧА ПРИЗА ПОСЛЕ ОСТАНОВКИ
+    setTimeout(() => {
+        const winAmount = Math.floor(wheelBet * winSegment.mult);
+        
+        if (winAmount > 0) {
+            if(typeof addBal === 'function') addBal(winAmount);
+            if(typeof showMsg === 'function') showMsg(wheelMsg, `ПОБЕДА! +${winAmount} 💰`, 'win');
+            
+            // Крутой эффект: если выпал x10, мигаем кнопкой
+            if(winSegment.mult >= 3) {
+                wheelMsg.classList.add('shadow-[0_0_40px_rgba(234,179,8,1)]');
+                setTimeout(() => wheelMsg.classList.remove('shadow-[0_0_40px_rgba(234,179,8,1)]'), 2000);
+            }
+        } else {
+            if(typeof showMsg === 'function') showMsg(wheelMsg, 'МИМО...', 'lose');
+        }
+        
+        isWheelSpinning = false;
+    }, 5000); // Таймер строго равен времени transition (5 секунд)
 };
