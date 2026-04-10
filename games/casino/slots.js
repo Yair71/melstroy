@@ -5,20 +5,20 @@
 
 // Массив с твоими топовыми картинками
 const SLOT_SYMBOLS = [
-    'games/casino/assest/neon-banana.png',
-    'games/casino/assest/neon-cherries.png',
-    'games/casino/assest/neon-grapes.png',
-    'games/casino/assest/neon-greenapple.png',
-    'games/casino/assest/neon-kick.png',
-    'games/casino/assest/neon-lemon.png',
-    'games/casino/assest/neon-lol.png',
-    'games/casino/assest/neon-lychee.png',
-    'games/casino/assest/neon-orange.png',
-    'games/casino/assest/neon-peach.png',
-    'games/casino/assest/neon-pineapple.png',
-    'games/casino/assest/neon-strawberry.png',
-    'games/casino/assest/neon-watermelon.png',
-    'games/casino/assest/adultsonly-neon.png'
+    'assest/neon-banana.png',
+    'assest/neon-cherries.png',
+    'assest/neon-grapes.png',
+    'assest/neon-greenapple.png',
+    'assest/neon-kick.png',
+    'assest/neon-lemon.png',
+    'assest/neon-lol.png',
+    'assest/neon-lychee.png',
+    'assest/neon-orange.png',
+    'assest/neon-peach.png',
+    'assest/neon-pineapple.png',
+    'assest/neon-strawberry.png',
+    'assest/neon-watermelon.png',
+    'assest/adultsonly-neon.png'
 ];
 
 let slotBet = 10;
