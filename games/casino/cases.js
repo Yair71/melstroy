@@ -229,12 +229,12 @@ const CASES = [
         id: 'case_5000', name: 'VIP КИТ', cost: 5000, img: 'img.png',
         accent: '#ef4444', accentGlow: 'rgba(239,68,68,0.3)',
         payouts: [
-            { mult: 0.3, prob: 0.60, rarity: 'consumer', name: 'Боль', itemImg: 'consumer5000.png' },
-            { mult: 0.6, prob: 0.25, rarity: 'industrial', name: 'Слезы', itemImg: 'industrial5000.png' },
-            { mult: 0.8, prob: 0.10, rarity: 'milspec', name: 'Надежда', itemImg: 'milspec5000.png' },
-            { mult: 2.0, prob: 0.03, rarity: 'restricted', name: 'Радость', itemImg: 'restricted5000.png' },
-            { mult: 5.0, prob: 0.015, rarity: 'classified', name: 'Эйфория', itemImg: 'classified5000.png' },
-            { mult: 50.0, prob: 0.005, rarity: 'gold', name: 'БАЛИК МЕЛЛСТРОЯ', itemImg: 'gold5000.png' }
+            { mult: 0.3, prob: 0.60, rarity: 'consumer', name: 'Боль', itemImg: 'assest/consumer5000.png' },
+            { mult: 0.6, prob: 0.25, rarity: 'industrial', name: 'Слезы', itemImg: 'assest/industrial5000.png' },
+            { mult: 0.8, prob: 0.10, rarity: 'milspec', name: 'Надежда', itemImg: 'assest/milspec5000.png' },
+            { mult: 2.0, prob: 0.03, rarity: 'restricted', name: 'Радость', itemImg: 'assest/restricted5000.png' },
+            { mult: 5.0, prob: 0.015, rarity: 'classified', name: 'Эйфория', itemImg: 'assest/classified5000.png' },
+            { mult: 50.0, prob: 0.005, rarity: 'gold', name: 'БАЛИК МЕЛЛСТРОЯ', itemImg: 'assest/gold5000.png' }
         ]
     }
 ];
