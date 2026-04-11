@@ -195,7 +195,7 @@ const CASES = [
         payouts: [
             { mult: 0.3, prob: 0.45, rarity: 'consumer', name: 'Слив', itemImg: 'assest/consumer250.png' },
             { mult: 0.6, prob: 0.25, rarity: 'industrial', name: 'Утешение', itemImg: 'assest/industrial250.png' },
-            { mult: 0.8, prob: 0.15, rarity: 'milspec', name: 'Почти', itemImg: 'assest/imilspec250.png' },
+            { mult: 0.8, prob: 0.15, rarity: 'milspec', name: 'Почти', itemImg: 'assest/milspec250.png' },
             { mult: 2.0, prob: 0.10, rarity: 'restricted', name: 'Х2 ОКУП', itemImg: 'assest/restricted250.png' },
             { mult: 5.0, prob: 0.03, rarity: 'classified', name: 'ПУШКА', itemImg: 'assest/classified250.png' },
             { mult: 25.0, prob: 0.02, rarity: 'gold', name: 'МЕЛСТРОЙ', itemImg: 'assest/gold250.png' }
