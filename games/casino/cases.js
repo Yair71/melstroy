@@ -182,10 +182,10 @@ const CASES = [
         accent: '#3b82f6', accentGlow: 'rgba(59,130,246,0.3)',
         payouts: [
             { mult: 0.3, prob: 0.40, rarity: 'consumer', name: 'Дешевка', itemImg: 'assest/consumer100.png' },
-            { mult: 0.5, prob: 0.25, rarity: 'industrial', name: 'Бронза', itemImg: 'assest/industrial100.png' },
-            { mult: 0.8, prob: 0.20, rarity: 'milspec', name: 'Серебро', itemImg: 'assest/milspec100.png' },
-            { mult: 2.0, prob: 0.10, rarity: 'restricted', name: 'Золото', itemImg: 'assest/restricted100.png' },
-            { mult: 5.0, prob: 0.04, rarity: 'classified', name: 'Алмаз', itemImg: 'assest/classified100.png' },
+            { mult: 0.5, prob: 0.25, rarity: 'industrial', name: 'Лох', itemImg: 'assest/industrial100.png' },
+            { mult: 0.8, prob: 0.20, rarity: 'milspec', name: 'Терпила', itemImg: 'assest/milspec100.png' },
+            { mult: 2.0, prob: 0.10, rarity: 'restricted', name: 'Счастливчик', itemImg: 'assest/restricted100.png' },
+            { mult: 5.0, prob: 0.04, rarity: 'classified', name: 'Сияние', itemImg: 'assest/classified100.png' },
             { mult: 20.0, prob: 0.01, rarity: 'gold', name: 'ДЖЕКПОТ', itemImg: 'assest/gold100.png' }
         ]
     },
@@ -205,11 +205,11 @@ const CASES = [
         id: 'case_500', name: 'ЛУДОМАН', cost: 500, img: 'img.png',
         accent: '#ec4899', accentGlow: 'rgba(236,72,153,0.3)',
         payouts: [
-            { mult: 0.3, prob: 0.50, rarity: 'consumer', name: 'Хлам', itemImg: 'assest/consumer500.png' },
-            { mult: 0.6, prob: 0.25, rarity: 'industrial', name: 'Керамика', itemImg: 'assest/industrial500.png' },
-            { mult: 0.8, prob: 0.10, rarity: 'milspec', name: 'Стекло', itemImg: 'assest/milspec500.png' },
-            { mult: 2.0, prob: 0.08, rarity: 'restricted', name: 'Железо', itemImg: 'assest/restricted500.png' },
-            { mult: 5.0, prob: 0.04, rarity: 'classified', name: 'Титан', itemImg: 'assest/classified500.png' },
+            { mult: 0.3, prob: 0.50, rarity: 'consumer', name: 'Огрызки', itemImg: 'assest/consumer500.png' },
+            { mult: 0.6, prob: 0.25, rarity: 'industrial', name: 'Бюджетка', itemImg: 'assest/industrial500.png' },
+            { mult: 0.8, prob: 0.10, rarity: 'milspec', name: 'Пустышка', itemImg: 'assest/milspec500.png' },
+            { mult: 2.0, prob: 0.08, rarity: 'restricted', name: 'Работяга', itemImg: 'assest/restricted500.png' },
+            { mult: 5.0, prob: 0.04, rarity: 'classified', name: 'Элитка', itemImg: 'assest/classified500.png' },
             { mult: 30.0, prob: 0.03, rarity: 'gold', name: 'АРТЕФАКТ', itemImg: 'assest/gold500.png' }
         ]
     },
@@ -217,12 +217,12 @@ const CASES = [
         id: 'case_1000', name: 'МЕЛСТРОЙ', cost: 1000, img: 'img.png',
         accent: '#eab308', accentGlow: 'rgba(234,179,8,0.3)',
         payouts: [
-            { mult: 0.3, prob: 0.55, rarity: 'consumer', name: 'Свинец', itemImg: 'assest/consumer1000.png' },
+            { mult: 0.3, prob: 0.55, rarity: 'consumer', name: 'Биомусор', itemImg: 'assest/consumer1000.png' },
             { mult: 0.6, prob: 0.25, rarity: 'industrial', name: 'Ржавчина', itemImg: 'assest/industrial1000.png' },
-            { mult: 0.8, prob: 0.10, rarity: 'milspec', name: 'Сталь', itemImg: 'assest/milspec1000.png' },
-            { mult: 2.0, prob: 0.05, rarity: 'restricted', name: 'Хром', itemImg: 'assest/restricted1000.png' },
-            { mult: 5.0, prob: 0.03, rarity: 'classified', name: 'Керамбит', itemImg: 'assest/classified1000.png' },
-            { mult: 40.0, prob: 0.02, rarity: 'gold', name: 'DRAGON LORE', itemImg: 'assest/gold1000.png' }
+            { mult: 0.8, prob: 0.10, rarity: 'milspec', name: 'Массовка', itemImg: 'assest/milspec1000.png' },
+            { mult: 2.0, prob: 0.05, rarity: 'restricted', name: 'Козырь', itemImg: 'assest/restricted1000.png' },
+            { mult: 5.0, prob: 0.03, rarity: 'classified', name: 'Хайпожор', itemImg: 'assest/classified1000.png' },
+            { mult: 40.0, prob: 0.02, rarity: 'gold', name: 'LORE', itemImg: 'assest/gold1000.png' }
         ]
     },
     {
@@ -234,7 +234,7 @@ const CASES = [
             { mult: 0.8, prob: 0.10, rarity: 'milspec', name: 'Надежда', itemImg: 'assest/milspec5000.png' },
             { mult: 2.0, prob: 0.03, rarity: 'restricted', name: 'Радость', itemImg: 'assest/restricted5000.png' },
             { mult: 5.0, prob: 0.015, rarity: 'classified', name: 'Эйфория', itemImg: 'assest/classified5000.png' },
-            { mult: 50.0, prob: 0.005, rarity: 'gold', name: 'БАЛИК МЕЛЛСТРОЯ', itemImg: 'assest/gold5000.png' }
+            { mult: 50.0, prob: 0.005, rarity: 'gold', name: 'ULTRA FLEX', itemImg: 'assest/gold5000.png' }
         ]
     }
 ];
