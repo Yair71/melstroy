@@ -1,7 +1,7 @@
 /* ============================================
-   MELL CASINO — cases.js  v4.0
+   MELL CASINO — cases.js  v4.1
    CS:GO-AUTHENTIC CASE OPENER
-   Исправлены анимации, добавлены удобные конфиги картинок и шансов
+   Фикс: Исправлено отображение рулетки (перебиваем inline style из HTML)
    ============================================ */
 
 // ── STYLE INJECTION ──────────────────────────────────────────
@@ -262,8 +262,11 @@ const caseContents = document.getElementById('case-contents');
 const btnOpenCase = document.getElementById('btn-open-case');
 const priceDisplay = document.getElementById('case-price-display');
 
-// Обновление верстки контейнеров (если нужно)
-if (spinnerBox) spinnerBox.className = 'spinner-wrapper-v3 hidden';
+// Обновление верстки контейнеров (Используем style.display для перекрытия HTML)
+if (spinnerBox) {
+    spinnerBox.className = 'spinner-wrapper-v3'; 
+    spinnerBox.style.display = 'none'; // ФИКС: Жестко прячем блок при загрузке
+}
 if (caseContents) caseContents.className = 'contents-grid-v3';
 if (btnOpenCase) btnOpenCase.className = 'btn-open-v3';
 
@@ -307,8 +310,8 @@ function renderCasesList() {
             renderContents();
             updatePrice();
             
-            // Сбрасываем спиннер и показываем сетку дропов
-            if (spinnerBox) spinnerBox.classList.add('hidden');
+            // ФИКС: Сбрасываем рулетку и показываем сетку дропов
+            if (spinnerBox) spinnerBox.style.display = 'none';
             if (caseContents) caseContents.style.display = 'grid';
             
             // Заголовок над сеткой
@@ -393,11 +396,11 @@ function openCasesAction() {
     if (btnOpenCase) btnOpenCase.disabled = true;
     if (typeof addBal === 'function') addBal(-currentCase.cost); // Снимаем деньги
 
-    // Скрываем список лута, показываем рулетку
+    // ФИКС: Скрываем список лута, показываем рулетку через style.display
     const header = document.getElementById('contents-header-id');
     if(header) header.style.display = 'none';
     if (caseContents) caseContents.style.display = 'none';
-    if (spinnerBox) spinnerBox.classList.remove('hidden');
+    if (spinnerBox) spinnerBox.style.display = 'block';
 
     const strip = spStripV3 || document.getElementById('sp-strip');
     if (!strip) { isCaseSpinning = false; return; }
@@ -424,9 +427,8 @@ function openCasesAction() {
         strip.appendChild(itemEl);
     }
 
-    // 🚀 МАГИЯ ФИКСА АНИМАЦИИ: Принудительный рефлоу (Forced Reflow)
-    // Это заставляет браузер "запомнить" стартовую позицию translateX(0px)
-    // ДО того как мы повесим класс с transition и новую позицию.
+    // 🚀 МАГИЯ ФИКСА АНИМАЦИИ: Принудительный рефлоу теперь точно сработает, 
+    // потому что блок стал видимым благодаря spinnerBox.style.display = 'block'.
     void strip.offsetWidth; 
 
     // Высчитываем, куда должна прокрутиться лента
