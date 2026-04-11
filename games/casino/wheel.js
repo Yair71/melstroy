@@ -1,5 +1,5 @@
 /* ============================================
-   MELL CASINO — wheel.js (MEGA 24-SEGMENT & SMART RNG)
+   MELL CASINO — wheel.js (PROFITABLE RNG & NEAR-MISS)
    ============================================ */
 
 // Инъекция критических стилей для апгрейда колеса (обход кэша)
@@ -50,38 +50,39 @@ if (!document.getElementById(styleId)) {
     if (gameWheelBlock) gameWheelBlock.appendChild(style);
 }
 
-// 24 Сектора: Чем больше X, тем меньше шансов.
+// 24 Сектора: Казино всегда в плюсе. Иксы окружены нулями для тильта!
+// 14x0, 6x0.5, 2x2, 1x5, 1x10
 const WHEEL_SEGMENTS = [
     { mult: 0,   color: '#111111', label: 'LOSE', icon: 'close' },
-    { mult: 0.5, color: '#312e81', label: 'x0.5', icon: 'trending_down' },
-    { mult: 0,   color: '#1a1a1a', label: 'LOSE', icon: 'close' },
-    { mult: 1.2, color: '#166534', label: 'x1.2', icon: 'payments' },
-    { mult: 0,   color: '#111111', label: 'LOSE', icon: 'close' },
-    { mult: 0.5, color: '#312e81', label: 'x0.5', icon: 'trending_down' },
-    { mult: 2,   color: '#1e3a8a', label: 'x2',   icon: 'diamond' },
+    { mult: 10,  color: '#b45309', label: 'x10',  icon: 'star' },            // Окружен нулями
     { mult: 0,   color: '#1a1a1a', label: 'LOSE', icon: 'close' },
     { mult: 0.5, color: '#312e81', label: 'x0.5', icon: 'trending_down' },
     { mult: 0,   color: '#111111', label: 'LOSE', icon: 'close' },
-    { mult: 1.2, color: '#166534', label: 'x1.2', icon: 'payments' },
-    { mult: 5,   color: '#991b1b', label: 'x5',   icon: 'local_fire_department' },
+    { mult: 2,   color: '#1e3a8a', label: 'x2',   icon: 'diamond' },         // Окружен нулями
     { mult: 0,   color: '#1a1a1a', label: 'LOSE', icon: 'close' },
     { mult: 0.5, color: '#312e81', label: 'x0.5', icon: 'trending_down' },
     { mult: 0,   color: '#111111', label: 'LOSE', icon: 'close' },
-    { mult: 1.2, color: '#166534', label: 'x1.2', icon: 'payments' },
     { mult: 0,   color: '#1a1a1a', label: 'LOSE', icon: 'close' },
     { mult: 0.5, color: '#312e81', label: 'x0.5', icon: 'trending_down' },
-    { mult: 2,   color: '#1e3a8a', label: 'x2',   icon: 'diamond' },
     { mult: 0,   color: '#111111', label: 'LOSE', icon: 'close' },
-    { mult: 0.5, color: '#312e81', label: 'x0.5', icon: 'trending_down' },
+    { mult: 5,   color: '#991b1b', label: 'x5',   icon: 'local_fire_department' }, // Окружен нулями
     { mult: 0,   color: '#1a1a1a', label: 'LOSE', icon: 'close' },
-    { mult: 10,  color: '#b45309', label: 'x10',  icon: 'star' },
-    { mult: 0,   color: '#111111', label: 'LOSE', icon: 'close' }
+    { mult: 0.5, color: '#312e81', label: 'x0.5', icon: 'trending_down' },
+    { mult: 0,   color: '#111111', label: 'LOSE', icon: 'close' },
+    { mult: 2,   color: '#1e3a8a', label: 'x2',   icon: 'diamond' },         // Окружен нулями
+    { mult: 0,   color: '#1a1a1a', label: 'LOSE', icon: 'close' },
+    { mult: 0.5, color: '#312e81', label: 'x0.5', icon: 'trending_down' },
+    { mult: 0,   color: '#111111', label: 'LOSE', icon: 'close' },
+    { mult: 0,   color: '#1a1a1a', label: 'LOSE', icon: 'close' },
+    { mult: 0.5, color: '#312e81', label: 'x0.5', icon: 'trending_down' },
+    { mult: 0,   color: '#111111', label: 'LOSE', icon: 'close' },
+    { mult: 0,   color: '#1a1a1a', label: 'LOSE', icon: 'close' }
 ];
 
 let wheelBet = 10;
 let isWheelSpinning = false;
 let currentWheelRotation = 0;
-let spinHistory = []; // Память для анти-стрик системы
+let spinHistory = []; 
 
 const wheelBetEl = document.getElementById('wheel-bet');
 const wheelMsg = document.getElementById('wheel-msg');
@@ -100,7 +101,6 @@ if (btnSpinWheel && wheelRing && wheelSlices && wheelItems) {
         const total = WHEEL_SEGMENTS.length;
         const sliceAngle = 360 / total;
 
-        // Рисуем фон секторов
         let gradient = 'conic-gradient(';
         WHEEL_SEGMENTS.forEach((seg, i) => {
             gradient += `${seg.color} ${i * sliceAngle}deg ${(i + 1) * sliceAngle}deg, `;
@@ -110,24 +110,20 @@ if (btnSpinWheel && wheelRing && wheelSlices && wheelItems) {
 
         wheelItems.innerHTML = '';
         
-        // Динамический расчет радиуса в зависимости от размера экрана
         const containerWidth = document.querySelector('.wf-container').clientWidth;
         const radius = containerWidth / 2;
-        const textOffset = radius * 0.75; // Текст стоит на 75% от центра к краю
+        const textOffset = radius * 0.75; 
 
         WHEEL_SEGMENTS.forEach((seg, i) => {
             const centerAngle = (i * sliceAngle) + (sliceAngle / 2);
             
-            // Добавляем разделители (грани)
             const separator = document.createElement('div');
             separator.className = 'wf-separator';
             separator.style.transform = `translateX(-50%) rotate(${i * sliceAngle}deg)`;
             wheelItems.appendChild(separator);
 
-            // Добавляем контент сектора
             const item = document.createElement('div');
             item.className = 'wf-slice-item';
-            // Текст повернут наружу для удобного чтения
             item.style.transform = `translate(-50%, -50%) rotate(${centerAngle}deg) translateY(-${textOffset}px)`;
 
             let textColor = seg.mult >= 2 ? 'text-yellow-400' : 'text-white/80';
@@ -140,11 +136,9 @@ if (btnSpinWheel && wheelRing && wheelSlices && wheelItems) {
         });
     }
 
-    // Инициализация и ререндеринг при изменении размера окна
     setTimeout(drawWheel, 100); 
     window.addEventListener('resize', drawWheel);
 
-    // Умный рандом: предотвращает бесящие долгие лузстрики
     function getSmartWinIndex() {
         let index;
         let attempts = 0;
@@ -153,17 +147,18 @@ if (btnSpinWheel && wheelRing && wheelSlices && wheelItems) {
             index = Math.floor(Math.random() * WHEEL_SEGMENTS.length);
             let rolledMult = WHEEL_SEGMENTS[index].mult;
             
-            // Если последние 2 спина были ТАКИМ ЖЕ множителем - делаем реролл (до 5 попыток)
-            if (spinHistory.length >= 2 && spinHistory[0] === rolledMult && spinHistory[1] === rolledMult) {
-                attempts++;
-                continue;
+            // Если выпадает крупный икс 2 раза подряд, или LOSE 3 раза подряд - рероллим для баланса
+            if (spinHistory.length >= 2 && rolledMult >= 2 && spinHistory[0] >= 2) {
+                attempts++; continue;
+            }
+            if (spinHistory.length >= 3 && rolledMult === 0 && spinHistory[0] === 0 && spinHistory[1] === 0 && spinHistory[2] === 0) {
+                attempts++; continue;
             }
             break;
         }
         
-        // Обновляем историю
         spinHistory.unshift(WHEEL_SEGMENTS[index].mult);
-        if (spinHistory.length > 3) spinHistory.pop();
+        if (spinHistory.length > 5) spinHistory.pop();
         
         return index;
     }
@@ -189,15 +184,12 @@ if (btnSpinWheel && wheelRing && wheelSlices && wheelItems) {
         const centerAngle = (winIndex * sliceAngle) + (sliceAngle / 2);
         
         const rotationToTop = 360 - centerAngle;
-        // Рандомный отступ, чтобы стрелка не смотрела тупо в центр сектора
         const randomOffset = (Math.random() - 0.5) * (sliceAngle - 4); 
-        // Крутим 6-9 раз для интриги
         const extraSpins = (6 + Math.floor(Math.random() * 4)) * 360; 
         
         const targetRotation = currentWheelRotation + extraSpins + rotationToTop - (currentWheelRotation % 360) + randomOffset;
         currentWheelRotation = targetRotation;
 
-        // Плавная математическая анимация (CSS transition)
         wheelRing.style.transition = 'transform 6.5s cubic-bezier(0.15, 0.9, 0.15, 1)';
         wheelRing.style.transform = `rotate(${currentWheelRotation}deg)`;
 
