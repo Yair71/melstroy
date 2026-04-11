@@ -166,7 +166,7 @@ if (!document.getElementById(caseStyleId)) {
 // ── КОНФИГ КЕЙСОВ И ДРОПОВ (Заполняй своими картинками) ──
 const CASES = [
     {
-        id: 'case_20', name: 'БИЧ ПАКЕТ', cost: 20, img: 'img.png', 
+        id: 'case_20', name: 'БИЧ ПАКЕТ', cost: 20, img: 'first.png', 
         accent: '#6b7280', accentGlow: 'rgba(107,114,128,0.3)',
         payouts: [
             { mult: 0.3, prob: 0.35, rarity: 'consumer', name: 'Мусор', itemImg: 'assest/consumer20.png' },
@@ -178,7 +178,7 @@ const CASES = [
         ]
     },
     {
-        id: 'case_100', name: 'РАБОТЯГА', cost: 100, img: 'img.png',
+        id: 'case_100', name: 'РАБОТЯГА', cost: 100, img: 'sec.png',
         accent: '#3b82f6', accentGlow: 'rgba(59,130,246,0.3)',
         payouts: [
             { mult: 0.3, prob: 0.40, rarity: 'consumer', name: 'Дешевка', itemImg: 'assest/consumer100.png' },
@@ -190,7 +190,7 @@ const CASES = [
         ]
     },
     {
-        id: 'case_250', name: 'ПРЕМИУМ', cost: 250, img: 'img.png',
+        id: 'case_250', name: 'ПРЕМИУМ', cost: 250, img: 'third.png',
         accent: '#a855f7', accentGlow: 'rgba(168,85,247,0.3)',
         payouts: [
             { mult: 0.3, prob: 0.45, rarity: 'consumer', name: 'Слив', itemImg: 'assest/consumer250.png' },
@@ -202,7 +202,7 @@ const CASES = [
         ]
     },
     {
-        id: 'case_500', name: 'ЛУДОМАН', cost: 500, img: 'img.png',
+        id: 'case_500', name: 'ЛУДОМАН', cost: 500, img: 'four.png',
         accent: '#ec4899', accentGlow: 'rgba(236,72,153,0.3)',
         payouts: [
             { mult: 0.3, prob: 0.50, rarity: 'consumer', name: 'Огрызки', itemImg: 'assest/consumer500.png' },
@@ -214,7 +214,7 @@ const CASES = [
         ]
     },
     {
-        id: 'case_1000', name: 'МЕЛСТРОЙ', cost: 1000, img: 'img.png',
+        id: 'case_1000', name: 'МЕЛСТРОЙ', cost: 1000, img: 'mel.png',
         accent: '#eab308', accentGlow: 'rgba(234,179,8,0.3)',
         payouts: [
             { mult: 0.3, prob: 0.55, rarity: 'consumer', name: 'Биомусор', itemImg: 'assest/consumer1000.png' },
@@ -226,7 +226,7 @@ const CASES = [
         ]
     },
     {
-        id: 'case_5000', name: 'VIP КИТ', cost: 5000, img: 'img.png',
+        id: 'case_5000', name: 'VIP КИТ', cost: 5000, img: 'last.png',
         accent: '#ef4444', accentGlow: 'rgba(239,68,68,0.3)',
         payouts: [
             { mult: 0.3, prob: 0.60, rarity: 'consumer', name: 'Боль', itemImg: 'assest/consumer5000.png' },
