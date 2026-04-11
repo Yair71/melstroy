@@ -1,28 +1,13 @@
 /* ============================================
-   MELL CASINO — cases.js (PRO UPGRADE: FAST OPEN & MULTI)
+   MELL CASINO — cases.js (FIXED: DROPDOWN & REALISTIC SPIN)
    ============================================ */
 
-// 1. Добавляем стили для новых кнопок и анимаций (обход кэша)
+// 1. Безопасная инъекция стилей (чтобы ничего не ломалось)
 const caseStyleId = 'cases-pro-styles';
 if (!document.getElementById(caseStyleId)) {
     const style = document.createElement('style');
     style.id = caseStyleId;
     style.innerHTML = `
-        .case-qty-btn {
-            background: #1c1917; color: #a8a29e; border: 1px solid #292524;
-            border-radius: 8px; padding: 6px 14px; font-size: 0.8rem; font-weight: 800;
-            transition: all 0.2s; box-shadow: inset 0 2px 4px rgba(255,255,255,0.05);
-        }
-        .case-qty-btn.active {
-            background: #9d00ff; color: #fff; border-color: #dfb7ff;
-            box-shadow: 0 0 15px rgba(157,0,255,0.5), inset 0 2px 4px rgba(255,255,255,0.3);
-            transform: translateY(-1px);
-        }
-        #btn-fast-open { transition: all 0.2s; }
-        #btn-fast-open.active {
-            background: rgba(22, 101, 52, 0.8); border-color: #22c55e;
-            box-shadow: 0 0 15px rgba(34,197,94,0.3);
-        }
         .multi-result-item {
             animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
             opacity: 0; transform: scale(0.5);
@@ -40,17 +25,17 @@ if (!document.getElementById(caseStyleId)) {
             z-index: 10;
         }
         .sp-strip-anim {
-            transition: transform 3s cubic-bezier(0.05, 0.9, 0.15, 1); /* Быстрая и резкая прокрутка */
+            /* Реалистичная долгая крутка (7.5 сек) с плавным торможением */
+            transition: transform 7.5s cubic-bezier(0.12, 0.8, 0.15, 1); 
         }
         .sp-strip-instant { transition: none !important; }
         .case-card { cursor: pointer; transition: all 0.2s; }
         .case-card.selected { border-color: #dfb7ff; box-shadow: 0 0 20px rgba(157,0,255,0.4); transform: translateY(-5px); background: rgba(157,0,255,0.1); }
     `;
-    const gameCasesBlock = document.getElementById('game-cases');
-    if (gameCasesBlock) gameCasesBlock.appendChild(style);
+    document.head.appendChild(style);
 }
 
-// 2. Новая база кейсов с твоей математикой
+// 2. Твоя математика (Сбалансированная база кейсов)
 const CASES = [
     {
         id: 'case_20', name: 'БИЧ ПАКЕТ', cost: 20, img: 'assest/melcase.png', color: 'text-stone-400',
@@ -106,8 +91,8 @@ let currentCase = CASES[0];
 let isCaseSpinning = false;
 let currentQty = 1;
 let isFastOpen = false;
-let controlsInjected = false;
 
+// Получаем все нужные элементы DOM
 const caseTiers = document.getElementById('case-tiers');
 const spinnerBox = document.getElementById('spinner-box');
 const spStrip = document.getElementById('sp-strip');
@@ -116,57 +101,59 @@ const btnOpenCase = document.getElementById('btn-open-case');
 const caseMsg = document.getElementById('case-msg');
 const priceDisplay = document.getElementById('case-price-display');
 
-// 3. Инъекция UI элементов для массового/быстрого открытия
-if (btnOpenCase && !controlsInjected) {
-    const btnWrapper = btnOpenCase.parentElement;
+// 3. Безопасное добавление Выпадающего Списка (Dropdown) и Галочки
+if (btnOpenCase && !document.getElementById('pro-controls-container')) {
+    const controlsContainer = document.createElement('div');
+    controlsContainer.id = 'pro-controls-container';
+    controlsContainer.className = 'w-full max-w-lg mx-auto flex flex-col items-center mb-4';
     
-    const proControls = document.createElement('div');
-    proControls.className = 'flex flex-col gap-3 w-full max-w-lg mx-auto mb-4';
-    proControls.innerHTML = `
-        <div class="flex justify-between items-center bg-black/50 p-2 md:p-3 rounded-xl border border-white/10 backdrop-blur-md">
-            <span class="text-[10px] md:text-xs text-stone-400 font-label uppercase ml-2 tracking-widest hidden md:block">Количество:</span>
-            <div class="flex gap-2 mx-auto md:mx-0">
-                <button class="case-qty-btn active" data-qty="1">1</button>
-                <button class="case-qty-btn" data-qty="2">2</button>
-                <button class="case-qty-btn" data-qty="3">3</button>
-                <button class="case-qty-btn" data-qty="5">5</button>
-                <button class="case-qty-btn" data-qty="10">10</button>
+    controlsContainer.innerHTML = `
+        <div class="flex flex-row gap-4 items-center justify-center mb-2 w-full">
+            <div class="flex items-center gap-2 bg-black/60 border border-white/10 rounded-xl px-3 py-2 backdrop-blur-sm">
+                <span class="text-[10px] md:text-xs text-stone-400 font-label uppercase tracking-widest">Кейсов:</span>
+                <select id="case-qty-select" class="bg-transparent text-white font-bold outline-none text-sm cursor-pointer">
+                    <option value="1" class="bg-stone-900">1 шт.</option>
+                    <option value="2" class="bg-stone-900">2 шт.</option>
+                    <option value="3" class="bg-stone-900">3 шт.</option>
+                    <option value="5" class="bg-stone-900">5 шт.</option>
+                    <option value="10" class="bg-stone-900">10 шт.</option>
+                </select>
             </div>
+            
+            <label class="flex items-center gap-2 cursor-pointer bg-black/60 border border-white/10 rounded-xl px-3 py-2 backdrop-blur-sm hover:bg-white/5 transition-colors">
+                <input type="checkbox" id="fast-open-checkbox" class="w-4 h-4 accent-green-500 cursor-pointer">
+                <span class="text-[10px] md:text-xs text-stone-300 font-label uppercase tracking-widest">Фаст Опен</span>
+            </label>
         </div>
-        <button id="btn-fast-open" class="text-[10px] md:text-xs text-stone-400 uppercase font-bold p-3 border border-stone-800 rounded-xl bg-stone-900/80 hover:bg-stone-800 transition-colors tracking-widest flex items-center justify-center gap-2">
-            <span class="material-symbols-outlined text-[16px] md:text-[20px]">bolt</span> МГНОВЕННОЕ ОТКРЫТИЕ: <span id="fast-open-state" class="text-red-500 drop-shadow-[0_0_8px_rgba(239,68,68,0.8)]">ВЫКЛ</span>
-        </button>
-        <div id="multi-case-results" class="flex flex-wrap justify-center gap-2 min-h-[10px] mt-2"></div>
+        <div id="multi-case-results" class="flex flex-wrap justify-center gap-2 min-h-[10px] w-full"></div>
     `;
     
-    btnWrapper.insertBefore(proControls, btnOpenCase);
-    controlsInjected = true;
+    // Вставляем аккуратно перед кнопкой открытия
+    btnOpenCase.parentNode.insertBefore(controlsContainer, btnOpenCase);
 
-    // Ивенты для новых кнопок
-    document.querySelectorAll('.case-qty-btn').forEach(btn => {
-        btn.onclick = (e) => {
-            if(isCaseSpinning) return;
-            document.querySelectorAll('.case-qty-btn').forEach(b => b.classList.remove('active'));
-            e.target.classList.add('active');
-            currentQty = parseInt(e.target.getAttribute('data-qty'));
+    // Слушатель для выпадающего списка
+    const qtySelect = document.getElementById('case-qty-select');
+    if(qtySelect) {
+        qtySelect.addEventListener('change', (e) => {
+            if(isCaseSpinning) {
+                e.target.value = currentQty; // Блокируем изменение во время крутки
+                return;
+            }
+            currentQty = parseInt(e.target.value);
             if(priceDisplay) priceDisplay.innerText = currentCase.cost * currentQty;
-        }
-    });
+        });
+    }
 
-    document.getElementById('btn-fast-open').onclick = (e) => {
-        if(isCaseSpinning) return;
-        isFastOpen = !isFastOpen;
-        const btn = document.getElementById('btn-fast-open');
-        const stateText = document.getElementById('fast-open-state');
-        if(isFastOpen) {
-            btn.classList.add('active');
-            stateText.innerText = 'ВКЛ';
-            stateText.className = 'text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.8)]';
-        } else {
-            btn.classList.remove('active');
-            stateText.innerText = 'ВЫКЛ';
-            stateText.className = 'text-red-500 drop-shadow-[0_0_8px_rgba(239,68,68,0.8)]';
-        }
+    // Слушатель для галочки Фаст Опен
+    const fastCheckbox = document.getElementById('fast-open-checkbox');
+    if(fastCheckbox) {
+        fastCheckbox.addEventListener('change', (e) => {
+            if(isCaseSpinning) {
+                e.target.checked = isFastOpen; // Блокируем изменение во время крутки
+                return;
+            }
+            isFastOpen = e.target.checked;
+        });
     }
 }
 
@@ -190,13 +177,12 @@ function renderCasesList() {
             const multiRes = document.getElementById('multi-case-results');
             if(multiRes) multiRes.innerHTML = ''; 
             if(spinnerBox) spinnerBox.style.display = 'none';
-            if(caseContents) caseContents.style.display = 'grid'; // Возвращаем демо лута
+            if(caseContents) caseContents.style.display = 'grid'; 
         };
         caseTiers.appendChild(el);
     });
 }
 
-// Умный рандом на основе шансов
 function getRandomPayout(payouts) {
     let totalProb = payouts.reduce((sum, p) => sum + p.prob, 0);
     let rand = Math.random() * totalProb;
@@ -208,7 +194,7 @@ function getRandomPayout(payouts) {
     return payouts[payouts.length - 1];
 }
 
-// 5. Логика открытия (Крутка + Фаст Опен)
+// 5. Логика крутки
 function openCasesAction() {
     if (isCaseSpinning) return;
     const totalCost = currentCase.cost * currentQty;
@@ -237,22 +223,21 @@ function openCasesAction() {
     }
 
     if (isFastOpen) {
-        // МГНОВЕННОЕ ОТКРЫТИЕ
+        // МГНОВЕННОЕ ОТКРЫТИЕ (Скипаем анимацию)
         if(spinnerBox) spinnerBox.style.display = 'none';
         finishOpening(wins, totalWinAmt, true);
     } else {
-        // ОБЫЧНАЯ КРУТКА (Быстрая, 3 секунды)
+        // РЕАЛИСТИЧНАЯ КРУТКА
         if(spinnerBox) spinnerBox.style.display = 'block';
         spStrip.style.transition = 'none';
         spStrip.style.transform = 'translateX(0px)';
         spStrip.innerHTML = '';
 
-        const totalItems = 45; 
-        const winIndex = 40; // Предмет-победитель
-        const ITEM_WIDTH = 124; // 120px + margin
+        const totalItems = 75; // Генерируем много предметов для долгой крутки
+        const winIndex = 65;   // Приз выпадает ближе к концу ленты
+        const ITEM_WIDTH = 124; 
 
         for(let i = 0; i < totalItems; i++) {
-            // Для выигрышного слота берем первый результат из массива wins
             let p = (i === winIndex) ? wins[0] : getRandomPayout(currentCase.payouts);
             let itemEl = document.createElement('div');
             itemEl.className = 'w-[120px] h-[120px] flex-shrink-0 flex flex-col items-center justify-center p-2 mx-[2px] bg-stone-950 border border-white/5 rounded-xl relative overflow-hidden shadow-inner';
@@ -267,9 +252,9 @@ function openCasesAction() {
             spStrip.appendChild(itemEl);
         }
 
-        // Запуск анимации с небольшой задержкой для рендера
+        // Запуск реалистичной анимации
         setTimeout(() => {
-            const containerWidth = spinnerBox.clientWidth; 
+            const containerWidth = spinnerBox.clientWidth || 300; 
             const centerOffset = containerWidth / 2;
             const randomStop = (Math.random() - 0.5) * 80; 
             
@@ -279,22 +264,20 @@ function openCasesAction() {
             spStrip.classList.add('sp-strip-anim');
             spStrip.style.transform = `translateX(-${targetX}px)`;
 
-            // РОВНО ЧЕРЕЗ 3 СЕКУНДЫ МОМЕНТАЛЬНО РАЗБЛОКИРУЕМ КНОПКУ
+            // Возвращаем долгую задержку для интриги (7.5 секунд)
             setTimeout(() => {
                 const winEl = document.getElementById('win-item-el');
                 if(winEl) winEl.classList.add('case-item-glow');
                 finishOpening(wins, totalWinAmt, false);
-            }, 3000); 
+            }, 7500); 
 
         }, 50);
     }
 }
 
-// Завершение открытия: выдача бабок и отрисовка остальных кейсов
 function finishOpening(wins, totalWinAmt, isInstant) {
     if(typeof addBal === 'function') addBal(totalWinAmt);
     
-    // Эмоции Мелстроя в зависимости от икса
     const maxMult = Math.max(...wins.map(w => w.mult));
     if (maxMult >= 10) {
         if(typeof showMsg === 'function') showMsg(caseMsg, `ЛЕГЕНДАРНЫЙ ЗАНОС! +${totalWinAmt} 💰`, 'win');
@@ -306,13 +289,10 @@ function finishOpening(wins, totalWinAmt, isInstant) {
         if(typeof showMsg === 'function') showMsg(caseMsg, `БРИТЬЕ... +${totalWinAmt} 💰`, 'normal');
     }
 
-    // Если открыли больше 1 кейса ИЛИ включен Fast Open — показываем результаты снизу
     if (currentQty > 1 || isInstant) {
         const multiRes = document.getElementById('multi-case-results');
         if(multiRes) {
             multiRes.innerHTML = '';
-            // Если была анимация, первый кейс уже в рулетке, поэтому показываем остальные (со 2-го). 
-            // Если фаст опен - показываем все.
             const startIndex = isInstant ? 0 : 1; 
             
             for (let i = startIndex; i < wins.length; i++) {
@@ -320,7 +300,7 @@ function finishOpening(wins, totalWinAmt, isInstant) {
                 let el = document.createElement('div');
                 el.className = 'multi-result-item flex flex-col items-center justify-center p-2 rounded-lg border w-[60px] md:w-[80px] shadow-lg';
                 el.style.borderColor = w.color;
-                el.style.animationDelay = `${(i - startIndex) * 0.05}s`; // Красивое поочередное появление
+                el.style.animationDelay = `${(i - startIndex) * 0.05}s`; 
                 
                 let glow = w.mult >= 5 ? `box-shadow: 0 0 15px ${w.color}80;` : '';
                 el.style = `border-color: ${w.color}; animation-delay: ${(i - startIndex) * 0.05}s; ${glow}`;
@@ -334,16 +314,12 @@ function finishOpening(wins, totalWinAmt, isInstant) {
         }
     }
     
-    // МОМЕНТАЛЬНЫЙ АНЛОК. Можно сразу жать "Открыть" еще раз.
     isCaseSpinning = false;
 }
 
 // Инициализация
 renderCasesList();
 if(btnOpenCase) {
-    // Удаляем старые листенеры и вешаем новый
-    const newBtn = btnOpenCase.cloneNode(true);
-    btnOpenCase.parentNode.replaceChild(newBtn, btnOpenCase);
-    newBtn.onclick = openCasesAction;
+    btnOpenCase.onclick = openCasesAction; // Надежное присвоение без дубликатов
 }
 if(priceDisplay) priceDisplay.innerText = currentCase.cost;
