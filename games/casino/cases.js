@@ -1,263 +1,349 @@
 /* ============================================
-   MELL CASINO — cases.js v3.0 (PRO CS:GO STYLE)
+   MELL CASINO — cases.js (PRO UPGRADE: FAST OPEN & MULTI)
    ============================================ */
 
-const TIERS = [
+// 1. Добавляем стили для новых кнопок и анимаций (обход кэша)
+const caseStyleId = 'cases-pro-styles';
+if (!document.getElementById(caseStyleId)) {
+    const style = document.createElement('style');
+    style.id = caseStyleId;
+    style.innerHTML = `
+        .case-qty-btn {
+            background: #1c1917; color: #a8a29e; border: 1px solid #292524;
+            border-radius: 8px; padding: 6px 14px; font-size: 0.8rem; font-weight: 800;
+            transition: all 0.2s; box-shadow: inset 0 2px 4px rgba(255,255,255,0.05);
+        }
+        .case-qty-btn.active {
+            background: #9d00ff; color: #fff; border-color: #dfb7ff;
+            box-shadow: 0 0 15px rgba(157,0,255,0.5), inset 0 2px 4px rgba(255,255,255,0.3);
+            transform: translateY(-1px);
+        }
+        #btn-fast-open { transition: all 0.2s; }
+        #btn-fast-open.active {
+            background: rgba(22, 101, 52, 0.8); border-color: #22c55e;
+            box-shadow: 0 0 15px rgba(34,197,94,0.3);
+        }
+        .multi-result-item {
+            animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+            opacity: 0; transform: scale(0.5);
+            background: linear-gradient(135deg, rgba(20,20,20,0.9), rgba(10,10,10,0.9));
+        }
+        @keyframes popIn {
+            to { opacity: 1; transform: scale(1); }
+        }
+        .case-item-glow {
+            box-shadow: 0 0 30px rgba(234,179,8,0.8) !important;
+            border-color: #facc15 !important;
+            background: rgba(133,77,14,0.3) !important;
+            transform: scale(1.05);
+            transition: all 0.2s;
+            z-index: 10;
+        }
+        .sp-strip-anim {
+            transition: transform 3s cubic-bezier(0.05, 0.9, 0.15, 1); /* Быстрая и резкая прокрутка */
+        }
+        .sp-strip-instant { transition: none !important; }
+        .case-card { cursor: pointer; transition: all 0.2s; }
+        .case-card.selected { border-color: #dfb7ff; box-shadow: 0 0 20px rgba(157,0,255,0.4); transform: translateY(-5px); background: rgba(157,0,255,0.1); }
+    `;
+    const gameCasesBlock = document.getElementById('game-cases');
+    if (gameCasesBlock) gameCasesBlock.appendChild(style);
+}
+
+// 2. Новая база кейсов с твоей математикой
+const CASES = [
     {
-        name:'Бронза', icon:'🥉', price:20,
-        items:[
-            { label:'5 💰',   prize:5,   chance:0.35, rarity:'common' },
-            { label:'10 💰',  prize:10,  chance:0.28, rarity:'common' },
-            { label:'20 💰',  prize:20,  chance:0.20, rarity:'uncommon' },
-            { label:'40 💰',  prize:40,  chance:0.10, rarity:'rare' },
-            { label:'80 💰',  prize:80,  chance:0.05, rarity:'epic' },
-            { label:'150 💰', prize:150, chance:0.02, rarity:'legendary' },
+        id: 'case_20', name: 'БИЧ ПАКЕТ', cost: 20, img: 'assest/melcase.png', color: 'text-stone-400',
+        payouts: [
+            {mult: 0.3, prob: 0.35, color: '#94a3b8'}, {mult: 0.6, prob: 0.30, color: '#94a3b8'},
+            {mult: 0.9, prob: 0.20, color: '#38bdf8'}, {mult: 1.5, prob: 0.10, color: '#c084fc'},
+            {mult: 3.0, prob: 0.04, color: '#f472b6'}, {mult: 10.0, prob: 0.01, color: '#facc15'}
         ]
     },
     {
-        name:'Серебро', icon:'🥈', price:50,
-        items:[
-            { label:'10 💰',  prize:10,  chance:0.28, rarity:'common' },
-            { label:'30 💰',  prize:30,  chance:0.27, rarity:'common' },
-            { label:'50 💰',  prize:50,  chance:0.22, rarity:'uncommon' },
-            { label:'100 💰', prize:100, chance:0.13, rarity:'rare' },
-            { label:'200 💰', prize:200, chance:0.07, rarity:'epic' },
-            { label:'500 💰', prize:500, chance:0.03, rarity:'legendary' },
+        id: 'case_100', name: 'РАБОТЯГА', cost: 100, img: 'assest/melcase.png', color: 'text-blue-400',
+        payouts: [
+            {mult: 0.3, prob: 0.40, color: '#94a3b8'}, {mult: 0.5, prob: 0.25, color: '#94a3b8'},
+            {mult: 0.8, prob: 0.20, color: '#38bdf8'}, {mult: 2.0, prob: 0.10, color: '#c084fc'},
+            {mult: 5.0, prob: 0.04, color: '#f472b6'}, {mult: 20.0, prob: 0.01, color: '#facc15'}
         ]
     },
     {
-        name:'Золото', icon:'🥇', price:100,
-        items:[
-            { label:'20 💰',   prize:20,   chance:0.26, rarity:'common' },
-            { label:'60 💰',   prize:60,   chance:0.25, rarity:'common' },
-            { label:'100 💰',  prize:100,  chance:0.22, rarity:'uncommon' },
-            { label:'250 💰',  prize:250,  chance:0.14, rarity:'rare' },
-            { label:'500 💰',  prize:500,  chance:0.09, rarity:'epic' },
-            { label:'1000 💰', prize:1000, chance:0.04, rarity:'legendary' },
+        id: 'case_250', name: 'ПРЕМИУМ', cost: 250, img: 'assest/melcase.png', color: 'text-purple-400',
+        payouts: [
+            {mult: 0.3, prob: 0.45, color: '#94a3b8'}, {mult: 0.6, prob: 0.25, color: '#94a3b8'},
+            {mult: 0.8, prob: 0.15, color: '#38bdf8'}, {mult: 2.0, prob: 0.10, color: '#c084fc'},
+            {mult: 5.0, prob: 0.05, color: '#f472b6'}, {mult: 25.0, prob: 0.03, color: '#facc15'}
         ]
     },
     {
-        name:'Платина', icon:'💠', price:250,
-        items:[
-            { label:'50 💰',   prize:50,   chance:0.24, rarity:'common' },
-            { label:'150 💰',  prize:150,  chance:0.24, rarity:'common' },
-            { label:'250 💰',  prize:250,  chance:0.22, rarity:'uncommon' },
-            { label:'500 💰',  prize:500,  chance:0.15, rarity:'rare' },
-            { label:'1000 💰', prize:1000, chance:0.10, rarity:'epic' },
-            { label:'2500 💰', prize:2500, chance:0.05, rarity:'legendary' },
+        id: 'case_500', name: 'ЛУДОМАН', cost: 500, img: 'assest/melcase.png', color: 'text-pink-400',
+        payouts: [
+            {mult: 0.3, prob: 0.50, color: '#94a3b8'}, {mult: 0.6, prob: 0.25, color: '#94a3b8'},
+            {mult: 0.8, prob: 0.10, color: '#38bdf8'}, {mult: 2.0, prob: 0.08, color: '#c084fc'},
+            {mult: 5.0, prob: 0.04, color: '#f472b6'}, {mult: 30.0, prob: 0.03, color: '#facc15'}
         ]
     },
     {
-        name:'Алмаз', icon:'💎', price:500,
-        items:[
-            { label:'100 💰',  prize:100,  chance:0.22, rarity:'common' },
-            { label:'300 💰',  prize:300,  chance:0.24, rarity:'common' },
-            { label:'500 💰',  prize:500,  chance:0.22, rarity:'uncommon' },
-            { label:'1000 💰', prize:1000, chance:0.16, rarity:'rare' },
-            { label:'2500 💰', prize:2500, chance:0.10, rarity:'epic' },
-            { label:'5000 💰', prize:5000, chance:0.06, rarity:'legendary' },
+        id: 'case_1000', name: 'МЕЛСТРОЙ', cost: 1000, img: 'assest/melcase.png', color: 'text-yellow-400',
+        payouts: [
+            {mult: 0.3, prob: 0.55, color: '#94a3b8'}, {mult: 0.6, prob: 0.25, color: '#94a3b8'},
+            {mult: 0.8, prob: 0.10, color: '#38bdf8'}, {mult: 2.0, prob: 0.05, color: '#c084fc'},
+            {mult: 5.0, prob: 0.03, color: '#f472b6'}, {mult: 40.0, prob: 0.02, color: '#facc15'}
         ]
     },
     {
-        name:'MELL VIP', icon:'👑', price:1000,
-        items:[
-            { label:'200 💰',   prize:200,   chance:0.20, rarity:'common' },
-            { label:'500 💰',   prize:500,   chance:0.22, rarity:'uncommon' },
-            { label:'1000 💰',  prize:1000,  chance:0.22, rarity:'uncommon' },
-            { label:'2500 💰',  prize:2500,  chance:0.18, rarity:'rare' },
-            { label:'5000 💰',  prize:5000,  chance:0.12, rarity:'epic' },
-            { label:'10000 💰', prize:10000, chance:0.06, rarity:'legendary' },
+        id: 'case_5000', name: 'VIP КИТ', cost: 5000, img: 'assest/melcase.png', color: 'text-red-500',
+        payouts: [
+            {mult: 0.3, prob: 0.60, color: '#94a3b8'}, {mult: 0.6, prob: 0.25, color: '#94a3b8'},
+            {mult: 0.8, prob: 0.10, color: '#38bdf8'}, {mult: 2.0, prob: 0.03, color: '#c084fc'},
+            {mult: 5.0, prob: 0.015, color: '#f472b6'}, {mult: 50.0, prob: 0.005, color: '#facc15'}
         ]
-    },
+    }
 ];
 
-// Цвета редкости (HEX для теней, Tailwind для текста)
-const RARITY_COLORS = {
-    common: { hex: '#78716c', text: 'text-stone-400' },     // Серый
-    uncommon: { hex: '#3b82f6', text: 'text-blue-400' },    // Синий
-    rare: { hex: '#a855f7', text: 'text-purple-400' },      // Фиолетовый
-    epic: { hex: '#ef4444', text: 'text-red-500' },         // Красный
-    legendary: { hex: '#facc15', text: 'text-yellow-400' }  // Золотой
-};
+let currentCase = CASES[0];
+let isCaseSpinning = false;
+let currentQty = 1;
+let isFastOpen = false;
+let controlsInjected = false;
 
-let selTier = 0, caseSpinning = false;
-const caseTiersEl = document.getElementById('case-tiers');
-const caseContents = document.getElementById('case-contents');
-const caseMsg = document.getElementById('case-msg');
+const caseTiers = document.getElementById('case-tiers');
 const spinnerBox = document.getElementById('spinner-box');
 const spStrip = document.getElementById('sp-strip');
-const casePriceDisplay = document.getElementById('case-price-display');
+const caseContents = document.getElementById('case-contents');
+const btnOpenCase = document.getElementById('btn-open-case');
+const caseMsg = document.getElementById('case-msg');
+const priceDisplay = document.getElementById('case-price-display');
 
-// 1. Отрисовка кнопок выбора кейсов
-function renderTiers() {
-    caseTiersEl.innerHTML = '';
-    TIERS.forEach((t, i) => {
-        const d = document.createElement('div');
-        const isSel = i === selTier;
-        
-        // Tailwind классы для красивой кнопки
-        d.className = `flex flex-col items-center justify-center p-3 w-[100px] md:w-[120px] rounded-xl border-2 transition-all cursor-pointer bg-stone-900/80 hover:bg-stone-800 ${
-            isSel ? 'border-primary shadow-[0_0_20px_rgba(157,0,255,0.4)] scale-105' : 'border-white/5 opacity-60 hover:opacity-100'
-        }`;
-        
-        d.innerHTML = `
-            <span class="text-3xl mb-1 drop-shadow-md">${t.icon}</span>
-            <span class="font-headline font-bold text-white text-xs md:text-sm text-center truncate w-full">${t.name}</span>
-            <span class="font-label text-yellow-500 text-xs font-bold">${t.price} 💰</span>
-        `;
-        
-        d.onclick = () => {
-            if (caseSpinning) return;
-            selTier = i;
-            renderTiers(); // Перерисовываем для обновления стилей
-            renderContents(i);
-            casePriceDisplay.innerText = t.price;
-            spinnerBox.style.display = 'none';
-            caseContents.style.display = 'grid';
-        };
-        caseTiersEl.appendChild(d);
+// 3. Инъекция UI элементов для массового/быстрого открытия
+if (btnOpenCase && !controlsInjected) {
+    const btnWrapper = btnOpenCase.parentElement;
+    
+    const proControls = document.createElement('div');
+    proControls.className = 'flex flex-col gap-3 w-full max-w-lg mx-auto mb-4';
+    proControls.innerHTML = `
+        <div class="flex justify-between items-center bg-black/50 p-2 md:p-3 rounded-xl border border-white/10 backdrop-blur-md">
+            <span class="text-[10px] md:text-xs text-stone-400 font-label uppercase ml-2 tracking-widest hidden md:block">Количество:</span>
+            <div class="flex gap-2 mx-auto md:mx-0">
+                <button class="case-qty-btn active" data-qty="1">1</button>
+                <button class="case-qty-btn" data-qty="2">2</button>
+                <button class="case-qty-btn" data-qty="3">3</button>
+                <button class="case-qty-btn" data-qty="5">5</button>
+                <button class="case-qty-btn" data-qty="10">10</button>
+            </div>
+        </div>
+        <button id="btn-fast-open" class="text-[10px] md:text-xs text-stone-400 uppercase font-bold p-3 border border-stone-800 rounded-xl bg-stone-900/80 hover:bg-stone-800 transition-colors tracking-widest flex items-center justify-center gap-2">
+            <span class="material-symbols-outlined text-[16px] md:text-[20px]">bolt</span> МГНОВЕННОЕ ОТКРЫТИЕ: <span id="fast-open-state" class="text-red-500 drop-shadow-[0_0_8px_rgba(239,68,68,0.8)]">ВЫКЛ</span>
+        </button>
+        <div id="multi-case-results" class="flex flex-wrap justify-center gap-2 min-h-[10px] mt-2"></div>
+    `;
+    
+    btnWrapper.insertBefore(proControls, btnOpenCase);
+    controlsInjected = true;
+
+    // Ивенты для новых кнопок
+    document.querySelectorAll('.case-qty-btn').forEach(btn => {
+        btn.onclick = (e) => {
+            if(isCaseSpinning) return;
+            document.querySelectorAll('.case-qty-btn').forEach(b => b.classList.remove('active'));
+            e.target.classList.add('active');
+            currentQty = parseInt(e.target.getAttribute('data-qty'));
+            if(priceDisplay) priceDisplay.innerText = currentCase.cost * currentQty;
+        }
     });
-}
 
-// 2. Отрисовка "Что внутри"
-function renderContents(idx) {
-    const tier = TIERS[idx];
-    caseContents.innerHTML = '';
-    
-    tier.items.forEach(item => {
-        const color = RARITY_COLORS[item.rarity];
-        const card = document.createElement('div');
-        
-        card.className = 'case-content-card flex flex-col items-center justify-center p-4 rounded-xl relative overflow-hidden transition-transform hover:scale-105';
-        card.style.setProperty('--rarity-hex', color.hex);
-        
-        card.innerHTML = `
-            <div class="text-2xl font-black ${color.text} mb-1 drop-shadow-[0_0_8px_var(--rarity-hex)] z-10">${item.label}</div>
-            <div class="text-[10px] text-stone-500 font-label uppercase tracking-widest z-10">Шанс: ${(item.chance*100).toFixed(0)}%</div>
-            <div class="absolute bottom-0 left-1/2 -translate-x-1/2 w-full h-1/2 opacity-20 blur-xl pointer-events-none" style="background-color: ${color.hex}"></div>
-        `;
-        caseContents.appendChild(card);
-    });
-}
-
-renderTiers();
-renderContents(0);
-casePriceDisplay.innerText = TIERS[0].price;
-
-function pickItem(idx) {
-    const items = TIERS[idx].items;
-    const r = Math.random();
-    let c = 0;
-    for (const item of items) { c += item.chance; if (r < c) return item; }
-    return items[items.length - 1];
-}
-
-// Размеры карточек в рулетке
-function getSpinnerItemSize() {
-    const vw = window.innerWidth;
-    if (vw < 380) return { w: 80, gap: 4 };
-    if (vw < 600) return { w: 100, gap: 6 };
-    return { w: 120, gap: 8 };
-}
-
-// 3. Логика вращения рулетки
-document.getElementById('btn-open-case').onclick = () => {
-    if (caseSpinning) return;
-    const tier = TIERS[selTier];
-    
-    if (typeof balance !== 'undefined' && balance < tier.price) { 
-        if(typeof showMsg === 'function') showMsg(caseMsg, 'НЕТ ДЕНЕГ!', 'lose'); 
-        return; 
-    }
-    
-    caseSpinning = true;
-    if(typeof addBal === 'function') addBal(-tier.price);
-    if(typeof showMsg === 'function') showMsg(caseMsg, 'ОТКРЫВАЕМ...', 'normal');
-
-    const winItem = pickItem(selTier);
-    const TOTAL = 60;
-    const WIN_POS = 50; // Предмет-победитель будет 50-м по счету
-    const itemList = [];
-    
-    // Заполняем ленту случайным мусором, а на позицию WIN_POS ставим победителя
-    for (let i = 0; i < TOTAL; i++) {
-        if (i === WIN_POS) {
-            itemList.push(winItem);
+    document.getElementById('btn-fast-open').onclick = (e) => {
+        if(isCaseSpinning) return;
+        isFastOpen = !isFastOpen;
+        const btn = document.getElementById('btn-fast-open');
+        const stateText = document.getElementById('fast-open-state');
+        if(isFastOpen) {
+            btn.classList.add('active');
+            stateText.innerText = 'ВКЛ';
+            stateText.className = 'text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.8)]';
         } else {
-            itemList.push(tier.items[Math.floor(Math.random() * tier.items.length)]);
+            btn.classList.remove('active');
+            stateText.innerText = 'ВЫКЛ';
+            stateText.className = 'text-red-500 drop-shadow-[0_0_8px_rgba(239,68,68,0.8)]';
         }
     }
+}
 
-    const { w: ITEM_W, gap: ITEM_GAP } = getSpinnerItemSize();
-    const ITEM_TOTAL = ITEM_W + ITEM_GAP;
-
-    spStrip.innerHTML = '';
-    spStrip.style.gap = ITEM_GAP + 'px';
-
-    // Создаем DOM-элементы для ленты
-    itemList.forEach((item, i) => {
-        const color = RARITY_COLORS[item.rarity];
+// 4. Отрисовка списка кейсов
+function renderCasesList() {
+    if(!caseTiers) return;
+    caseTiers.innerHTML = '';
+    CASES.forEach((c) => {
         const el = document.createElement('div');
-        
-        el.className = 'sp-item shrink-0';
-        el.id = i === WIN_POS ? 'sp-winner-item' : '';
-        el.style.width = ITEM_W + 'px';
-        el.style.height = (ITEM_W * 1.1) + 'px'; // Карточки чуть вытянуты
-        el.style.setProperty('--rarity-hex', color.hex);
-        
-        const valText = item.label.split(' ')[0];
+        el.className = `case-card flex flex-col items-center bg-black/40 border border-white/10 rounded-2xl p-4 w-[100px] md:w-36 ${currentCase.id === c.id ? 'selected' : 'hover:border-white/30'}`;
         el.innerHTML = `
-            <span class="${color.text} font-black drop-shadow-[0_0_5px_var(--rarity-hex)]" style="font-size:${Math.max(14, ITEM_W/4)}px">${valText}</span>
-            <span class="text-sm mt-1 text-yellow-500">💰</span>
+            <img src="${c.img}" class="w-14 h-14 md:w-20 md:h-20 object-contain drop-shadow-[0_0_15px_rgba(255,255,255,0.1)] mb-2">
+            <span class="text-[9px] md:text-xs font-label font-bold uppercase tracking-widest ${c.color} text-center leading-tight mb-1 h-8 flex items-center justify-center">${c.name}</span>
+            <span class="text-white font-headline font-black text-sm md:text-base">${c.cost} 💰</span>
         `;
-        spStrip.appendChild(el);
+        el.onclick = () => {
+            if(isCaseSpinning) return;
+            currentCase = c;
+            renderCasesList();
+            if(priceDisplay) priceDisplay.innerText = currentCase.cost * currentQty;
+            const multiRes = document.getElementById('multi-case-results');
+            if(multiRes) multiRes.innerHTML = ''; 
+            if(spinnerBox) spinnerBox.style.display = 'none';
+            if(caseContents) caseContents.style.display = 'grid'; // Возвращаем демо лута
+        };
+        caseTiers.appendChild(el);
     });
+}
 
-    // Прячем сетку содержимого, показываем рулетку
-    caseContents.style.display = 'none';
-    spinnerBox.style.display = 'block';
+// Умный рандом на основе шансов
+function getRandomPayout(payouts) {
+    let totalProb = payouts.reduce((sum, p) => sum + p.prob, 0);
+    let rand = Math.random() * totalProb;
+    let accum = 0;
+    for (let p of payouts) {
+        accum += p.prob;
+        if (rand <= accum) return p;
+    }
+    return payouts[payouts.length - 1];
+}
 
-    // Рассчитываем точную позицию остановки (чтобы победитель был ровно по центру)
-    const vpCenter = spinnerBox.offsetWidth / 2;
-    // Добавляем рандомный микро-сдвиг, чтобы останавливалось не ровно по центру пиксель-в-пиксель, а чуть реалистичнее
-    const randomOffset = (Math.random() * (ITEM_W - 10)) - (ITEM_W / 2 - 5); 
-    const targetOffset = (WIN_POS * ITEM_TOTAL) + (ITEM_W / 2) - vpCenter + randomOffset;
+// 5. Логика открытия (Крутка + Фаст Опен)
+function openCasesAction() {
+    if (isCaseSpinning) return;
+    const totalCost = currentCase.cost * currentQty;
+    
+    if (typeof balance !== 'undefined' && balance < totalCost) {
+        if(typeof showMsg === 'function') showMsg(caseMsg, 'БРО, У ТЕБЯ НЕТ БАБОК!', 'lose');
+        return;
+    }
 
-    const duration = 6000; // 6 секунд кручения
-    const startTime = performance.now();
+    isCaseSpinning = true;
+    if(typeof addBal === 'function') addBal(-totalCost);
+    if(typeof showMsg === 'function') showMsg(caseMsg, 'ОТКРЫВАЕМ...', 'normal');
+    
+    const multiRes = document.getElementById('multi-case-results');
+    if(multiRes) multiRes.innerHTML = '';
+    if(caseContents) caseContents.style.display = 'none';
 
-    function animateSpinner(now) {
-        let t = Math.min((now - startTime) / duration, 1);
-        // Кастомное замедление (easeOutQuint) - очень реалистичное торможение
-        const eased = 1 - Math.pow(1 - t, 5); 
-        const currentOffset = targetOffset * eased;
-        
-        spStrip.style.transform = `translate3d(-${currentOffset}px, 0, 0)`;
+    // Генерируем результаты
+    let wins = [];
+    let totalWinAmt = 0;
+    for(let i = 0; i < currentQty; i++) {
+        let winObj = getRandomPayout(currentCase.payouts);
+        let winAmt = Math.floor(currentCase.cost * winObj.mult);
+        wins.push({ ...winObj, amount: winAmt });
+        totalWinAmt += winAmt;
+    }
 
-        if (t < 1) {
-            requestAnimationFrame(animateSpinner);
-        } else {
-            // Остановка
-            spStrip.style.transform = `translate3d(-${targetOffset}px, 0, 0)`;
-            const winEl = document.getElementById('sp-winner-item');
-            if (winEl) winEl.classList.add('sp-winner');
+    if (isFastOpen) {
+        // МГНОВЕННОЕ ОТКРЫТИЕ
+        if(spinnerBox) spinnerBox.style.display = 'none';
+        finishOpening(wins, totalWinAmt, true);
+    } else {
+        // ОБЫЧНАЯ КРУТКА (Быстрая, 3 секунды)
+        if(spinnerBox) spinnerBox.style.display = 'block';
+        spStrip.style.transition = 'none';
+        spStrip.style.transform = 'translateX(0px)';
+        spStrip.innerHTML = '';
 
+        const totalItems = 45; 
+        const winIndex = 40; // Предмет-победитель
+        const ITEM_WIDTH = 124; // 120px + margin
+
+        for(let i = 0; i < totalItems; i++) {
+            // Для выигрышного слота берем первый результат из массива wins
+            let p = (i === winIndex) ? wins[0] : getRandomPayout(currentCase.payouts);
+            let itemEl = document.createElement('div');
+            itemEl.className = 'w-[120px] h-[120px] flex-shrink-0 flex flex-col items-center justify-center p-2 mx-[2px] bg-stone-950 border border-white/5 rounded-xl relative overflow-hidden shadow-inner';
+            
+            itemEl.innerHTML = `
+                <div class="absolute inset-0 opacity-20" style="background: radial-gradient(circle, ${p.color} 0%, transparent 70%)"></div>
+                <img src="${currentCase.img}" class="w-14 h-14 object-contain drop-shadow-md z-10 mb-1 opacity-90" />
+                <span class="text-sm font-black z-10 tracking-widest drop-shadow-md" style="color: ${p.color}">${p.mult}x</span>
+                <span class="text-[10px] text-stone-400 font-bold z-10 mt-1">${Math.floor(currentCase.cost * p.mult)} 💰</span>
+            `;
+            if(i === winIndex) itemEl.id = 'win-item-el';
+            spStrip.appendChild(itemEl);
+        }
+
+        // Запуск анимации с небольшой задержкой для рендера
+        setTimeout(() => {
+            const containerWidth = spinnerBox.clientWidth; 
+            const centerOffset = containerWidth / 2;
+            const randomStop = (Math.random() - 0.5) * 80; 
+            
+            const targetX = (winIndex * ITEM_WIDTH) + (ITEM_WIDTH / 2) - centerOffset + randomStop;
+            
+            spStrip.classList.remove('sp-strip-instant');
+            spStrip.classList.add('sp-strip-anim');
+            spStrip.style.transform = `translateX(-${targetX}px)`;
+
+            // РОВНО ЧЕРЕЗ 3 СЕКУНДЫ МОМЕНТАЛЬНО РАЗБЛОКИРУЕМ КНОПКУ
             setTimeout(() => {
-                if(typeof addBal === 'function') addBal(winItem.prize);
-                if(typeof showMsg === 'function') showMsg(caseMsg, `ВЫПАЛО: +${winItem.prize} 💰!`, 'win');
+                const winEl = document.getElementById('win-item-el');
+                if(winEl) winEl.classList.add('case-item-glow');
+                finishOpening(wins, totalWinAmt, false);
+            }, 3000); 
 
-                // Возвращаемся к сетке
-                setTimeout(() => {
-                    caseSpinning = false;
-                    spinnerBox.style.display = 'none';
-                    caseContents.style.display = 'grid';
-                    if(typeof showMsg === 'function') showMsg(caseMsg, 'ВЫБЕРИ КЕЙС', 'normal');
-                }, 3000); // 3 секунды любуемся выигрышем
-            }, 300);
+        }, 50);
+    }
+}
+
+// Завершение открытия: выдача бабок и отрисовка остальных кейсов
+function finishOpening(wins, totalWinAmt, isInstant) {
+    if(typeof addBal === 'function') addBal(totalWinAmt);
+    
+    // Эмоции Мелстроя в зависимости от икса
+    const maxMult = Math.max(...wins.map(w => w.mult));
+    if (maxMult >= 10) {
+        if(typeof showMsg === 'function') showMsg(caseMsg, `ЛЕГЕНДАРНЫЙ ЗАНОС! +${totalWinAmt} 💰`, 'win');
+        caseMsg.classList.add('shadow-[0_0_40px_rgba(250,204,21,1)]');
+        setTimeout(() => caseMsg.classList.remove('shadow-[0_0_40px_rgba(250,204,21,1)]'), 2000);
+    } else if (maxMult >= 2) {
+        if(typeof showMsg === 'function') showMsg(caseMsg, `ОКУП! +${totalWinAmt} 💰`, 'win');
+    } else {
+        if(typeof showMsg === 'function') showMsg(caseMsg, `БРИТЬЕ... +${totalWinAmt} 💰`, 'normal');
+    }
+
+    // Если открыли больше 1 кейса ИЛИ включен Fast Open — показываем результаты снизу
+    if (currentQty > 1 || isInstant) {
+        const multiRes = document.getElementById('multi-case-results');
+        if(multiRes) {
+            multiRes.innerHTML = '';
+            // Если была анимация, первый кейс уже в рулетке, поэтому показываем остальные (со 2-го). 
+            // Если фаст опен - показываем все.
+            const startIndex = isInstant ? 0 : 1; 
+            
+            for (let i = startIndex; i < wins.length; i++) {
+                let w = wins[i];
+                let el = document.createElement('div');
+                el.className = 'multi-result-item flex flex-col items-center justify-center p-2 rounded-lg border w-[60px] md:w-[80px] shadow-lg';
+                el.style.borderColor = w.color;
+                el.style.animationDelay = `${(i - startIndex) * 0.05}s`; // Красивое поочередное появление
+                
+                let glow = w.mult >= 5 ? `box-shadow: 0 0 15px ${w.color}80;` : '';
+                el.style = `border-color: ${w.color}; animation-delay: ${(i - startIndex) * 0.05}s; ${glow}`;
+                
+                el.innerHTML = `
+                    <span class="text-[10px] md:text-xs font-black tracking-widest drop-shadow-md" style="color:${w.color}">${w.mult}x</span>
+                    <span class="text-white text-[9px] md:text-xs font-bold mt-1">${w.amount}</span>
+                `;
+                multiRes.appendChild(el);
+            }
         }
     }
     
-    // Сброс позиции перед началом
-    spStrip.style.transform = `translate3d(0, 0, 0)`;
-    requestAnimationFrame(animateSpinner);
-};
+    // МОМЕНТАЛЬНЫЙ АНЛОК. Можно сразу жать "Открыть" еще раз.
+    isCaseSpinning = false;
+}
+
+// Инициализация
+renderCasesList();
+if(btnOpenCase) {
+    // Удаляем старые листенеры и вешаем новый
+    const newBtn = btnOpenCase.cloneNode(true);
+    btnOpenCase.parentNode.replaceChild(newBtn, btnOpenCase);
+    newBtn.onclick = openCasesAction;
+}
+if(priceDisplay) priceDisplay.innerText = currentCase.cost;
